@@ -430,6 +430,7 @@ function checkWin() {
   if (remainingCount() === 0 && S.vehicles.every(v => v.state === 'gone')) {
     S.over = true;
     if (S.level + 1 > unlocked) { unlocked = Math.min(MAX_LEVEL, S.level + 1); store.set('busGame.unlocked', unlocked); }
+    if (typeof syncSoon === 'function') syncSoon();   // 깬 단계를 서버에도 저장
     sfx('win');
     setTimeout(() => showOverlay('win'), 350);
   }

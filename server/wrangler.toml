@@ -1,0 +1,18 @@
+# 멍냥이의 버스여행 서버 설정 (Cloudflare Worker)
+name = "meow-bus-api"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+[vars]
+# 웹 푸시 공개 열쇠 (공개돼도 괜찮아요). 비밀 열쇠는 `wrangler secret put VAPID_PRIVATE` 로 따로 넣어요.
+VAPID_PUBLIC = "BMBMyytakpUuVSzdzYb6B6A2MZs-Y1MiM-TyyUrbVza8ROCRuOSWtZRqmWKRnxk7CDxzEfevcfInudWMo35nGzI"
+VAPID_SUBJECT = "https://a-peaches.github.io/busGame/"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "meowbus"
+database_id = "98e16183-2457-408e-a44c-5f128b86b358"
+
+# 5분마다 하트가 가득 찬 사람에게 알림
+[triggers]
+crons = ["*/5 * * * *"]

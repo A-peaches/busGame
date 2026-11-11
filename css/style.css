@@ -208,3 +208,16 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .card.help ul { padding-left: 18px; margin: 0; }
 .card.help li { font-size: 13px; line-height: 1.5; color: var(--muted); margin-bottom: 2px; }
 .card.help li b { color: var(--ink); }
+/* 친구 버튼 (설명서 버튼 옆) + 선물 도착 빨간 점 */
+#menu > #friendsBtn { position: absolute; left: 62px; bottom: 16px; z-index: 4; }
+#friendsBtn { position: relative; }
+#friendsBtn .dot { display: none; position: absolute; top: 2px; right: 2px; width: 10px; height: 10px; border-radius: 50%; background: #e8768e; border: 1px solid #fff8ec; }
+#friendsBtn.hasDot .dot { display: block; }
+/* 친구 창 */
+.codeRow { display: flex; gap: 6px; align-items: center; justify-content: center; margin: 4px 0 8px; }
+.codeRow .nickInput { margin: 0; padding: 8px 10px; font-size: 16px; }
+.myCode { font-size: 20px; letter-spacing: 2px; color: var(--ink); }
+.btn.mini { width: auto; margin: 0; padding: 7px 12px; font-size: 13px; white-space: nowrap; flex: none; }
+.friendList { max-height: 34vh; overflow-y: auto; margin: 6px 0; }
+.friendRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 2px; border-bottom: 1px dashed #e2d6bf; font-size: 14px; text-align: left; }
+.friendRow small { color: var(--muted); font-size: 11px; }

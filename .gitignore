@@ -1,0 +1,5 @@
+﻿# 서버 작업 파일 (올리지 않아요)
+server/.wrangler/
+server/node_modules/
+.dev.vars
+*.log

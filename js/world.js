@@ -121,6 +121,7 @@ function useHeart() {
   hearts.n--;
   store.set('busGame.hearts', hearts);
   renderHearts();
+  if (typeof syncSoon === 'function') syncSoon();   // 하트가 가득 차는 시각을 서버에 알려 둬요 (가득 차면 폰 알림)
   return true;
 }
 const HEART_SVG = `<svg width="18" height="16" viewBox="0 0 20 18" aria-hidden="true"><path d="M10 17 C4 12.5 1 9.5 1 5.8 C1 3 3.2 1 5.7 1 C7.5 1 9 2 10 3.6 C11 2 12.5 1 14.3 1 C16.8 1 19 3 19 5.8 C19 9.5 16 12.5 10 17Z" fill="#e9899b" stroke="#a8a097" stroke-width="1"/></svg>`;
@@ -202,6 +203,7 @@ function showNickname(first) {
     nickname = v;
     store.set('busGame.nickname', v);
     updateHello();
+    if (typeof syncSoon === 'function') syncSoon();
     hideOverlay();
     if (first && store.get('busGame.geo', null) === null) askLocation();   // 다음으로 위치 동의 묻기
   };
@@ -225,6 +227,7 @@ function showSettings() {
     <div class="seasonPick" id="seasonPick">
       <button data-s="auto">지금 계절</button><button data-s="spring">봄</button><button data-s="summer">여름</button><button data-s="autumn">가을</button><button data-s="winter">겨울</button>
     </div>
+    <div class="setRow"><span>폰 알림 <small>(하트 도착 · 하트 가득)</small></span><label class="switch"><input type="checkbox" id="pushOn"><span></span></label></div>
     <div class="setRow"><span>닉네임 · ${nickname || '없음'}</span>
       <button class="btn alt" id="nickBtn" style="width:auto;margin:0;padding:6px 14px;font-size:14px">변경</button></div>
     <button class="btn alt" id="ovClose">닫기</button>`;
@@ -242,6 +245,12 @@ function showSettings() {
   q('#bgmVol').oninput = e => { settings.bgmVol = e.target.value / 100; saveSettings(); audio(); applyVolumes(); };
   q('#sfxVol').oninput = e => { settings.sfxVol = e.target.value / 100; saveSettings(); audio(); applyVolumes(); };
   q('#sfxVol').onchange = () => sfx('go');   // 크기 미리 듣기
+  // 폰 알림 켜기/끄기 (처음 켤 때 크롬이 알림 권한을 물어봐요)
+  q('#pushOn').checked = typeof pushOn === 'function' && pushOn();
+  q('#pushOn').onchange = async e => {
+    if (e.target.checked) e.target.checked = await enablePush();
+    else await disablePush();
+  };
   q('#ovClose').onclick = () => hideOverlay();
   $('overlay').classList.add('show');
 }

@@ -1,0 +1,47 @@
+-- 멍냥이의 버스여행 데이터베이스 (Cloudflare D1)
+
+-- 사용자: 가입 없이 기기마다 자동으로 만들어지는 계정
+CREATE TABLE IF NOT EXISTS users (
+  id            TEXT PRIMARY KEY,
+  token         TEXT NOT NULL UNIQUE,        -- 기기에만 저장되는 비밀 열쇠
+  code          TEXT NOT NULL UNIQUE,        -- 친구 코드 (예: MEOW-7K2P)
+  nickname      TEXT NOT NULL DEFAULT '',
+  unlocked      INTEGER NOT NULL DEFAULT 1,  -- 열린 단계
+  hearts        INTEGER NOT NULL DEFAULT 5,
+  hearts_t      INTEGER NOT NULL DEFAULT 0,
+  full_at       INTEGER NOT NULL DEFAULT 0,  -- 하트가 가득 차는 시각 (0 = 이미 가득)
+  full_notified INTEGER NOT NULL DEFAULT 1,  -- 가득 참 알림을 보냈는지
+  push          TEXT,                        -- 웹 푸시 구독 정보 (JSON)
+  created       INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS users_full ON users(full_notified, full_at);
+
+-- 친구 (양쪽 방향으로 한 줄씩). last_gift = a가 b에게 마지막으로 하트를 보낸 시각
+CREATE TABLE IF NOT EXISTS friends (
+  a          TEXT NOT NULL,
+  b          TEXT NOT NULL,
+  last_gift  INTEGER NOT NULL DEFAULT 0,
+  created    INTEGER NOT NULL,
+  PRIMARY KEY (a, b)
+);
+
+-- 하트 선물
+CREATE TABLE IF NOT EXISTS gifts (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  from_id  TEXT NOT NULL,
+  to_id    TEXT NOT NULL,
+  at       INTEGER NOT NULL,
+  claimed  INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS gifts_to ON gifts(to_id, claimed);
+
+-- 폰 알림에 띄울 메시지함
+CREATE TABLE IF NOT EXISTS notes (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id  TEXT NOT NULL,
+  title    TEXT NOT NULL,
+  body     TEXT NOT NULL,
+  at       INTEGER NOT NULL,
+  seen     INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS notes_user ON notes(user_id, seen);

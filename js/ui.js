@@ -71,7 +71,8 @@ function renderMap() {
 // =====================================================================
 function updateUI() {
   $('levelLabel').textContent = `${S.level}단계`;
-  $('leftLabel').textContent = `${TIERS[levelTier(S.level)].name} · 남은 승객 ${remainingCount()}명`;
+  $('leftLabel').textContent = `${TIERS[levelTier(S.level)].name} · 남은 승객 ${remainingCount()}명` +
+    (S.shuffle ? ` · 자리 바꾸기까지 ${S.shuffle.left}대` : '');
   $('slotCnt').textContent = S.boost.slot;
   $('liftCnt').textContent = S.boost.lift;
   $('slotBtn').disabled = S.boost.slot <= 0 || S.slotCount >= MAX_SLOTS;
@@ -285,9 +286,15 @@ const HELP_PAGES = [
     </ul>
     <h3>🔄 U턴 버스 (61단계부터)</h3>
     <ul>
-      <li>화살표에 <b>빙글 표시</b>가 있는 버스예요.</li>
+      <li>모서리에 <b>노란 빙글 배지</b>가 붙은 버스예요.</li>
       <li>아무 버스나 <b>누를 때마다 앞뒤 방향이 휙</b> 바뀌어요.</li>
       <li>막혔다면 한 번 더 누르면 반대쪽을 봐요. 나가고 싶은 쪽을 볼 때 누르세요!</li>
+    </ul>
+    <h3>🔁 자리 바꾸기 (81단계부터)</h3>
+    <ul>
+      <li>주차장에서 버스를 <b>몇 대 뺄 때마다</b> 남은 버스들이 <b>새 자리로 다시 주차</b>해요.</li>
+      <li>쉬움은 8대, 어려움은 7대, 매우 어려움 이상은 6대마다예요.</li>
+      <li>위쪽 <b>"자리 바꾸기까지 N대"</b>에 남은 대수가 보여요.</li>
     </ul>`],
   ['💌 친구와 알림', '친구', `<ul>
       <li>왼쪽 아래 <b>친구 버튼</b>에서 내 친구 코드를 보고, 친구 코드를 넣어 친구를 맺어요.</li>

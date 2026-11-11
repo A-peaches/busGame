@@ -51,6 +51,7 @@ function insideBoard(v, cols, rows) {
 const MAX_LEVEL = 100;
 const RAIL_FROM = 31;          // 이 단계부터 "레일 버스" 이벤트가 나와요
 const TURN_FROM = 61;          // 이 단계부터 "U턴 버스" 이벤트가 나와요
+const SHUFFLE_FROM = 81;       // 이 단계부터 "자리 바꾸기" 이벤트: 버스를 몇 대 뺄 때마다 남은 버스가 새로 주차해요
 const TIERS = {
   1: { stars: 1, name: '쉬움' },
   3: { stars: 3, name: '어려움' },
@@ -83,6 +84,51 @@ function levelParams(n) {
   };
 }
 
+// 버스 하나를 아무 데나 (가로 / 세로 / 가끔 대각선)
+function randomPose(len, cols, rows, rng, diagChance) {
+  let base, cx, cy;
+  if (rng() < diagChance && len <= 3) {
+    base = rng() < 0.5 ? Math.PI / 4 : Math.PI * 3 / 4;
+    cx = Math.round(rng() * cols * 2) / 2;
+    cy = Math.round(rng() * rows * 2) / 2;
+  } else if (rng() < 0.5) {
+    base = 0;
+    cx = Math.floor(rng() * cols) + 0.5;
+    cy = Math.floor(rng() * (rows - len + 1)) + len / 2;
+  } else {
+    base = Math.PI / 2;
+    cx = Math.floor(rng() * (cols - len + 1)) + len / 2;
+    cy = Math.floor(rng() * rows) + 0.5;
+  }
+  return { cx, cy, ang: base, len, l: len - 0.14, w: BODY_W };
+}
+
+// 하나씩 빼낼 수 있는 순서를 찾고, 나가는 쪽으로 방향을 정해요.
+// drop=true 면 막혔을 때 버스를 없애고 계속, false 면 null (= 이 배치는 못 써요)
+function extractOrder(list, rng, drop) {
+  let remaining = list.slice();
+  const order = [];
+  while (remaining.length) {
+    const cands = [];
+    for (const v of remaining) {
+      for (const flip of [0, Math.PI]) {
+        const sw = sweepBox({ ...v, ang: v.ang + flip });
+        if (!remaining.some(o => o !== v && overlap(sw, o.body))) cands.push([v, v.ang + flip]);
+      }
+    }
+    if (!cands.length) {
+      if (!drop) return null;
+      remaining.splice(Math.floor(rng() * remaining.length), 1);
+      continue;
+    }
+    const [v, ang] = cands[Math.floor(rng() * cands.length)];
+    v.ang = normAng(ang);
+    order.push(v);
+    remaining = remaining.filter(o => o !== v);
+  }
+  return order;
+}
+
 function genLevel(n) {
   const rng = mulberry32(n * 7919 + 13);
   const P = levelParams(n);
@@ -96,21 +142,7 @@ function genLevel(n) {
     const rl = rng();
     let len = rl < 0.4 ? 2 : rl < 0.74 ? 3 : rl < 0.92 ? 4 : 5;
     if (len > Math.min(cols, rows) - 1) len = 3;
-    let base, cx, cy;
-    if (rng() < P.diagChance && len <= 3) {
-      base = rng() < 0.5 ? Math.PI / 4 : Math.PI * 3 / 4;
-      cx = Math.round(rng() * cols * 2) / 2;
-      cy = Math.round(rng() * rows * 2) / 2;
-    } else if (rng() < 0.5) {
-      base = 0;
-      cx = Math.floor(rng() * cols) + 0.5;
-      cy = Math.floor(rng() * (rows - len + 1)) + len / 2;
-    } else {
-      base = Math.PI / 2;
-      cx = Math.floor(rng() * (cols - len + 1)) + len / 2;
-      cy = Math.floor(rng() * rows) + 0.5;
-    }
-    const v = { cx, cy, ang: base, len, l: len - 0.14, w: BODY_W };
+    const v = randomPose(len, cols, rows, rng, P.diagChance);
     if (!insideBoard(v, cols, rows)) continue;
     v.pack = bodyBox(v, GAP);
     if (placed.some(o => overlap(v.pack, o.pack))) continue;
@@ -118,26 +150,8 @@ function genLevel(n) {
     placed.push(v);
   }
 
-  // 2) 빼낼 수 있는 순서와 방향 정하기
-  let remaining = placed.slice();
-  const order = [];
-  while (remaining.length) {
-    const cands = [];
-    for (const v of remaining) {
-      for (const flip of [0, Math.PI]) {
-        const sw = sweepBox({ ...v, ang: v.ang + flip });
-        if (!remaining.some(o => o !== v && overlap(sw, o.body))) cands.push([v, v.ang + flip]);
-      }
-    }
-    if (!cands.length) {  // 꽉 막혀 아무도 못 나가면 버스 하나를 없앱니다
-      remaining.splice(Math.floor(rng() * remaining.length), 1);
-      continue;
-    }
-    const [v, ang] = cands[Math.floor(rng() * cands.length)];
-    v.ang = normAng(ang);
-    order.push(v);
-    remaining = remaining.filter(o => o !== v);
-  }
+  // 2) 빼낼 수 있는 순서와 방향 정하기 (꽉 막혀 아무도 못 나가면 버스 하나를 없애요)
+  const order = extractOrder(placed, rng, true);
 
   // 색 / 정원 / 미스터리
   const idx = COLORS.map((_, i) => i);
@@ -203,6 +217,7 @@ function startLevel(n) {
     flying: [], boardTimer: 0.6, liftMode: false, over: false, time: 0,
     boost: { slot: levelTier(n) === 5 ? 2 : 1, lift: 1 },   // 별 5개(최고 난이도) 단계는 자리 추가 2개
     tries: allTries[n], rush: 0, treeShake: 0,
+    shuffle: n >= SHUFFLE_FROM ? { every: SHUFFLE_EVERY(n), left: SHUFFLE_EVERY(n), wait: 0, count: 0 } : null,
   };
   g.vehicles.forEach((v, i) => {
     const o = {
@@ -221,12 +236,24 @@ function startLevel(n) {
   for (let k = 0; k < S.ring.length; k++) if (S.waiting.length) S.ring[k] = S.waiting.shift();
   hideOverlay();
   updateUI();
+  // 자리 바꾸기 이벤트를 처음 만나면 안내
+  if (S.shuffle && !store.get('busGame.shuffleSeen', false)) {
+    store.set('busGame.shuffleSeen', true);
+    const card = $('card');
+    card.innerHTML = `<h2>새 이벤트! 자리 바꾸기</h2>
+      <p>주차장에서 버스를 <b>${S.shuffle.every}대</b> 뺄 때마다<br>
+      남은 버스들이 <b>새 자리로 다시 주차</b>해요.<br>
+      위쪽에 남은 대수가 보여요. 잘 보고 골라 주세요!</p>
+      <button class="btn" id="ovOk">알겠어요</button>`;
+    card.querySelector('#ovOk').onclick = () => hideOverlay();
+    $('overlay').classList.add('show');
+  }
   // U턴 이벤트를 처음 만나면 안내
-  if (S.vehicles.some(v => v.turner) && !store.get('busGame.turnSeen', false)) {
+  else if (S.vehicles.some(v => v.turner) && !store.get('busGame.turnSeen', false)) {
     store.set('busGame.turnSeen', true);
     const card = $('card');
     card.innerHTML = `<h2>새 이벤트! U턴 버스</h2>
-      <p>화살표에 <b>빙글 표시</b>가 있는 버스는<br>
+      <p>모서리에 <b>노란 빙글 배지</b>가 붙은 버스는<br>
       아무 버스나 <b>누를 때마다 앞뒤 방향이 바뀌어요</b>.<br>
       나가고 싶은 쪽을 볼 때 눌러 주세요!</p>
       <button class="btn" id="ovOk">알겠어요</button>`;
@@ -274,6 +301,57 @@ function tapRail(i) {
   }
   railStep();
   turnStep();
+}
+
+// ---- 자리 바꾸기 ----
+// 별이 많은 단계일수록 더 자주 (어려움 7대, 매우 어려움 이상 6대, 쉬움 8대마다)
+const SHUFFLE_EVERY = n => levelTier(n) >= 4 ? 6 : levelTier(n) === 3 ? 7 : 8;
+// 주차장에서 버스를 뺄 때 불러요
+function countShuffle() {
+  const sh = S.shuffle;
+  if (!sh) return;
+  if (--sh.left <= 0) { sh.left = sh.every; sh.wait = 0.55; }   // 나가는 버스가 조금 빠진 뒤에
+  updateUI();
+}
+// 남은 버스를 같은 크기 그대로, 하나씩 다 빼낼 수 있는 새 자리에 놓아요
+function rearrange(vs, cols, rows, rng) {
+  const idx = vs.map((_, i) => i).sort((a, b) => vs[b].len - vs[a].len);   // 긴 버스부터
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const placed = [], pos = [];
+    let ok = true;
+    for (const i of idx) {
+      let p = null;
+      for (let tries = 0; tries < 500 && !p; tries++) {
+        const c = randomPose(vs[i].len, cols, rows, rng, 0.2);
+        if (!insideBoard(c, cols, rows)) continue;
+        c.pack = bodyBox(c, GAP);
+        if (placed.some(o => overlap(c.pack, o.pack))) continue;
+        c.body = bodyBox(c);
+        p = c;
+      }
+      if (!p) { ok = false; break; }
+      placed.push(p); pos[i] = p;
+    }
+    if (ok && extractOrder(placed, rng, false)) return pos;
+  }
+  return null;
+}
+function doShuffle() {
+  const vs = S.vehicles.filter(v => v.state === 'parked');
+  if (vs.length < 2) return;
+  const rng = mulberry32((S.level * 7919 + S.shuffle.count * 104729 + (Date.now() & 0xffff)) >>> 0);
+  const pos = rearrange(vs, S.cols, S.rows, rng);
+  if (!pos) return;
+  vs.forEach((v, i) => {
+    const p = pos[i];
+    v.move = { x: v.cx, y: v.cy, a: v.ang, t: 0 };
+    v.cx = p.cx; v.cy = p.cy; v.ang = p.ang;
+    v.body = bodyBox(v);
+    v.bump = null; v.off = 0; v.spin = 0; v.turnLater = false;
+  });
+  S.shuffle.count++;
+  sfx('go');
+  toast('버스들이 자리를 바꿨어요!', 1400);
 }
 
 // ---- U턴 버스 ----

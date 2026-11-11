@@ -72,23 +72,6 @@ function drawVehicle(x, y, a, w, l, colorIdx, hidden, o = {}) {
   } else if (o.arrow) {
     // 크림색 화살표 + 얇은 테두리
     const s = Math.min(l * 0.22, w * 0.7), hw = w * 0.25, sw = w * 0.075, hb = -s + w * 0.2;
-    if (o.turner) {
-      // U턴 버스: 화살표 뒤에 노란 동그라미 + 빙글 화살표 (화살표가 잘 보이도록 먼저 그려요)
-      const r = w * 0.38, k = w * 0.12;
-      ctx.beginPath(); ctx.arc(0, 0, r + w * 0.06, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,250,238,.6)'; ctx.fill();
-      ctx.strokeStyle = '#5a4a3a'; ctx.fillStyle = '#5a4a3a'; ctx.lineWidth = Math.max(1.4, w * 0.07);
-      for (const b of [0, Math.PI]) {          // 반원 화살표 두 개 = 빙글 도는 표시
-        const a0 = b + Math.PI * 0.62, a1 = b + Math.PI * 1.38;
-        ctx.beginPath(); ctx.arc(0, 0, r, a0, a1); ctx.stroke();
-        const hx = Math.cos(a1) * r, hy = Math.sin(a1) * r, t = a1 + Math.PI / 2;
-        ctx.beginPath();
-        ctx.moveTo(hx + Math.cos(t) * k * 1.3, hy + Math.sin(t) * k * 1.3);
-        ctx.lineTo(hx + Math.cos(t + 2.1) * k, hy + Math.sin(t + 2.1) * k);
-        ctx.lineTo(hx + Math.cos(t - 2.1) * k, hy + Math.sin(t - 2.1) * k);
-        ctx.closePath(); ctx.fill();
-      }
-    }
     ctx.beginPath();
     ctx.moveTo(0, -s - w * 0.12); ctx.lineTo(hw, hb); ctx.lineTo(sw, hb); ctx.lineTo(sw, s);
     ctx.lineTo(-sw, s); ctx.lineTo(-sw, hb); ctx.lineTo(-hw, hb); ctx.closePath();
@@ -105,6 +88,29 @@ function drawVehicle(x, y, a, w, l, colorIdx, hidden, o = {}) {
     ctx.font = `700 ${w * (o.seats >= 10 ? 0.4 : 0.48)}px MaruBuri, serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(String(o.seats), 0, 1);
+  }
+  if (o.turner && !hidden) {
+    // U턴 버스: 앞쪽 모서리에 작은 노란 배지 + 빙글 표시 (화살표와 겹치지 않게)
+    ctx.save();
+    ctx.translate(w * 0.46, -l / 2 + w * 0.3);
+    ctx.rotate(-a);
+    const r = w * 0.3;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fillStyle = '#f6dd92'; ctx.fill();
+    ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
+    const ri = r * 0.55, k = r * 0.32;
+    ctx.strokeStyle = '#5a4a3a'; ctx.fillStyle = '#5a4a3a'; ctx.lineWidth = Math.max(1.1, r * 0.17); ctx.lineCap = 'butt';
+    for (const b of [0, Math.PI]) {          // 반원 화살표 두 개 = 빙글
+      const a0 = b + 0.35, a1 = b + Math.PI - 0.55;
+      ctx.beginPath(); ctx.arc(0, 0, ri, a0, a1); ctx.stroke();
+      const hx = Math.cos(a1) * ri, hy = Math.sin(a1) * ri, t = a1 + Math.PI / 2;
+      ctx.beginPath();
+      ctx.moveTo(hx + Math.cos(t) * k * 1.4, hy + Math.sin(t) * k * 1.4);
+      ctx.lineTo(hx + Math.cos(t + 2.1) * k, hy + Math.sin(t + 2.1) * k);
+      ctx.lineTo(hx + Math.cos(t - 2.1) * k, hy + Math.sin(t - 2.1) * k);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
   }
   if (o.capLabel && !hidden) {
     // 주차된 버스: 꼬리 쪽에 작은 숫자로 정원 표시
@@ -451,6 +457,13 @@ function star(x, y, r) {
 }
 
 function vehiclePose(v) {
+  if (v.state === 'parked' && v.move) {      // 자리 바꾸기: 살짝 떠서 새 자리로
+    const m = v.move, e = easeInOut(Math.min(1, m.t)), up = 1 + Math.sin(Math.min(1, m.t) * Math.PI) * 0.15;
+    return {
+      x: L.bx + lerp(m.x, v.cx, e) * L.cs, y: L.by + lerp(m.y, v.cy, e) * L.cs,
+      a: m.a + normAng(v.ang - m.a) * e, w: v.w * L.cs, l: v.l * L.cs, scale: up,
+    };
+  }
   if (v.state === 'parked' || v.state === 'exiting') {
     const a = axes(v.ang);
     const shake = v.shake > 0 ? Math.sin(v.shake * 60) * 3 : 0;

@@ -211,6 +211,7 @@ canvas.addEventListener('pointerdown', e => {
 
 // 주차장 버스를 누르면: 원래 동작 + 레일이 한 칸 움직여요
 function tapVehicle(v) {
+  if (S.vehicles.some(o => o.move) || (S.shuffle && S.shuffle.wait > 0)) return;   // 자리 바꾸는 중엔 잠깐 기다려요
   tapParked(v);
   railStep();
   turnStep();
@@ -244,6 +245,7 @@ function tapParked(v) {
 }
 
 function launch(v, si, lifted) {
+  countShuffle();
   S.slots[si] = v;
   v.slot = si;
   v.bump = null;
@@ -328,7 +330,12 @@ function update(dt) {
   if (!S) return;
   S.time += dt;
 
+  if (S.shuffle && S.shuffle.wait > 0) {
+    S.shuffle.wait -= dt;
+    if (S.shuffle.wait <= 0) { S.shuffle.wait = 0; doShuffle(); updateUI(); }
+  }
   for (const v of S.vehicles) {
+    if (v.move) { v.move.t += dt * 1.6; if (v.move.t >= 1) { v.move = null; revealCheck(false); } }
     if (v.pop < 1) v.pop = Math.min(1, v.pop + dt * 4);
     if (v.shake > 0) v.shake -= dt;
     if (v.spin > 0) v.spin = Math.max(0, v.spin - dt * 3.5);

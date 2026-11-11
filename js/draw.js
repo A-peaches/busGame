@@ -475,6 +475,18 @@ function vehiclePose(v) {
     };
   }
   const p = slotPos(v.slot), s = slotSize(v);
+  if (v.state === 'toSlot' && !v.lifted) {
+    // 찻길을 달려와서(살짝 덜컹덜컹) 칸 앞에서 위로 꺾어 들어가요
+    if (v.t < 0) return { x: -999, y: -999, a: 0, w: s.w, l: s.l, alpha: 0 };
+    const dir = -v.side, x0 = v.side > 0 ? L.W - 8 + s.l * 0.6 : 8 - s.l * 0.6;
+    const xa = p.x - dir * s.w * 0.45, k = 0.66;
+    if (v.t < k) {
+      const u = easeOut(v.t / k);
+      return { x: lerp(x0, xa, u), y: L.roadY + Math.sin(S.time * 38) * 0.7, a: dir * Math.PI / 2, w: s.w, l: s.l };
+    }
+    const u = easeInOut((v.t - k) / (1 - k));
+    return { x: lerp(xa, p.x, u), y: lerp(L.roadY, p.y, u), a: dir * Math.PI / 2 * (1 - u), w: s.w, l: s.l };
+  }
   if (v.state === 'toSlot') {
     const e = easeInOut(v.t), f = v.from;
     const lift = v.lifted ? 1 + Math.sin(v.t * Math.PI) * 0.3 : 1;
@@ -689,11 +701,17 @@ function draw() {
   const list = S.vehicles.filter(v => v.state in order).sort((a, b) => order[a.state] - order[b.state]);
   for (const v of list) {
     const P = vehiclePose(v);
+    if (P.alpha === 0) continue;
     const inSlot = v.state === 'slot' || v.state === 'departing';
+    // 빠져나가는 버스는 주차장 안에서만, 찻길 버스는 정류장 네모 안에서만 보여요 (테두리를 넘지 않게)
+    const clip = v.state === 'exiting' ? [13, L.bTop + 1, L.W - 26, L.bH - 6, 12]
+      : (v.state === 'departing' || (v.state === 'toSlot' && !v.lifted)) ? [8.5, L.sTop - 3.5, L.W - 17, panelH - 1, 13] : null;
+    if (clip) { ctx.save(); rr(...clip); ctx.clip(); }
     drawVehicle(P.x, P.y, P.a, P.w, P.l, v.color, v.hidden, {
-      arrow: !inSlot, turner: v.turner && v.state === 'parked', seats: inSlot ? v.cap - v.filled : null, capLabel: v.state === 'parked' ? v.cap : null,
+      arrow: !inSlot && v.state !== 'toSlot', turner: v.turner && v.state === 'parked', seats: inSlot ? v.cap - v.filled : null, capLabel: v.state === 'parked' ? v.cap : null,
       alpha: P.alpha, scale: P.scale,
     });
+    if (clip) ctx.restore();
   }
   // 떠나는 버스: 신나는 음표 말풍선
   for (const v of S.vehicles) {

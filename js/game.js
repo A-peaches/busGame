@@ -272,6 +272,18 @@ function launch(v, si, lifted) {
   sfx('go');
 }
 
+// 주차장을 빠져나온 버스가 찻길 옆에서 들어와 부릉부릉 달려와서 칸으로 쏙 들어가요
+//   dirx: 빠져나간 방향(오른쪽 +). 오른쪽으로 나갔으면 오른쪽 끝에서 들어와요.
+function startArrive(v, dirx) {
+  const p = slotPos(v.slot);
+  v.side = dirx > 0.3 ? 1 : dirx < -0.3 ? -1 : (p.x < L.W / 2 ? -1 : 1);
+  const x0 = v.side > 0 ? L.W - 8 : 8;
+  v.arrT = 0.5 + Math.abs(x0 - p.x) / (L.W * 1.25);
+  v.state = 'toSlot'; v.lifted = false;
+  v.t = -0.1;              // 아주 잠깐 안 보였다가 (주차장을 돌아 나오는 동안)
+  sfx('vroom');
+}
+
 function useSlotBooster() {
   if (S.boost.slot <= 0 || S.slotCount >= MAX_SLOTS) {
     toast(S.slotCount >= MAX_SLOTS ? '더 이상 늘릴 수 없어요' : '자리 추가를 이미 썼어요');
@@ -347,18 +359,14 @@ function update(dt) {
         v.off = u < 0.45 ? peak * easeOut(u / 0.45) : peak * (1 - easeIn((u - 0.45) / 0.55));
       }
     } else if (v.state === 'exiting') {
-      v.off += dt * 22;
-      if (v.off >= v.exitDist) {
-        const a = axes(v.ang);
-        v.from = {
-          x: L.bx + (v.cx + a.ux * v.off) * L.cs, y: L.by + (v.cy + a.uy * v.off) * L.cs,
-          a: v.ang, w: v.w * L.cs, l: v.l * L.cs,
-        };
-        v.state = 'toSlot';
-        v.t = 0;
-      }
+      // 화살표 방향으로 쭉 빠져서 주차장 테두리 밖으로 완전히 나갈 때까지 달려요
+      v.off += dt * 16;
+      const a = axes(v.ang);
+      const tx = L.bx + (v.cx + a.ux * (v.off - v.l / 2)) * L.cs, ty = L.by + (v.cy + a.uy * (v.off - v.l / 2)) * L.cs;
+      const out = tx < 13 || tx > L.W - 13 || ty < L.bTop + 1 || ty > L.bTop + L.bH - 6;
+      if (out || v.off > v.exitDist + 40) startArrive(v, a.ux);
     } else if (v.state === 'toSlot') {
-      v.t += dt / (v.lifted ? 0.55 : 0.32);
+      v.t += dt / (v.lifted ? 0.55 : v.arrT);
       if (v.t >= 1) { v.t = 1; v.state = 'slot'; }
     } else if (v.state === 'slot') {
       if (v.filled >= v.cap && v.incoming === 0) {

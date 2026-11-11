@@ -290,10 +290,9 @@ function tapRail(i) {
     const si = freeSlot();
     if (si < 0) { toast('대기 칸이 꽉 찼어요!'); sfx('block'); }
     else {
-      const c = railCenter(i), s = railSize(v);
       R.items[i] = null;
-      S.slots[si] = v; v.slot = si; v.state = 'toSlot'; v.t = 0; v.lifted = false;
-      v.from = { x: c.x, y: c.y, a: 0, w: s.w, l: s.l };
+      S.slots[si] = v; v.slot = si;
+      startArrive(v, 0);          // 레일에서 나가 찻길로 들어와요
       sfx('go');
     }
   } else if (v) {

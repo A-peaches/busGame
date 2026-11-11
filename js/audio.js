@@ -78,6 +78,7 @@ function sfx(kind, arg = 0) {
   switch (kind) {
     case 'click':  blip(t); break;                                                            // 뿅 (작고 동그랗게)
     case 'go':     blip(t, 440, 660, 0.05, 0.1, 1300); blip(t + 0.085, 600, 520, 0.045, 0.2, 1100); break;   // 뾰롱 (낮고 부드럽게)
+    case 'vroom':  blip(t, 130, 175, 0.045, 0.14, 650); blip(t + 0.16, 140, 200, 0.04, 0.2, 650); break;   // 부릉부릉 (낮고 작게)
     case 'block':  piano(50, t, 0.2, 0.17, B); piano(49, t + 0.06, 0.25, 0.1, B); break;     // 쿵
     case 'board':  piano(PENTA[arg % PENTA.length], t, 0.12, 0.07, B); break;                 // 폴짝
     case 'depart': [72, 76, 79, 84].forEach((m, i) => piano(m, t + i * 0.07, 0.35, 0.1, B)); break;

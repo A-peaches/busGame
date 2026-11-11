@@ -1,0 +1,240 @@
+// 멍냥이의 버스여행 - 메인 화면 단계 지도, 화면 UI, 팝업, 축하·실패 연출
+// =====================================================================
+//  메인 화면 (단계 지도)
+// =====================================================================
+function showScreen(name) {
+  $('menu').classList.toggle('hidden', name !== 'game' ? false : true);
+  $('game').classList.toggle('hidden', name !== 'game');
+}
+
+function showMenu() {
+  S = null;
+  hideOverlay();
+  showScreen('menu');
+  renderMap();
+  if (typeof updateSky === 'function' && document.getElementById('celestial')) updateSky();
+}
+
+function renderMap() {
+  const scroll = $('mapScroll'), inner = $('mapInner');
+  const W = scroll.clientWidth;
+  if (!W) return;
+  const N = MAX_LEVEL, SP = 104;
+  const H = N * SP + 90;
+  inner.style.height = H + 'px';
+  const amp = Math.min(W * 0.28, 130);
+  const pts = [];
+  for (let i = 0; i < N; i++) pts.push({ x: W / 2 + Math.sin(i * 1.05) * amp, y: H - 60 - i * SP });
+
+  // 구불구불한 시골길 (부드러운 곡선)
+  let d = `M ${pts[0].x} ${H + 20} L ${pts[0].x} ${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    d += ` C ${p1.x + (p2.x - p0.x) / 6} ${p1.y + (p2.y - p0.y) / 6}, ${p2.x - (p3.x - p1.x) / 6} ${p2.y - (p3.y - p1.y) / 6}, ${p2.x} ${p2.y}`;
+  }
+  // (지도와 함께 스크롤되는 나무는 위쪽 페이드 구간에서 반투명하게 보여서 없앴어요.
+  //  나무는 움직이지 않는 배경 들판에만 심어요.)
+  const deco = '';
+  // 흙길: 얇은 회색 테두리 + 바퀴 자국 (겨울엔 눈길)
+  // 길과 나무는 한 번만 그림(이미지)으로 만들어 두어, 스크롤해도 다시 그리지 않아요
+  const road = season === 'winter' ? ['#eef1f4', '#dfe5ea'] : ['#ead6b0', '#d6bf96'];
+  const img = $('mapRoad');
+  img.style.width = W + 'px'; img.style.height = H + 'px';
+  setSvgImage(img, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+    <defs><filter id="wash" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter></defs>
+    <path d="${d}" fill="none" stroke="#a8a097" stroke-width="29.5" stroke-linecap="round"/>
+    <path d="${d}" fill="none" stroke="${road[0]}" stroke-width="27.5" stroke-linecap="round"/>
+    <path d="${d}" fill="none" stroke="${road[1]}" stroke-width="12" stroke-linecap="round" opacity=".55"/>
+    <path d="${d}" fill="none" stroke="${road[0]}" stroke-width="7" stroke-linecap="round"/>
+    ${deco}</svg>`);
+  updateHello();
+
+  inner.querySelectorAll('.node').forEach(n => n.remove());
+  pts.forEach((p, i) => {
+    const n = i + 1;
+    const b = document.createElement('button');
+    b.className = 'node ' + (n < unlocked ? 'done' : n === unlocked ? 'current' : 'locked');
+    b.style.left = p.x + 'px';
+    b.style.top = p.y + 'px';
+    b.innerHTML = n > unlocked ? LOCK_SVG : `${n}<small>${'★'.repeat(TIERS[levelTier(n)].stars)}</small>`;
+    if (n === unlocked) b.innerHTML += BUS_SVG;
+    b.onclick = () => n <= unlocked ? showLevelPopup(n) : toast('앞 단계를 먼저 깨 주세요');
+    inner.appendChild(b);
+  });
+
+  const cur = pts[Math.min(unlocked, N) - 1];
+  scroll.scrollTop = cur.y - scroll.clientHeight * 0.6;
+}
+
+// =====================================================================
+//  화면 UI
+// =====================================================================
+function updateUI() {
+  $('levelLabel').textContent = `${S.level}단계`;
+  $('leftLabel').textContent = `${TIERS[levelTier(S.level)].name} · 남은 승객 ${remainingCount()}명`;
+  $('slotCnt').textContent = S.boost.slot;
+  $('liftCnt').textContent = S.boost.lift;
+  $('slotBtn').disabled = S.boost.slot <= 0 || S.slotCount >= MAX_SLOTS;
+  $('liftBtn').disabled = S.boost.lift <= 0;
+  $('liftBtn').classList.toggle('active', S.liftMode);
+}
+
+let toastTimer = 0;
+function toast(msg, ms = 1400) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+function showOverlay(kind) {
+  const card = $('card');
+  if (kind === 'win') {
+    const tries = S.tries || 1;
+    const all = store.get('busGame.tries', {}); all[S.level] = 0; store.set('busGame.tries', all);   // 다음 도전은 새로 세요
+    card.innerHTML = `<canvas id="celebCv" class="perch" width="600" height="250"></canvas>
+      <h2>축하드립니다!</h2><p><b>${tries}번</b>의 시도로 성공했습니다!</p>
+      ${S.level < MAX_LEVEL ? `<button class="btn" id="ovNext">${S.level + 1}단계로</button>` : '<p><b>100단계를 모두 깼어요! 최고의 버스 기사님!</b></p>'}
+      <button class="btn alt" id="ovMap">메인 메뉴로</button>`;
+    if (S.level < MAX_LEVEL) card.querySelector('#ovNext').onclick = () => { stopCelebration(); tryStart(S.level + 1); };
+    card.querySelector('#ovMap').onclick = () => { stopCelebration(); showMenu(); };
+    $('overlay').classList.add('show');
+    celebrate();
+    return;
+  } else {
+    const canSlot = S.boost.slot > 0 && S.slotCount < MAX_SLOTS;
+    refreshHearts();
+    card.innerHTML = `<canvas id="sadCv" class="perch" width="600" height="250"></canvas>
+      <h2>꽉 막혔어요</h2><p>대기 칸이 가득 차서 더 태울 수 없어요.<br>
+      <small>다시 하기·지도 보기를 누르면 하트가 1개 줄어요</small><br>
+      <span class="heartNow">${HEART_SVG}지금 하트 ${hearts.n}개</span></p>
+      <button class="btn" id="ovSlot" ${canSlot ? '' : 'disabled'}>아이템 사용${canSlot ? ' (자리 +1)' : ' (없음)'}</button>
+      <button class="btn alt" id="ovRetry">다시 하기</button>
+      <button class="btn alt" id="ovMap">지도 보기</button>`;
+    if (canSlot) card.querySelector('#ovSlot').onclick = () => { stopCelebration(); useSlotBooster(); S.over = false; hideOverlay(); };
+    card.querySelector('#ovRetry').onclick = () => {
+      if (!useHeart()) { toast(`하트가 없어요 · ${heartLeft()} 뒤에 1개 충전`, 2200); return; }
+      stopCelebration(); startLevel(S.level);
+    };
+    card.querySelector('#ovMap').onclick = () => { useHeart(); stopCelebration(); showMenu(); };
+    $('overlay').classList.add('show');
+    sadLoop();
+    return;
+  }
+  card.querySelector('#ovMap').onclick = () => showMenu();
+  $('overlay').classList.add('show');
+}
+function hideOverlay() { $('overlay').classList.remove('show'); stopCelebration(); }
+
+// =====================================================================
+//  클리어 축하: 핑크·파랑·노랑·연두 폭죽 + 나팔 부는 강아지와 고양이
+// =====================================================================
+let celebRAF = 0;
+function stopCelebration() {
+  cancelAnimationFrame(celebRAF); celebRAF = 0;
+  const cf = $('confetti'); if (cf) cf.getContext('2d').clearRect(0, 0, cf.width, cf.height);
+}
+function celebrate() {
+  stopCelebration();
+  const cf = $('confetti'), app = $('app');
+  const dpr = window.devicePixelRatio || 1, W = app.clientWidth, H = app.clientHeight;
+  cf.width = W * dpr; cf.height = H * dpr;
+  const fc = cf.getContext('2d'); fc.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const COLS = ['#f4a3bd', '#8dbbe0', '#f6d76b', '#b4dc88', '#fbe0ea'];
+  const parts = [];
+  const burst = (x, y) => {
+    sfx('board', Math.floor(Math.random() * 8));
+    for (let i = 0; i < 64; i++) {
+      const a = Math.random() * Math.PI * 2, v = 140 + Math.random() * 240;
+      parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, life: 1.8 + Math.random() * 0.9, age: 0,
+        c: COLS[i % COLS.length], s: 5 + Math.random() * 5, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 12, round: Math.random() < 0.4 });
+    }
+  };
+  const plan = [0, 0.35, 0.8, 1.3, 1.9, 2.6, 3.4].map(t => ({ t, done: false }));
+  const cc = $('celebCv') ? $('celebCv').getContext('2d') : null;
+  const t0 = performance.now();
+  let last = t0;
+  const frame = () => {
+    const now = performance.now();   // 한 가지 시계만 써요 (기기마다 rAF 시각 기준이 달라도 안전)
+    const T = (now - t0) / 1000, dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+    // 폭죽 터뜨리기
+    for (const p of plan) if (!p.done && T >= p.t) { p.done = true; burst(W * (0.15 + Math.random() * 0.7), H * (0.12 + Math.random() * 0.35)); }
+    fc.clearRect(0, 0, W, H);
+    for (const p of parts) {
+      p.age += dt; p.vy += 260 * dt; p.vx *= 0.985; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+      const a = Math.max(0, 1 - p.age / p.life);
+      if (!a) continue;
+      fc.save(); fc.globalAlpha = a; fc.translate(p.x, p.y); fc.rotate(p.rot); fc.fillStyle = p.c;
+      if (p.round) { fc.beginPath(); fc.arc(0, 0, p.s * 0.6, 0, Math.PI * 2); fc.fill(); }
+      else fc.fillRect(-p.s / 2, -p.s * 0.3, p.s, p.s * 0.6);
+      fc.restore();
+    }
+    // 나팔 부는 고양이와 강아지
+    if (cc) drawTrumpeters(cc, T);
+    if ($('overlay').classList.contains('show')) celebRAF = requestAnimationFrame(frame);
+  };
+  celebRAF = requestAnimationFrame(frame);
+}
+// 나팔 (입에서 바깥 위쪽으로, 끝에 나팔꽃 모양 벨)
+function drawTrumpet(c, mx, my, dir, k) {
+  const ex = mx + dir * k * 1.5, ey = my - k * 0.7;
+  c.lineCap = 'round'; c.lineJoin = 'round';
+  c.strokeStyle = LINE; c.lineWidth = k * 0.2 + 2; c.beginPath(); c.moveTo(mx, my); c.lineTo(ex, ey); c.stroke();
+  c.strokeStyle = '#f2c94c'; c.lineWidth = k * 0.2; c.stroke();
+  const ang = Math.atan2(ey - my, ex - mx);
+  c.save(); c.translate(ex, ey); c.rotate(ang);
+  c.beginPath(); c.moveTo(0, -k * 0.12); c.lineTo(k * 0.6, -k * 0.42); c.lineTo(k * 0.6, k * 0.42); c.lineTo(0, k * 0.12); c.closePath();
+  c.fillStyle = '#f6d76b'; c.fill(); c.strokeStyle = LINE; c.lineWidth = 2; c.stroke();
+  c.beginPath(); c.ellipse(k * 0.6, 0, k * 0.12, k * 0.42, 0, 0, Math.PI * 2); c.fillStyle = '#e9b949'; c.fill(); c.stroke();
+  c.restore();
+  return { x: ex + Math.cos(ang) * k * 0.7, y: ey + Math.sin(ang) * k * 0.7 };
+}
+// 실패: 시무룩하게 눈물이 그렁그렁한 고양이와 강아지 (팝업 위에 걸터앉아 있어요)
+function sadLoop() {
+  stopCelebration();
+  const c = $('sadCv') && $('sadCv').getContext('2d');
+  if (!c) return;
+  const t0 = performance.now();
+  const frame = () => {
+    const T = (performance.now() - t0) / 1000, W = c.canvas.width, H = c.canvas.height;
+    c.clearRect(0, 0, W, H);
+    const saved = ctx, savedLW = LW_SCALE;
+    ctx = c; LW_SCALE = 2;
+    try {
+      for (const [x, kind, col, ph] of [[W * 0.36, 'cat', 6, 0], [W * 0.64, 'dog', 1, 1.1]]) {
+        const sniff = Math.max(0, Math.sin(T * 2.2 + ph)) * 2;   // 훌쩍훌쩍 어깨가 들썩
+        drawAnimal(x, H - 22, 46, col, kind, sniff, ph, { sad: true, ribbon: kind === 'cat' ? '#e8768e' : null });
+      }
+    } finally { ctx = saved; LW_SCALE = savedLW; }
+    if ($('overlay').classList.contains('show')) celebRAF = requestAnimationFrame(frame);
+  };
+  celebRAF = requestAnimationFrame(frame);
+}
+
+function drawTrumpeters(c, T) {
+  const W = c.canvas.width, H = c.canvas.height;
+  c.clearRect(0, 0, W, H);
+  const saved = ctx, savedLW = LW_SCALE;
+  ctx = c; LW_SCALE = 2;
+  try {
+    const r = 40;
+    for (const [x, kind, col, dir, ph] of [[W * 0.3, 'cat', 6, -1, 0], [W * 0.7, 'dog', 1, 1, 1.3]]) {
+      const bob = Math.abs(Math.sin(T * 5 + ph)) * 6;
+      drawAnimal(x, H - 22, r, col, kind, bob, ph, { excited: true, ribbon: kind === 'cat' ? '#e8768e' : null });
+      // 입 위치 (drawAnimal의 머리 좌표에 맞춰)
+      const my = H - 22 - bob - r * 1.2 * 0.9 + r * 0.3, mx = x + dir * r * 0.2;
+      const bell = drawTrumpet(c, mx, my, dir, r * (1 + Math.sin(T * 10 + ph) * 0.04));
+      // 나팔에서 나오는 음표
+      for (let i = 0; i < 2; i++) {
+        const k = (T * 0.8 + i * 0.5 + ph) % 1;
+        c.globalAlpha = Math.sin(k * Math.PI);
+        c.font = `700 ${24 + k * 14}px serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillStyle = i ? '#8dbbe0' : '#f4a3bd';
+        c.fillText(i ? '♫' : '♪', bell.x + dir * k * 40, bell.y - k * 60);
+      }
+      c.globalAlpha = 1;
+    }
+  } finally { ctx = saved; LW_SCALE = savedLW; }
+}
+

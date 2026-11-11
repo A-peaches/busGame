@@ -1,0 +1,279 @@
+// 멍냥이의 버스여행 - 도형 계산, 단계 만들기(난이도·레일 버스), 게임 시작
+// =====================================================================
+//  도형 계산 (버스 = 회전된 직사각형)
+//  ang = 버스가 바라보는 방향. 0 = 위, 90도 = 오른쪽, 45도 = 오른쪽 위 ...
+// =====================================================================
+function axes(ang) {
+  return { ux: Math.sin(ang), uy: -Math.cos(ang), vx: Math.cos(ang), vy: Math.sin(ang) };
+}
+function makeBox(cx, cy, ang, hl, hw) { return { cx, cy, hl, hw, ...axes(ang) }; }
+function bodyBox(v, inflate = 0) { return makeBox(v.cx, v.cy, v.ang, v.l / 2 + inflate, v.w / 2 + inflate); }
+// 버스가 앞으로 쭉 나갈 때 쓸고 지나가는 영역
+function sweepBox(v) {
+  const F = 40, a = axes(v.ang);
+  return makeBox(v.cx + a.ux * F / 2, v.cy + a.uy * F / 2, v.ang, v.l / 2 + F / 2, v.w / 2 - 0.02);
+}
+function proj(b, ax, ay) {
+  const c = b.cx * ax + b.cy * ay;
+  const r = b.hl * Math.abs(b.ux * ax + b.uy * ay) + b.hw * Math.abs(b.vx * ax + b.vy * ay);
+  return [c - r, c + r];
+}
+// 두 직사각형이 겹치는지 (분리축 정리)
+function overlap(A, B) {
+  const dx = A.cx - B.cx, dy = A.cy - B.cy;
+  const rs = Math.hypot(A.hl, A.hw) + Math.hypot(B.hl, B.hw);
+  if (dx * dx + dy * dy > rs * rs) return false;
+  for (const [ax, ay] of [[A.ux, A.uy], [A.vx, A.vy], [B.ux, B.uy], [B.vx, B.vy]]) {
+    const pa = proj(A, ax, ay), pb = proj(B, ax, ay);
+    if (pa[1] <= pb[0] + 1e-6 || pb[1] <= pa[0] + 1e-6) return false;
+  }
+  return true;
+}
+function insideBoard(v, cols, rows) {
+  const b = bodyBox(v);
+  for (const s of [1, -1]) for (const t of [1, -1]) {
+    const x = b.cx + b.ux * b.hl * s + b.vx * b.hw * t;
+    const y = b.cy + b.uy * b.hl * s + b.vy * b.hw * t;
+    if (x < 0.04 || y < 0.04 || x > cols - 0.04 || y > rows - 0.04) return false;
+  }
+  return true;
+}
+
+// =====================================================================
+//  단계(레벨) 만들기
+//  1) 주차장을 버스로 빽빽하게 채웁니다 (가로/세로/대각선).
+//  2) "지금 앞이 뚫린 버스"를 하나씩 골라 방향을 정하고 빼냅니다.
+//     → 이 순서대로 빼면 반드시 풀리므로, 모든 단계는 풀 수 있습니다.
+// =====================================================================
+// 난이도 주기: 10단계마다 [쉬움 → 어려움 → 매우 어려움]이 반복되고, 10번째 단계는 "매우 어려움".
+//   별 5개(최고 난이도)는 30단계마다 한 번만 (30, 60, 90단계).
+// 10단계 묶음이 넘어갈 때마다 전체 난이도가 조금씩 올라가요. 단계는 100단계까지.
+const MAX_LEVEL = 100;
+const RAIL_FROM = 31;          // 이 단계부터 "레일 버스" 이벤트가 나와요
+const TIERS = {
+  1: { stars: 1, name: '쉬움' },
+  3: { stars: 3, name: '어려움' },
+  4: { stars: 4, name: '매우 어려움' },
+  5: { stars: 5, name: '최고 난이도' },
+};
+function levelTier(n) {
+  if (n % 30 === 0) return 5;
+  const pos = (n - 1) % 10 + 1;
+  if (pos === 10) return 4;
+  return [1, 3, 4][(pos - 1) % 3];
+}
+// 실제로 버스 수, 색 수 등을 정할 때 쓰는 "체감 난이도" 값
+function effectiveLevel(n) {
+  const block = Math.floor((n - 1) / 10);
+  const tier = levelTier(n) === 5 ? 4.4 : levelTier(n);     // 별 5개는 너무 어렵지 않게 살짝 완화
+  return Math.round((tier - 1) * 3) + 1 + Math.round(block * 2.5);
+}
+
+function levelParams(n) {
+  const e = effectiveLevel(n);
+  return {
+    cols: Math.min(6 + Math.floor((e - 1) / 4), 10),
+    rows: Math.min(8 + Math.floor((e - 1) / 3), 12),
+    colorCount: Math.min(3 + Math.floor((e - 1) / 3), COLORS.length),
+    diagChance: Math.min(0.1 + e * 0.025, 0.35),
+    hiddenChance: e >= 4 ? Math.min(0.08 + e * 0.02, 0.3) : 0,
+    mix: Math.min(24 + e * 6, 160),  // 승객 순서가 섞이는 정도 (좌석이 많아진 만큼 크게)
+    target: e,
+  };
+}
+
+function genLevel(n) {
+  const rng = mulberry32(n * 7919 + 13);
+  const P = levelParams(n);
+  const { cols, rows } = P;
+  const target = Math.min(20 + 3 * (P.target - 1), Math.floor(cols * rows / 1.9));   // 버스 수 (전보다 많게)
+
+  // 1) 빽빽하게 배치
+  const placed = [];
+  for (let tries = 0; tries < 25000 && placed.length < target; tries++) {
+    // 버스 4종류: 2칸(8석) / 3칸(16석) / 4칸(24석) / 5칸(32석)
+    const rl = rng();
+    let len = rl < 0.4 ? 2 : rl < 0.74 ? 3 : rl < 0.92 ? 4 : 5;
+    if (len > Math.min(cols, rows) - 1) len = 3;
+    let base, cx, cy;
+    if (rng() < P.diagChance && len <= 3) {
+      base = rng() < 0.5 ? Math.PI / 4 : Math.PI * 3 / 4;
+      cx = Math.round(rng() * cols * 2) / 2;
+      cy = Math.round(rng() * rows * 2) / 2;
+    } else if (rng() < 0.5) {
+      base = 0;
+      cx = Math.floor(rng() * cols) + 0.5;
+      cy = Math.floor(rng() * (rows - len + 1)) + len / 2;
+    } else {
+      base = Math.PI / 2;
+      cx = Math.floor(rng() * (cols - len + 1)) + len / 2;
+      cy = Math.floor(rng() * rows) + 0.5;
+    }
+    const v = { cx, cy, ang: base, len, l: len - 0.14, w: BODY_W };
+    if (!insideBoard(v, cols, rows)) continue;
+    v.pack = bodyBox(v, GAP);
+    if (placed.some(o => overlap(v.pack, o.pack))) continue;
+    v.body = bodyBox(v);
+    placed.push(v);
+  }
+
+  // 2) 빼낼 수 있는 순서와 방향 정하기
+  let remaining = placed.slice();
+  const order = [];
+  while (remaining.length) {
+    const cands = [];
+    for (const v of remaining) {
+      for (const flip of [0, Math.PI]) {
+        const sw = sweepBox({ ...v, ang: v.ang + flip });
+        if (!remaining.some(o => o !== v && overlap(sw, o.body))) cands.push([v, v.ang + flip]);
+      }
+    }
+    if (!cands.length) {  // 꽉 막혀 아무도 못 나가면 버스 하나를 없앱니다
+      remaining.splice(Math.floor(rng() * remaining.length), 1);
+      continue;
+    }
+    const [v, ang] = cands[Math.floor(rng() * cands.length)];
+    v.ang = normAng(ang);
+    order.push(v);
+    remaining = remaining.filter(o => o !== v);
+  }
+
+  // 색 / 정원 / 미스터리
+  const idx = COLORS.map((_, i) => i);
+  for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+  const palette = idx.slice(0, P.colorCount);
+  order.forEach((v, i) => {
+    v.color = palette[i < P.colorCount ? i : Math.floor(rng() * P.colorCount)];
+    v.cap = (v.len - 1) * 8;          // 8 / 16 / 24 / 32석
+    v.hidden = rng() < P.hiddenChance;
+  });
+
+  // 새 이벤트 "레일 버스" (31단계부터): 주차장 아래 레일 위에 버스들이 있어요.
+  //   버스를 누를 때마다 레일이 한 칸씩 움직이고, 노란 출구 칸에 온 버스만 출발할 수 있어요.
+  let rail = null;
+  if (n >= RAIL_FROM) {
+    const cnt = Math.min(8, 5 + Math.floor((n - RAIL_FROM) / 15)), K = cnt + 2;
+    const items = new Array(K).fill(null), free = [...Array(K).keys()];
+    for (let i = 0; i < cnt; i++) {
+      const len = rng() < 0.6 ? 2 : 3;
+      const v = { cx: -100, cy: -100, ang: 0, len, l: len - 0.14, w: BODY_W, onRail: true,
+        color: palette[Math.floor(rng() * P.colorCount)], cap: (len - 1) * 8, hidden: false };
+      items[free.splice(Math.floor(rng() * free.length), 1)[0]] = v;
+      order.splice(Math.floor(rng() * (order.length + 1)), 0, v);   // 승객 순서에도 섞어 넣어요
+    }
+    rail = { K, items };
+  }
+
+  // 승객 줄: 빼낼 순서대로 만든 뒤 단계가 오를수록 더 섞기
+  const q = [];
+  let k = 0;
+  for (const v of order) for (let j = 0; j < v.cap; j++) q.push({ color: v.color, key: k++ });
+  q.forEach(p => p.key += rng() * P.mix);
+  q.sort((a, b) => a.key - b.key);
+
+  return {
+    cols, rows, vehicles: order, rail,
+    queue: q.map((p, i) => ({
+      id: i, color: p.color, kind: rng() < 0.5 ? 'cat' : 'dog', bag: rng() < 0.16,
+      ribbon: rng() < 0.15 ? ['#e8768e', '#7fb4d6', '#f2c35a', '#b9a2d8'][Math.floor(rng() * 4)] : null,
+    })),
+  };
+}
+
+// =====================================================================
+//  게임 시작
+// =====================================================================
+function startLevel(n) {
+  const g = genLevel(n);
+  // 이 단계 도전 횟수 세기 (클리어하면 "N번의 시도로 성공!")
+  const allTries = store.get('busGame.tries', {});
+  allTries[n] = (allTries[n] || 0) + 1;
+  store.set('busGame.tries', allTries);
+  S = {
+    level: n, cols: g.cols, rows: g.rows, vehicles: [],
+    waiting: g.queue,   // 원 밖에서 줄 서서 기다리는 승객
+    ring: [],           // 원 위의 자리들 (승객 또는 빈자리 null)
+    ringOff: 0,         // 원이 돌아간 거리
+    slots: new Array(MAX_SLOTS).fill(null), slotCount: BASE_SLOTS,
+    flying: [], boardTimer: 0.6, liftMode: false, over: false, time: 0,
+    boost: { slot: levelTier(n) === 5 ? 2 : 1, lift: 1 },   // 별 5개(최고 난이도) 단계는 자리 추가 2개
+    tries: allTries[n], rush: 0, treeShake: 0,
+  };
+  g.vehicles.forEach((v, i) => {
+    const o = {
+      id: i, cx: v.cx, cy: v.cy, ang: v.ang, len: v.len, l: v.l, w: v.w, body: bodyBox(v),
+      color: v.color, cap: v.cap, hidden: v.hidden,
+      state: v.onRail ? 'rail' : 'parked', off: 0, bump: null, shake: 0, filled: 0, incoming: 0, pop: 1, t: 0,
+    };
+    v._rt = o;
+    S.vehicles.push(o);
+  });
+  // 레일 버스 이벤트
+  S.rail = g.rail ? { K: g.rail.K, gate: Math.floor(g.rail.K / 2), items: g.rail.items.map(v => v ? v._rt : null), anim: 0 } : null;
+  showScreen('game');
+  revealCheck(true);
+  layout();
+  for (let k = 0; k < S.ring.length; k++) if (S.waiting.length) S.ring[k] = S.waiting.shift();
+  hideOverlay();
+  updateUI();
+  // 레일 이벤트를 처음 만나면 안내
+  if (S.rail && !store.get('busGame.railSeen', false)) {
+    store.set('busGame.railSeen', true);
+    const card = $('card');
+    card.innerHTML = `<h2>새 이벤트! 레일 버스</h2>
+      <p>주차장 아래 레일 위에 버스가 있어요.<br>
+      버스를 <b>누를 때마다 레일이 한 칸씩</b> 움직여요.<br>
+      <b>노란 출구 칸</b>에 온 버스만 출발할 수 있어요.</p>
+      <button class="btn" id="ovOk">알겠어요</button>`;
+    card.querySelector('#ovOk').onclick = () => hideOverlay();
+    $('overlay').classList.add('show');
+  }
+}
+
+// ---- 레일 버스 ----
+// 버스를 누를 때마다 레일이 오른쪽으로 한 칸 (끝에 있던 버스는 왼쪽 처음으로)
+function railStep() {
+  if (!S || !S.rail) return;
+  const it = S.rail.items;
+  it.unshift(it.pop());
+  S.rail.anim = 1;
+}
+const railCenter = i => ({ x: 16 + L.railW * (i + 0.5), y: L.railTop + L.railH / 2 });
+const railSize = v => { const w = Math.min(L.railW * 0.56, L.railH * 0.36); return { w, l: Math.min(L.railH * 0.84, w * (1.3 + v.len * 0.32)) }; };
+function tapRail(i) {
+  const R = S.rail, v = R.items[i];
+  if (v && i === R.gate) {
+    const si = freeSlot();
+    if (si < 0) { toast('대기 칸이 꽉 찼어요!'); sfx('block'); }
+    else {
+      const c = railCenter(i), s = railSize(v);
+      R.items[i] = null;
+      S.slots[si] = v; v.slot = si; v.state = 'toSlot'; v.t = 0; v.lifted = false;
+      v.from = { x: c.x, y: c.y, a: 0, w: s.w, l: s.l };
+      sfx('go');
+    }
+  } else if (v) {
+    toast('노란 출구 칸에 오면 출발할 수 있어요', 1400);
+  }
+  railStep();
+}
+
+const parkedBlockers = v => {
+  const sw = sweepBox(v);
+  return S.vehicles.filter(o => o !== v && o.state === 'parked' && overlap(sw, o.body));
+};
+
+function revealCheck(instant) {
+  for (const v of S.vehicles) {
+    if (v.state === 'parked' && v.hidden && parkedBlockers(v).length === 0) {
+      v.hidden = false;
+      v.pop = instant ? 1 : 0;
+    }
+  }
+}
+
+function freeSlot() {
+  for (let i = 0; i < S.slotCount; i++) if (!S.slots[i]) return i;
+  return -1;
+}
+

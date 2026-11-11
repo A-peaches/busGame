@@ -1,0 +1,201 @@
+/* 멍냥이의 버스여행 - 화면 꾸미기 */
+/* 마루 부리 (네이버, OFL - 상업적 사용 가능) */
+@font-face { font-family: 'MaruBuri'; font-weight: 200; font-display: swap; src: url(https://hangeul.pstatic.net/hangeul_static/webfont/MaruBuri/MaruBuri-ExtraLight.woff2) format('woff2'); }
+@font-face { font-family: 'MaruBuri'; font-weight: 300; font-display: swap; src: url(https://hangeul.pstatic.net/hangeul_static/webfont/MaruBuri/MaruBuri-Light.woff2) format('woff2'); }
+@font-face { font-family: 'MaruBuri'; font-weight: 400; font-display: swap; src: url(https://hangeul.pstatic.net/hangeul_static/webfont/MaruBuri/MaruBuri-Regular.woff2) format('woff2'); }
+@font-face { font-family: 'MaruBuri'; font-weight: 600; font-display: swap; src: url(https://hangeul.pstatic.net/hangeul_static/webfont/MaruBuri/MaruBuri-SemiBold.woff2) format('woff2'); }
+@font-face { font-family: 'MaruBuri'; font-weight: 700; font-display: swap; src: url(https://hangeul.pstatic.net/hangeul_static/webfont/MaruBuri/MaruBuri-Bold.woff2) format('woff2'); }
+
+:root {
+  --ink: #4a3b2c;
+  --muted: #8a7660;
+  --accent: #eb9a68;
+  --accent-dark: #c47548;
+  --green: #93b97b;
+  --green-dark: #6f945a;
+  --cream: #fff8ec;
+  --locked: #cdbfae;
+  --line: #a8a097;     /* 얇은 회색 테두리 (1px) */
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body {
+  height: 100%; overflow: hidden; user-select: none; color: var(--ink);
+  background: #f3e6cf;
+  font-family: 'MaruBuri', "Apple SD Gothic Neo", "Malgun Gothic", serif;
+  font-weight: 600;
+}
+button { font-family: inherit; }
+#app { position: relative; height: 100%; max-width: 560px; margin: 0 auto; overflow: hidden; }
+.screen { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.screen.hidden { display: none; }
+
+/* ---------------- 메인 화면 ---------------- */
+#menu .scene { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+#menu img.scene { object-fit: cover; object-position: center; }
+img { pointer-events: none; -webkit-user-drag: none; user-select: none; }
+/* 꾹 눌러도 복사/저장 메뉴가 뜨지 않게 (닉네임 입력칸만 예외) */
+* { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+input { -webkit-user-select: text; user-select: text; font-size: 16px; }
+/* 두 번 톡톡 눌러도 화면이 확대되지 않게 */
+html, body, button, canvas, #app { touch-action: manipulation; }
+::selection { background: transparent; }
+#menu .sky { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+/* 흘러가는 뭉게구름 */
+.cloud { position: absolute; left: -260px; animation: drift linear infinite; }
+@keyframes drift { from { left: -280px; } to { left: 105%; } }
+/* 계절 입자: 벚꽃잎 / 나뭇잎 / 단풍 / 눈 */
+.fx { position: absolute; inset: 0; z-index: 3; overflow: hidden; pointer-events: none; }
+.particle { position: absolute; top: -30px; animation: fall linear infinite; }
+.particle > * { display: block; animation: sway ease-in-out infinite alternate; }
+@keyframes fall { to { transform: translateY(calc(100vh + 60px)); } }
+@keyframes sway { from { transform: translateX(-18px) rotate(-35deg); } to { transform: translateX(18px) rotate(45deg); } }
+/* 눈송이: 하얀 눈밭 위에서도 보이도록 아주 옅은 푸른 테두리 */
+.snow { border-radius: 50%; background: #fff; opacity: .95;
+  box-shadow: 0 0 0 .6px rgba(140, 160, 185, .55), 0 0 4px rgba(255, 255, 255, .9); }
+/* 설정 창의 계절 고르기 */
+.seasonPick { display: flex; gap: 4px; flex-wrap: nowrap; justify-content: center; margin: 6px 0 4px; }
+.seasonPick button {
+  height: 30px; padding: 0 7px; border-radius: 15px; font-size: 12px; cursor: pointer; white-space: nowrap; flex: none;
+  background: rgba(255, 250, 240, .85); color: var(--ink); border: 1px solid var(--line);
+}
+.seasonPick button.on { background: #f6dd92; color: var(--ink); }
+.hello {
+  position: absolute; top: 14px; left: 12px; z-index: 4; white-space: nowrap;
+  padding: 6px 14px; border-radius: 16px; font-size: 13px; background: rgba(255, 250, 240, .85); border: 1px solid var(--line);
+}
+.hello:empty, .weather:empty { display: none; }
+.weather {
+  position: absolute; top: 52px; left: 12px; z-index: 4; white-space: nowrap;
+  padding: 4px 12px; border-radius: 14px; font-size: 12px; color: var(--muted);
+  background: rgba(255, 250, 240, .75); border: 1px solid var(--line);
+}
+.hearts {
+  position: absolute; top: 14px; right: 62px; z-index: 4; display: flex; align-items: center; gap: 5px; white-space: nowrap;
+  height: 32px; padding: 0 11px 0 8px; border-radius: 16px; font-size: 13px;
+  background: rgba(255, 250, 240, .9); border: 1px solid var(--line);
+}
+.hearts small { color: var(--muted); font-size: 11px; }
+/* 날씨: 비 */
+.rain { width: 1.2px; height: 16px; background: linear-gradient(rgba(170, 190, 210, 0), rgba(150, 175, 200, .85)); }
+.particle.rainy { animation-timing-function: linear; }
+.particle.rainy > * { animation: none; transform: rotate(12deg); }
+/* 시간대에 따라 들판을 살짝 물들이는 막 (밤엔 푸르스름, 노을엔 주황빛) */
+.tint { position: absolute; inset: 0; z-index: 1; pointer-events: none; transition: background 2s; }
+/* 단계 지도는 지평선 아래 들판에서만 보여요 */
+#menu > #mapScroll {
+  position: absolute; left: 0; right: 0; top: 26%; bottom: 0; overflow-y: auto; scrollbar-width: none; z-index: 2;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 60px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 60px);
+}
+.nickInput {
+  width: 100%; padding: 12px 14px; margin-top: 4px; border-radius: 12px; font: inherit; font-size: 16px; text-align: center;
+  background: #fffdf7; color: var(--ink); border: 1px solid var(--line); outline: none;
+}
+.nickInput:focus { border-color: #e2bf5c; }
+#mapScroll::-webkit-scrollbar { display: none; }
+#mapInner { position: relative; width: 100%; }
+#mapRoad { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+/* 단계 원: 얇은 갈색 테두리, 차분한 색 */
+.node {
+  position: absolute; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%;
+  border: 1px solid var(--line); color: #fffaf1; font-size: 22px; line-height: 1; cursor: pointer;
+  box-shadow: 0 3px 6px rgba(70, 50, 30, .18);
+}
+.node small { display: block; font-size: 9px; letter-spacing: 1px; margin-top: 3px; color: rgba(255, 250, 241, .9); }
+.node.done { background: #c3dd96; color: var(--ink); }   /* 깬 단계: 노란 버튼과 어울리는 연두 */
+.node.done small { color: #6f8f45; }
+.node.current { background: #f6dd92; color: var(--ink); animation: breathe 2.4s ease-in-out infinite; }
+.node.locked { background: #d8ccb9; cursor: pointer; box-shadow: 0 2px 4px rgba(70, 50, 30, .1); }
+.node.locked svg { display: block; margin: 0 auto; }
+.node .busIcon {
+  position: absolute; left: 50%; top: -34px; width: 40px; transform: translateX(-50%);
+  animation: bob 1.6s ease-in-out infinite; pointer-events: none;
+}
+@keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@keyframes bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -4px); } }
+#menu > #settingsBtn { position: absolute; top: 10px; right: 12px; z-index: 4; }
+
+/* ---------------- 게임 화면 ---------------- */
+#game { background: linear-gradient(#cfe0dc, #f2e7d0 40%, #eee0c4); }
+header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 4px; }
+.hbtns { display: flex; gap: 8px; }
+.round {
+  width: 42px; height: 42px; border-radius: 50%; cursor: pointer; display: grid; place-items: center;
+  background: var(--cream); color: var(--ink); font-size: 20px;
+  border: 1px solid var(--line); box-shadow: 0 2px 5px rgba(70, 50, 30, .15);
+}
+.round:active { transform: translateY(1px); box-shadow: none; }
+#title { text-align: center; }
+#levelLabel { font-size: 22px; }
+#leftLabel { font-size: 13px; color: var(--muted); }
+#stage { flex: 1; position: relative; min-height: 0; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16px; }
+.booster {
+  position: relative; flex: 1; max-width: 160px; height: 52px; border-radius: 14px; cursor: pointer;
+  background: var(--cream); color: var(--ink); font-size: 16px;
+  border: 1px solid var(--line); box-shadow: 0 2px 5px rgba(70, 50, 30, .15);
+}
+.booster:active { transform: translateY(1px); box-shadow: none; }
+.booster:disabled { opacity: .45; cursor: default; }
+.booster.active { background: #f3dc9c; }
+.booster .cnt {
+  position: absolute; top: -9px; right: -7px; min-width: 22px; height: 22px; padding: 0 5px;
+  border-radius: 11px; background: #8fae78; color: #fffaf1; font-size: 12px; line-height: 19px;
+  border: 1px solid var(--line);
+}
+
+/* 설정 / 단계 팝업 */
+.setRow { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0 4px; font-size: 14px; }
+.setRow input[type=range] { flex: 1; accent-color: #b98a64; }
+.switch { position: relative; width: 46px; height: 26px; flex: none; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch span {
+  position: absolute; inset: 0; border-radius: 13px; background: #d8ccb9; border: 1px solid var(--line);
+  transition: background .2s; cursor: pointer;
+}
+.switch span::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 19px; height: 19px; border-radius: 50%;
+  background: var(--cream); border: 1px solid var(--line); transition: transform .2s;
+}
+.switch input:checked + span { background: #8fae78; }
+.switch input:checked + span::after { transform: translateX(19px); }
+.stars { font-size: 21px; letter-spacing: 2px; color: #e9bf4f; margin: 2px 0 6px; }
+.stars .off { color: #dccfbc; }
+
+#toast {
+  position: absolute; left: 50%; top: 68px; transform: translateX(-50%);
+  background: rgba(74, 59, 44, .92); color: #fffaf1; padding: 10px 16px; border-radius: 12px;
+  font-size: 16px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .25s; z-index: 6;
+}
+#toast.show { opacity: 1; }
+
+#overlay {
+  position: absolute; inset: 0; background: rgba(40, 34, 25, .5); z-index: 5;
+  display: none; align-items: center; justify-content: center;
+}
+#overlay.show { display: flex; }
+.card {
+  position: relative;
+  background: var(--cream); border-radius: 20px; padding: 18px 18px 16px; text-align: center; width: min(82%, 310px);
+  border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(60, 40, 20, .25);
+}
+/* 팝업 상자 위에 걸터앉은 고양이·강아지 그림판 */
+.card canvas.perch {
+  position: absolute; inset: auto; left: 50%; top: -112px; transform: translateX(-50%);
+  width: 300px; height: 125px; pointer-events: none;
+}
+.card small { font-size: 11px; color: var(--muted); }
+.heartNow { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--ink); margin-top: 4px; }
+.heartNow svg { width: 15px; height: 14px; }
+.btn:disabled { opacity: .5; cursor: default; }
+.card h2 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+#levelLabel, .btn, .node { font-weight: 700; }
+.card p { margin-bottom: 8px; color: var(--muted); line-height: 1.45; font-size: 13px; }
+.btn {
+  display: block; width: 100%; padding: 10px; margin-top: 8px; border-radius: 12px; cursor: pointer;
+  font-size: 15px; background: #f6dd92; color: var(--ink);
+  border: 1px solid var(--line); box-shadow: 0 2px 5px rgba(70, 50, 30, .15);
+}
+.btn:active { transform: translateY(1px); box-shadow: none; }
+.btn.alt { background: #f1e5cf; color: var(--ink); }

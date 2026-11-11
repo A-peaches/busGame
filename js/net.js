@@ -257,7 +257,8 @@ const PEOPLE_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden=
 $('friendsBtn').innerHTML = PEOPLE_SVG + '<span class="dot"></span>';
 $('friendsBtn').onclick = () => showFriends();
 if (acct) saveAuthForSW();
-if (pushOn()) navigator.serviceWorker.register('sw.js').catch(() => {});
+// 서비스 워커는 늘 등록해요 (폰 알림 + 앱처럼 설치하기)
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 setTimeout(syncNow, 1500);
 setInterval(syncNow, 2 * 60 * 1000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) syncNow(); });

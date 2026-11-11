@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- 멍냥이의 버스여행 앱 아이콘: 노란 바탕 + 크림색 시골버스 + 창밖의 분홍 냥이 -->
+  <rect width="512" height="512" fill="#f6dd92"/>
+  <g stroke="#5a4e44" stroke-width="10" stroke-linejoin="round">
+    <ellipse cx="256" cy="372" rx="150" ry="16" fill="#e2c477" stroke="none"/>
+    <path d="M120 176 Q120 150 146 150 H372 Q402 150 402 180 V336 Q402 352 386 352 H136 Q120 352 120 336 Z" fill="#f8f3ea"/>
+    <path d="M125 176 Q125 155 146 155 H372 Q397 155 397 180 V196 H125 Z" fill="#9cc6e6" stroke="none"/>
+    <path d="M120 176 Q120 150 146 150 H372 Q402 150 402 180 V336 Q402 352 386 352 H136 Q120 352 120 336 Z" fill="none"/>
+    <rect x="146" y="218" width="56" height="52" rx="10" fill="#7c8f97"/>
+    <rect x="222" y="218" width="56" height="52" rx="10" fill="#7c8f97"/>
+    <rect x="298" y="218" width="56" height="52" rx="10" fill="#7c8f97"/>
+    <rect x="368" y="218" width="22" height="96" rx="8" fill="#7c8f97"/>
+    <circle cx="186" cy="352" r="30" fill="#6b625b"/>
+    <circle cx="336" cy="352" r="30" fill="#6b625b"/>
+  </g>
+  <!-- 창문 속 분홍 냥이 -->
+  <g stroke="#5a4e44" stroke-width="5" stroke-linejoin="round">
+    <path d="M231 262 V236 L238 222 L247 233 H253 L262 222 L269 236 V262 Z" fill="#f3a9c1"/>
+  </g>
+  <circle cx="242" cy="245" r="3.5" fill="#4a3b2c"/>
+  <circle cx="258" cy="245" r="3.5" fill="#4a3b2c"/>
+  <ellipse cx="236" cy="254" rx="5" ry="3" fill="#ec7f9c" opacity=".6"/>
+  <ellipse cx="264" cy="254" rx="5" ry="3" fill="#ec7f9c" opacity=".6"/>
+</svg>

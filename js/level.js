@@ -171,7 +171,8 @@ function genLevel(n) {
   //   버스를 누를 때마다 레일이 한 칸씩 움직이고, 노란 출구 칸에 온 버스만 출발할 수 있어요.
   let rail = null;
   if (n >= RAIL_FROM) {
-    const cnt = Math.min(8, 5 + Math.floor((n - RAIL_FROM) / 15)), K = cnt + 2;
+    // 레일 칸 = 주차장 세로줄. 레일 버스는 바로 위 같은 줄의 버스들을 먼저 빼야 위로 나갈 수 있어요
+    const K = cols, cnt = Math.min(8, 5 + Math.floor((n - RAIL_FROM) / 15), K - 2);
     const items = new Array(K).fill(null), free = [...Array(K).keys()];
     for (let i = 0; i < cnt; i++) {
       const len = rng() < 0.6 ? 2 : 3;
@@ -229,7 +230,9 @@ function startLevel(n) {
     S.vehicles.push(o);
   });
   // 레일 버스 이벤트
-  S.rail = g.rail ? { K: g.rail.K, gate: Math.floor(g.rail.K / 2), items: g.rail.items.map(v => v ? v._rt : null), anim: 0 } : null;
+  S.rail = g.rail ? { K: g.rail.K, items: g.rail.items.map(v => v ? v._rt : null), anim: 0 } : null;
+  // U턴 버스는 정해진 턴(버스를 누른 횟수)마다 한꺼번에 방향을 바꿔요
+  S.turnEvery = 3; S.turnLeft = S.turnEvery;
   showScreen('game');
   revealCheck(true);
   layout();
@@ -253,9 +256,9 @@ function startLevel(n) {
     store.set('busGame.turnSeen', true);
     const card = $('card');
     card.innerHTML = `<h2>새 이벤트! U턴 버스</h2>
-      <p>모서리에 <b>노란 빙글 배지</b>가 붙은 버스는<br>
-      아무 버스나 <b>누를 때마다 앞뒤 방향이 바뀌어요</b>.<br>
-      나가고 싶은 쪽을 볼 때 눌러 주세요!</p>
+      <p>모서리에 <b>노란 숫자 배지</b>가 붙은 버스는<br>
+      버스를 <b>3번 누를 때마다 앞뒤 방향이 바뀌어요</b>.<br>
+      배지 숫자는 다음 U턴까지 남은 턴이에요!</p>
       <button class="btn" id="ovOk">알겠어요</button>`;
     card.querySelector('#ovOk').onclick = () => hideOverlay();
     $('overlay').classList.add('show');
@@ -265,9 +268,9 @@ function startLevel(n) {
     store.set('busGame.railSeen', true);
     const card = $('card');
     card.innerHTML = `<h2>새 이벤트! 레일 버스</h2>
-      <p>주차장 아래 레일 위에 버스가 있어요.<br>
-      버스를 <b>누를 때마다 레일이 한 칸씩</b> 움직여요.<br>
-      <b>노란 출구 칸</b>에 온 버스만 출발할 수 있어요.</p>
+      <p>주차장 아래 레일 위에도 버스가 있어요.<br>
+      레일 버스는 <b>바로 위 같은 줄</b>의 버스들을<br>먼저 빼야 위로 나갈 수 있어요.<br>
+      그런데 버스를 <b>누를 때마다 레일이 한 칸씩</b> 움직여요!</p>
       <button class="btn" id="ovOk">알겠어요</button>`;
     card.querySelector('#ovOk').onclick = () => hideOverlay();
     $('overlay').classList.add('show');
@@ -282,21 +285,32 @@ function railStep() {
   it.unshift(it.pop());
   S.rail.anim = 1;
 }
-const railCenter = i => ({ x: 16 + L.railW * (i + 0.5), y: L.railTop + L.railH / 2 });
-const railSize = v => { const w = Math.min(L.railW * 0.56, L.railH * 0.36); return { w, l: Math.min(L.railH * 0.84, w * (1.3 + v.len * 0.32)) }; };
+const railCenter = i => ({ x: L.bx + L.railW * (i + 0.5), y: L.railTop + L.railH / 2 });   // 레일 칸 = 주차장 세로줄
+const railSize = v => ({ w: v.w * L.cs, l: Math.min(L.railH * 0.88, v.l * L.cs) });
+// 레일 버스를 누르면: 바로 위 같은 세로줄이 비어 있을 때만 위로 쭉 빠져나가요. 어느 쪽이든 한 턴이 지나요.
+function railToBoard(v, i) {
+  v.cx = i + 0.5;
+  v.cy = (L.railTop + L.railH / 2 - L.by) / L.cs;
+  v.ang = 0; v.off = 0; v.fromRail = true;
+  v.body = bodyBox(v);
+}
 function tapRail(i) {
   const R = S.rail, v = R.items[i];
-  if (v && i === R.gate) {
+  if (v && !(S.vehicles.some(o => o.move) || (S.shuffle && S.shuffle.wait > 0))) {
+    railToBoard(v, i);
     const si = freeSlot();
-    if (si < 0) { toast('대기 칸이 꽉 찼어요!'); sfx('block'); }
-    else {
+    if (S.liftMode) {                                   // 크레인으로는 막혀 있어도 바로 들어 올려요
+      if (si < 0) { toast('빈 자리가 없어요!'); return; }
+      R.items[i] = null; S.liftMode = false; S.boost.lift--;
+      launch(v, si, true); updateUI();
+    } else if (parkedBlockers(v).length) {
+      v.shake = 0.35; v.state = 'rail';                 // 위가 막혀 있어요: 부르르
+    } else if (si < 0) {
+      v.shake = 0.35; toast('대기 칸이 꽉 찼어요!');
+    } else {
       R.items[i] = null;
-      S.slots[si] = v; v.slot = si;
-      startArrive(v, 0);          // 레일에서 나가 찻길로 들어와요
-      sfx('go');
+      launch(v, si, false);                             // 위로 쭉 빠져나가 찻길로
     }
-  } else if (v) {
-    toast('노란 출구 칸에 오면 출발할 수 있어요', 1400);
   }
   railStep();
   turnStep();
@@ -356,7 +370,9 @@ function doShuffle() {
 // ---- U턴 버스 ----
 // 버스를 누를 때마다 U턴 버스들이 앞뒤를 바꿔요 (부딪혀 돌아오는 중이면 돌아온 다음에)
 function turnStep() {
-  if (!S) return;
+  if (!S || !S.vehicles.some(v => v.turner && v.state === 'parked')) return;
+  if (--S.turnLeft > 0) return;                 // 아직 차례가 아니에요
+  S.turnLeft = S.turnEvery;
   for (const v of S.vehicles) {
     if (!v.turner || v.state !== 'parked') continue;
     if (v.bump) v.turnLater = true; else uTurn(v);

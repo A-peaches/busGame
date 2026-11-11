@@ -90,7 +90,7 @@ function drawVehicle(x, y, a, w, l, colorIdx, hidden, o = {}) {
     ctx.fillText(String(o.seats), 0, 1);
   }
   if (o.turner && !hidden) {
-    // U턴 버스: 앞쪽 모서리에 작은 노란 배지 + 빙글 표시 (화살표와 겹치지 않게)
+    // U턴 버스: 앞쪽 모서리에 작은 노란 배지 + 다음 U턴까지 남은 턴 수 (화살표와 겹치지 않게)
     ctx.save();
     ctx.translate(w * 0.46, -l / 2 + w * 0.3);
     ctx.rotate(-a);
@@ -98,18 +98,10 @@ function drawVehicle(x, y, a, w, l, colorIdx, hidden, o = {}) {
     ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fillStyle = '#f6dd92'; ctx.fill();
     ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
-    const ri = r * 0.55, k = r * 0.32;
-    ctx.strokeStyle = '#5a4a3a'; ctx.fillStyle = '#5a4a3a'; ctx.lineWidth = Math.max(1.1, r * 0.17); ctx.lineCap = 'butt';
-    for (const b of [0, Math.PI]) {          // 반원 화살표 두 개 = 빙글
-      const a0 = b + 0.35, a1 = b + Math.PI - 0.55;
-      ctx.beginPath(); ctx.arc(0, 0, ri, a0, a1); ctx.stroke();
-      const hx = Math.cos(a1) * ri, hy = Math.sin(a1) * ri, t = a1 + Math.PI / 2;
-      ctx.beginPath();
-      ctx.moveTo(hx + Math.cos(t) * k * 1.4, hy + Math.sin(t) * k * 1.4);
-      ctx.lineTo(hx + Math.cos(t + 2.1) * k, hy + Math.sin(t + 2.1) * k);
-      ctx.lineTo(hx + Math.cos(t - 2.1) * k, hy + Math.sin(t - 2.1) * k);
-      ctx.closePath(); ctx.fill();
-    }
+    // 다음 U턴까지 남은 턴 수
+    ctx.fillStyle = '#5a4a3a'; ctx.font = `700 ${r * 1.35}px MaruBuri, serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(o.turner), 0, r * 0.08);
     ctx.restore();
   }
   if (o.capLabel && !hidden) {
@@ -716,11 +708,11 @@ function draw() {
     if (P.alpha === 0) continue;
     const inSlot = v.state === 'slot' || v.state === 'departing';
     // 빠져나가는 버스는 주차장 안에서만, 찻길 버스는 정류장 네모 안에서만 보여요 (테두리를 넘지 않게)
-    const clip = v.state === 'exiting' ? [13, L.bTop + 1, L.W - 26, L.bH - 6, 12]
+    const clip = v.state === 'exiting' ? (v.fromRail ? [13, L.bTop + 1, L.W - 26, L.railTop + L.railH - L.bTop - 1, 12] : [13, L.bTop + 1, L.W - 26, L.bH - 6, 12])
       : (v.state === 'departing' || (v.state === 'toSlot' && !v.lifted)) ? [8.5, L.sTop - 3.5, L.W - 17, panelH - 1, 13] : null;
     if (clip) { ctx.save(); rr(...clip); ctx.clip(); }
     drawVehicle(P.x, P.y, P.a, P.w, P.l, v.color, v.hidden, {
-      arrow: !inSlot && v.state !== 'toSlot', turner: v.turner && v.state === 'parked', seats: inSlot ? v.cap - v.filled : null, capLabel: v.state === 'parked' ? v.cap : null,
+      arrow: !inSlot && v.state !== 'toSlot', turner: v.turner && v.state === 'parked' ? S.turnLeft : 0, seats: inSlot ? v.cap - v.filled : null, capLabel: v.state === 'parked' ? v.cap : null,
       alpha: P.alpha, scale: P.scale,
     });
     if (clip) ctx.restore();
@@ -748,24 +740,22 @@ function drawRail() {
   ctx.stroke();
   ctx.strokeStyle = '#d3cec6'; ctx.lineWidth = 2.2;
   ctx.beginPath(); ctx.moveTo(8, y0 + h * 0.22); ctx.lineTo(L.W - 8, y0 + h * 0.22); ctx.moveTo(8, y0 + h * 0.78); ctx.lineTo(L.W - 8, y0 + h * 0.78); ctx.stroke();
-  // 노란 출구 칸
-  const g = railCenter(R.gate);
-  ctx.fillStyle = 'rgba(246,221,146,.28)';
-  rr(g.x - L.railW * 0.47, y0 + 3, L.railW * 0.94, h - 6, 9); ctx.fill();
-  ctx.strokeStyle = '#f6dd92'; ctx.lineWidth = 2; ctx.setLineDash([5, 3]); ctx.stroke(); ctx.setLineDash([]);
-  // 레일 위 버스들 (위를 보고 서 있어요. 출구 칸 버스만 화살표가 보여요)
+  // 레일 칸 나눔선 (위의 주차장 세로줄과 딱 맞아요)
+  ctx.strokeStyle = 'rgba(246,232,190,.35)'; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
+  ctx.beginPath();
+  for (let k = 0; k <= R.K; k++) { const x = L.bx + L.railW * k; ctx.moveTo(x, y0 + 4); ctx.lineTo(x, y0 + h - 4); }
+  ctx.stroke(); ctx.setLineDash([]);
+  // 레일 위 버스들 (위를 보고 서 있어요. 위가 비면 위로 쭉 나가요)
+  ctx.beginPath(); ctx.rect(L.bx, y0, L.railW * R.K, h); ctx.clip();
   R.items.forEach((v, i) => {
     if (!v) return;
     const c = railCenter(i), s = railSize(v);
     let x = c.x - off;
-    if (x < 16 - L.railW * 0.5) x += L.railW * R.K;
-    drawVehicle(x, c.y, 0, s.w, s.l, v.color, false, { arrow: i === R.gate && R.anim < 0.3, capLabel: v.cap });
+    if (x < L.bx - L.railW * 0.5) x += L.railW * R.K;
+    const sh = v.shake > 0 ? Math.sin(v.shake * 60) * 2.5 : 0;
+    drawVehicle(x + sh, c.y, 0, s.w, s.l, v.color, false, { arrow: true, capLabel: v.cap });
   });
   ctx.restore();
-  // 출구 표시
-  ctx.fillStyle = '#5a4a3a'; ctx.font = `700 ${Math.max(10, h * 0.17)}px MaruBuri, serif`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  ctx.fillText('출구', g.x, y0 - 1);
 }
 
 // 음표 말풍선 (♪ 신난다!)

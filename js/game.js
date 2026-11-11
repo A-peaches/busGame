@@ -48,12 +48,12 @@ function layout() {
     L.railH = clamp(H * 0.085, 50, 76);
     bH -= L.railH + 8;
     L.railTop = bTop + bH + 8;
-    L.railW = (W - 32) / S.rail.K;
   }
   L.bTop = bTop; L.bH = bH;    // 주차장 바탕은 위 패널들과 같은 가로 폭 (8 ~ W-8)
   L.cs = Math.floor(Math.min((W - 2 * pad - 16) / (S.cols + 0.4), (bH - 16) / (S.rows + 0.4)));
   L.bx = (W - L.cs * S.cols) / 2;
   L.by = bTop + (bH - L.cs * S.rows) / 2;
+  if (S.rail) L.railW = L.cs;                   // 레일 칸은 주차장 세로줄과 딱 맞아요
 
   syncRing();
 }
@@ -201,7 +201,7 @@ canvas.addEventListener('pointerdown', e => {
 
   // 레일 버스
   if (S.rail && py >= L.railTop && py <= L.railTop + L.railH) {
-    const i = Math.floor((px - 16) / L.railW);
+    const i = Math.floor((px - L.bx) / L.railW);
     if (i >= 0 && i < S.rail.K) tapRail(i);
     return;
   }
@@ -370,7 +370,7 @@ function update(dt) {
       v.off += dt * 16;
       const a = axes(v.ang);
       const tx = L.bx + (v.cx + a.ux * (v.off - v.l / 2)) * L.cs, ty = L.by + (v.cy + a.uy * (v.off - v.l / 2)) * L.cs;
-      const out = tx < 13 || tx > L.W - 13 || ty < L.bTop + 1 || ty > L.bTop + L.bH - 6;
+      const out = v.fromRail ? ty < L.bTop + 1 : (tx < 13 || tx > L.W - 13 || ty < L.bTop + 1 || ty > L.bTop + L.bH - 6);
       if (out || v.off > v.exitDist + 40) startArrive(v, a.ux);
     } else if (v.state === 'toSlot') {
       v.t += dt / (v.lifted ? 0.55 : v.arrT);

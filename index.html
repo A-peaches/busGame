@@ -900,7 +900,7 @@ function update(dt) {
       v.incoming++;
       // 버스까지 걸어가는 친구 (눈이 반짝반짝!)
       S.flying.push({ color: p.color, kind: p.kind, bag: p.bag, ribbon: p.ribbon, id: p.id, path: walkRoute(p, v, ringS(k)), s: 0, v });
-      S.boardTimer = 0.06;
+      S.boardTimer = S.rush > 0 ? 0.02 : 0.06;   // 나무를 누른 동안엔 더 빨리 차례차례 출발
       sfx('board', v.filled + v.incoming);
       updateUI();
     }
@@ -908,7 +908,7 @@ function update(dt) {
 
   let landed = false;
   for (const f of S.flying) {
-    f.s += dt * L.pr * 14;
+    f.s += dt * L.pr * 14 * (S.rush > 0 ? 2.5 : 1);   // 나무를 누른 동안엔 버스까지 더 빨리 걸어가요
     if (f.s >= f.path.total) { f.v.filled++; f.v.incoming--; landed = true; f.done = true; }
   }
   S.flying = S.flying.filter(f => !f.done);

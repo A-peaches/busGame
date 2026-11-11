@@ -94,7 +94,7 @@
     mask-image: linear-gradient(to bottom, transparent 0, #000 60px);
   }
   .nickInput {
-    width: 100%; padding: 12px 14px; margin-top: 4px; border-radius: 12px; font: inherit; font-size: 17px; text-align: center;
+    width: 100%; padding: 12px 14px; margin-top: 4px; border-radius: 12px; font: inherit; font-size: 16px; text-align: center;
     background: #fffdf7; color: var(--ink); border: 1px solid var(--line); outline: none;
   }
   .nickInput:focus { border-color: #e2bf5c; }
@@ -152,7 +152,7 @@
   }
 
   /* 설정 / 단계 팝업 */
-  .setRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0 6px; font-size: 16px; }
+  .setRow { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0 4px; font-size: 14px; }
   .setRow input[type=range] { flex: 1; accent-color: #b98a64; }
   .switch { position: relative; width: 46px; height: 26px; flex: none; }
   .switch input { opacity: 0; width: 0; height: 0; }
@@ -166,7 +166,7 @@
   }
   .switch input:checked + span { background: #8fae78; }
   .switch input:checked + span::after { transform: translateX(19px); }
-  .stars { font-size: 26px; letter-spacing: 3px; color: #e9bf4f; margin: 2px 0 6px; }
+  .stars { font-size: 21px; letter-spacing: 2px; color: #e9bf4f; margin: 2px 0 6px; }
   .stars .off { color: #dccfbc; }
 
   #toast {
@@ -183,7 +183,7 @@
   #overlay.show { display: flex; }
   .card {
     position: relative;
-    background: var(--cream); border-radius: 20px; padding: 24px 22px 20px; text-align: center; width: min(86%, 340px);
+    background: var(--cream); border-radius: 20px; padding: 18px 18px 16px; text-align: center; width: min(82%, 310px);
     border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(60, 40, 20, .25);
   }
   /* 팝업 상자 위에 걸터앉은 고양이·강아지 그림판 */
@@ -191,13 +191,16 @@
     position: absolute; inset: auto; left: 50%; top: -112px; transform: translateX(-50%);
     width: 300px; height: 125px; pointer-events: none;
   }
-  .card small { font-size: 12px; color: var(--muted); }
-  .card h2 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+  .card small { font-size: 11px; color: var(--muted); }
+  .heartNow { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--ink); margin-top: 4px; }
+  .heartNow svg { width: 15px; height: 14px; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .card h2 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
   #levelLabel, .btn, .node { font-weight: 700; }
-  .card p { margin-bottom: 12px; color: var(--muted); line-height: 1.5; font-size: 15px; }
+  .card p { margin-bottom: 8px; color: var(--muted); line-height: 1.45; font-size: 13px; }
   .btn {
-    display: block; width: 100%; padding: 13px; margin-top: 10px; border-radius: 12px; cursor: pointer;
-    font-size: 17px; background: #f6dd92; color: var(--ink);
+    display: block; width: 100%; padding: 10px; margin-top: 8px; border-radius: 12px; cursor: pointer;
+    font-size: 15px; background: #f6dd92; color: var(--ink);
     border: 1px solid var(--line); box-shadow: 0 2px 5px rgba(70, 50, 30, .15);
   }
   .btn:active { transform: translateY(1px); box-shadow: none; }
@@ -1732,12 +1735,13 @@ function showOverlay(kind) {
     const canSlot = S.boost.slot > 0 && S.slotCount < MAX_SLOTS;
     refreshHearts();
     card.innerHTML = `<canvas id="sadCv" class="perch" width="600" height="250"></canvas>
-      <h2>아쉬워요… 실패했어요</h2><p>대기 칸이 가득 차서 더 태울 수 없었어요.<br>
-      다시 도전할까요, 메인 메뉴로 갈까요?<br><small>다시 하거나 메인 메뉴로 가면 하트가 1개 줄어요 · 지금 하트 ${hearts.n}개</small></p>
-      <button class="btn" id="ovRetry">다시 도전 (하트 1개)</button>
-      <button class="btn alt" id="ovMap">메인 메뉴로</button>
-      ${canSlot ? '<button class="btn alt" id="ovSlot">자리 하나 늘리고 이어 하기</button>' : ''}`;
-    if (canSlot) card.querySelector('#ovSlot').onclick = () => { useSlotBooster(); S.over = false; hideOverlay(); };
+      <h2>꽉 막혔어요</h2><p>대기 칸이 가득 차서 더 태울 수 없어요.<br>
+      <small>다시 하기·지도 보기를 누르면 하트가 1개 줄어요</small><br>
+      <span class="heartNow">${HEART_SVG}지금 하트 ${hearts.n}개</span></p>
+      <button class="btn" id="ovSlot" ${canSlot ? '' : 'disabled'}>아이템 사용${canSlot ? ' (자리 +1)' : ' (없음)'}</button>
+      <button class="btn alt" id="ovRetry">다시 하기</button>
+      <button class="btn alt" id="ovMap">지도 보기</button>`;
+    if (canSlot) card.querySelector('#ovSlot').onclick = () => { stopCelebration(); useSlotBooster(); S.over = false; hideOverlay(); };
     card.querySelector('#ovRetry').onclick = () => {
       if (!useHeart()) { toast(`하트가 없어요 · ${heartLeft()} 뒤에 1개 충전`, 2200); return; }
       stopCelebration(); startLevel(S.level);

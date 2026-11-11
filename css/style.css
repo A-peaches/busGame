@@ -202,9 +202,27 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 
 /* 설명서 버튼 (메인 화면 왼쪽 아래) + 설명서 팝업 */
 #menu > #helpBtn { position: absolute; left: 12px; bottom: 16px; z-index: 4; }
-.card.help { max-height: 78vh; overflow-y: auto; text-align: left; }
+.card.help { max-height: 86vh; overflow-y: auto; text-align: left; }
 .card.help h2 { text-align: center; }
-.card.help h3 { font-size: 14px; margin: 12px 0 4px; color: var(--ink); }
+.card.help h3 { font-size: 15px; margin: 4px 0 6px; color: var(--ink); }
+.card.help .helpPage h3 + ul + h3 { margin-top: 12px; }
+/* 책갈피: 위에서 늘어진 리본 모양, 누르면 그 쪽으로 */
+.bookmarks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px 4px; margin: 2px 0 10px; }
+.bm { position: relative; border: 1px solid #b9ab94; border-bottom: none; border-radius: 6px 6px 0 0;
+  padding: 4px 2px 11px; font: inherit; font-size: 11.5px; color: var(--muted); cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); }
+.bm b { display: block; font-size: 13px; color: var(--ink); }
+.bm:nth-child(4n+1) { background: #f8d9e3; } .bm:nth-child(4n+2) { background: #fbe9b7; }
+.bm:nth-child(4n+3) { background: #d6ecd2; } .bm:nth-child(4n+4) { background: #d5e5f4; }
+.bm.on { transform: translateY(3px); color: var(--ink); font-weight: 700; filter: saturate(1.5) brightness(.96); }
+.helpPage { background: #fffaf0; border: 1px solid #e2d6bf; border-radius: 10px; padding: 10px 12px; min-height: 190px; }
+.helpNav { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 2px; font-size: 13px; color: var(--muted); }
+.helpNav .btn:disabled { opacity: .4; }
+.backupCode { font-size: 22px; letter-spacing: 2px; color: var(--ink); background: #fffaf0; border: 1px dashed #c9b99c; border-radius: 10px; padding: 10px; margin: 6px 0 4px; user-select: text; -webkit-user-select: text; }
+.consent { text-align: left; margin: 4px 0 6px; }
+.consent .setRow { font-size: 14px; }
+.consent small { color: var(--muted); }
+.linkBtn { background: none; border: none; font: inherit; font-size: 13px; color: var(--muted); text-decoration: underline; margin-top: 8px; cursor: pointer; }
 .card.help ul { padding-left: 18px; margin: 0; }
 .card.help li { font-size: 13px; line-height: 1.5; color: var(--muted); margin-bottom: 2px; }
 .card.help li b { color: var(--ink); }

@@ -152,10 +152,12 @@ async function saveAuthForSW() {
     await c.put(new URL('__meow_auth', location.href).href, new Response(JSON.stringify({ token: acct.token, api: API })));
   } catch (e) { /* 무시 */ }
 }
-async function enablePush() {
+async function enablePush(permP) {
   if (!pushSupported()) { toast('이 브라우저는 폰 알림을 지원하지 않아요', 2400); return false; }
+  // 권한은 먼저(버튼을 누른 순간) 물어보고, 계정은 그다음에 만들어요
+  permP = permP || Notification.requestPermission();
   if (!(await ensureAccount())) { toast('인터넷 연결을 확인해 주세요'); return false; }
-  const perm = await Notification.requestPermission();
+  const perm = await permP;
   if (perm !== 'granted') { toast('알림이 허용되지 않았어요', 2000); return false; }
   try {
     const reg = await navigator.serviceWorker.register('sw.js');
@@ -177,6 +179,75 @@ async function disablePush() {
     await api('/push', { subscription: null });
   } catch (e) { /* 무시 */ }
   store.set('busGame.push', false);
+}
+
+// ---- 백업 코드: 개인정보 없이 다른 기기에서 이어 하기 ----
+async function showBackup() {
+  const card = $('card');
+  const back = '<button class="btn alt" id="ovBack">설정으로</button>';
+  const bindBack = () => card.querySelector('#ovBack').onclick = () => showSettings();
+  if (!nickname) { card.innerHTML = '<h2>백업 코드</h2><p>먼저 닉네임을 정해 주세요.</p>' + back; bindBack(); return; }
+  card.innerHTML = `<h2>백업 코드 만들기</h2>
+    <p>새 기기에서 이 코드를 넣으면 단계·하트·친구를 그대로 불러올 수 있어요.</p>
+    <p><small>새로 만들면 <b>예전 백업 코드는 더 이상 쓸 수 없어요.</b></small></p>
+    <button class="btn" id="mkBackup">코드 만들기</button>${back}`;
+  bindBack();
+  card.querySelector('#mkBackup').onclick = async () => {
+    if (!(await ensureAccount())) { toast('인터넷 연결을 확인해 주세요'); return; }
+    let r;
+    try { await syncNow(); r = await api('/backup', {}); } catch (e) { toast('코드를 만들지 못했어요', 2000); return; }
+    card.innerHTML = `<h2>내 백업 코드</h2>
+      <div class="backupCode">${esc(r.backup)}</div>
+      <p><small>캡처하거나 메모해 두세요. 이 코드는 다시 보여 드릴 수 없어요.<br>코드를 아는 사람은 누구나 불러올 수 있으니 다른 사람에게 알려 주지 마세요.</small></p>
+      <button class="btn" id="cpBackup">복사하기</button>${back}`;
+    bindBack();
+    card.querySelector('#cpBackup').onclick = async () => {
+      try { await navigator.clipboard.writeText(r.backup); toast('백업 코드를 복사했어요'); } catch (e) { toast(r.backup, 3000); }
+    };
+  };
+}
+function showRestore(first) {
+  const card = $('card');
+  card.innerHTML = `<h2>백업 코드로 불러오기</h2>
+    <p>다른 기기에서 만든 백업 코드를 넣어 주세요.${first ? '' : '<br><small>지금 이 기기의 기록은 불러온 기록으로 바뀌어요.</small>'}</p>
+    <input class="nickInput" id="bkInput" maxlength="14" placeholder="XXXX-XXXX-XXXX" autocapitalize="characters" autocomplete="off">
+    ${first ? `<div class="consent">
+      <div class="setRow"><span>📍 내 위치 날씨 보기<br><small>날씨를 불러올 때만 쓰고 저장하지 않아요</small></span><label class="switch"><input type="checkbox" id="geoOk" checked><span></span></label></div>
+      ${pushSupported() ? `<div class="setRow"><span>🔔 폰 알림 받기<br><small>하트 도착 · 하트 가득</small></span><label class="switch"><input type="checkbox" id="pushOk" checked><span></span></label></div>` : ''}
+    </div>` : ''}
+    <button class="btn" id="bkOk">불러오기</button>
+    <button class="btn alt" id="ovBack">${first ? '돌아가기' : '설정으로'}</button>`;
+  const inp = card.querySelector('#bkInput');
+  card.querySelector('#ovBack').onclick = () => first ? showNickname(true) : showSettings();
+  const go = async () => {
+    const code = inp.value.trim();
+    if (!code) { toast('백업 코드를 적어 주세요'); return; }
+    // 알림 권한은 버튼을 누른 순간에만 물어볼 수 있어서 처음 기기라면 지금 같이 물어봐요
+    const pushC = card.querySelector('#pushOk'), geoC = card.querySelector('#geoOk');
+    const permP = pushC && pushC.checked ? Notification.requestPermission() : null;
+    let r;
+    try { r = await api('/restore', { code }); }
+    catch (e) { toast(e.message && e.message.length < 40 ? e.message : '불러오지 못했어요', 2200); return; }
+    acct = { id: r.id, token: r.token, code: r.code };
+    store.set('busGame.acct', acct);
+    nickname = r.nickname || nickname || '멍냥';
+    store.set('busGame.nickname', nickname);
+    unlocked = Math.max(1, r.unlocked | 0);
+    store.set('busGame.unlocked', unlocked);
+    if (r.hearts) { hearts.n = r.hearts.n; hearts.t = r.hearts.t || Date.now(); refreshHearts(); store.set('busGame.hearts', hearts); }
+    await saveAuthForSW();
+    updateHello(); renderHearts(); renderMap();
+    hideOverlay();
+    toast(`${nickname}님, 다시 만나서 반가워요! 🐾`, 2200);
+    if (first) { store.set('busGame.geo', geoC && geoC.checked ? 'yes' : 'no'); startWeather(); }
+    // 알림을 쓰던 기기라면 새 계정으로 다시 연결해요
+    if (permP || pushOn()) enablePush(permP || undefined);
+    syncSoon();
+  };
+  card.querySelector('#bkOk').onclick = go;
+  inp.onkeydown = e => { if (e.key === 'Enter') go(); };
+  $('overlay').classList.add('show');
+  setTimeout(() => inp.focus(), 50);
 }
 
 // ---- 시작할 때와 주기적으로 맞춰요 ----

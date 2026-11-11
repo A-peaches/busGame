@@ -194,22 +194,34 @@ function showNickname(first) {
   card.innerHTML = `<h2>${first ? '반가워요!' : '닉네임 바꾸기'}</h2>
     <p>${first ? '멍냥이들과 여행할 이름을 알려 주세요.<br>이 기기에 저장되어 다음에 이어서 할 수 있어요.' : '새 닉네임을 적어 주세요.'}</p>
     <input class="nickInput" id="nickInput" maxlength="10" placeholder="닉네임 (최대 10자)" value="${first ? '' : nickname.replace(/"/g, '&quot;')}">
+    ${first ? `<div class="consent">
+      <div class="setRow"><span>📍 내 위치 날씨 보기<br><small>날씨를 불러올 때만 쓰고 저장하지 않아요</small></span><label class="switch"><input type="checkbox" id="geoOk" checked><span></span></label></div>
+      ${typeof pushSupported === 'function' && pushSupported() ? `<div class="setRow"><span>🔔 폰 알림 받기<br><small>하트 도착 · 하트 가득</small></span><label class="switch"><input type="checkbox" id="pushOk" checked><span></span></label></div>` : ''}
+    </div>` : ''}
     <button class="btn" id="nickOk">${first ? '여행 시작' : '저장'}</button>
-    ${first ? '' : '<button class="btn alt" id="ovClose">취소</button>'}`;
+    ${first ? '<button class="linkBtn" id="restoreBtn">🔑 백업 코드로 불러오기</button>' : '<button class="btn alt" id="ovClose">취소</button>'}`;
   const inp = card.querySelector('#nickInput');
   const ok = () => {
     const v = inp.value.trim();
     if (!v) { toast('닉네임을 적어 주세요'); inp.focus(); return; }
+    // 권한 요청은 버튼을 누른 그 순간에 해야 크롬이 물어봐요
+    const geoC = first && card.querySelector('#geoOk');
+    const pushC = first && card.querySelector('#pushOk');
+    const permP = pushC && pushC.checked ? Notification.requestPermission() : null;
     nickname = v;
     store.set('busGame.nickname', v);
     updateHello();
-    if (typeof syncSoon === 'function') syncSoon();
     hideOverlay();
-    if (first && store.get('busGame.geo', null) === null) askLocation();   // 다음으로 위치 동의 묻기
+    if (first) {
+      store.set('busGame.geo', geoC && geoC.checked ? 'yes' : 'no');
+      startWeather();
+      if (permP) enablePush(permP); else if (typeof syncSoon === 'function') syncSoon();
+    } else if (typeof syncSoon === 'function') syncSoon();
   };
   card.querySelector('#nickOk').onclick = ok;
   inp.onkeydown = e => { if (e.key === 'Enter') ok(); };
   if (!first) card.querySelector('#ovClose').onclick = () => hideOverlay();
+  else card.querySelector('#restoreBtn').onclick = () => showRestore(true);
   $('overlay').classList.add('show');
   setTimeout(() => inp.focus(), 50);
 }
@@ -228,10 +240,14 @@ function showSettings() {
       <button data-s="auto">지금 계절</button><button data-s="spring">봄</button><button data-s="summer">여름</button><button data-s="autumn">가을</button><button data-s="winter">겨울</button>
     </div>
     <div class="setRow"><span>폰 알림 <small>(하트 도착 · 하트 가득)</small></span><label class="switch"><input type="checkbox" id="pushOn"><span></span></label></div>
-    <div class="setRow"><span>닉네임 · ${nickname || '없음'}</span>
-      <button class="btn alt" id="nickBtn" style="width:auto;margin:0;padding:6px 14px;font-size:14px">변경</button></div>
+    <div class="setRow"><span>닉네임 · ${esc(nickname || '없음')}</span>
+      <button class="btn alt mini" id="nickBtn">변경</button></div>
+    <div class="setRow"><span>백업 코드</span>
+      <span style="display:flex;gap:6px"><button class="btn alt mini" id="backupBtn">만들기</button><button class="btn alt mini" id="restoreBtn">불러오기</button></span></div>
     <button class="btn alt" id="ovClose">닫기</button>`;
   card.querySelector('#nickBtn').onclick = () => showNickname(false);
+  card.querySelector('#backupBtn').onclick = () => showBackup();
+  card.querySelector('#restoreBtn').onclick = () => showRestore(false);
   const markSeason = () => card.querySelectorAll('#seasonPick button').forEach(b => b.classList.toggle('on', b.dataset.s === seasonPref));
   card.querySelectorAll('#seasonPick button').forEach(b => b.onclick = () => { setSeason(b.dataset.s); markSeason(); });
   markSeason();

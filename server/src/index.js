@@ -34,6 +34,7 @@ export default {
       const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
       if (path === '/' ) return json({ ok: true, name: 'meow-bus-api' });
       if (path === '/register' && req.method === 'POST') return register(env, body);
+      if (path === '/restore' && req.method === 'POST') return restore(env, body);
 
       const user = await auth(req, env);
       if (!user) return json({ error: 'unauthorized' }, 401);
@@ -47,6 +48,7 @@ export default {
       if (path === '/gifts/claim' && req.method === 'POST') return claimGifts(env, user);
       if (path === '/push' && req.method === 'POST') return savePush(env, user, body);
       if (path === '/inbox') return inbox(env, user);
+      if (path === '/backup' && req.method === 'POST') return makeBackup(env, user);
       return json({ error: 'not found' }, 404);
     } catch (e) {
       return json({ error: String((e && e.message) || e) }, 500);
@@ -78,6 +80,24 @@ async function register(env, body) {
     } catch (e) { /* 친구 코드가 겹치면 다시 만들어요 */ }
   }
   return json({ error: 'try again' }, 500);
+}
+
+// ---- 백업 코드: 개인정보 없이 다른 기기에서 이어하기 ----
+// 서버에는 코드 자체가 아니라 SHA-256 해시만 저장해요 (서버를 봐도 코드를 알 수 없어요)
+const sha256 = async s => b64u(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
+const normBackup = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+async function makeBackup(env, user) {
+  const a = new Uint8Array(12); crypto.getRandomValues(a);
+  const raw = [...a].map(b => CODE_CH[b % CODE_CH.length]).join('');
+  await env.DB.prepare('UPDATE users SET backup_hash = ? WHERE id = ?').bind(await sha256(raw), user.id).run();
+  return json({ backup: raw.slice(0, 4) + '-' + raw.slice(4, 8) + '-' + raw.slice(8) });
+}
+async function restore(env, body) {
+  const raw = normBackup(body.code);
+  if (raw.length !== 12) return json({ error: '백업 코드를 확인해 주세요' }, 400);
+  const u = await env.DB.prepare('SELECT * FROM users WHERE backup_hash = ?').bind(await sha256(raw)).first();
+  if (!u) return json({ error: '그 백업 코드를 찾을 수 없어요' }, 404);
+  return json({ id: u.id, token: u.token, code: u.code, nickname: u.nickname, unlocked: u.unlocked, hearts: { n: u.hearts, t: u.hearts_t } });
 }
 
 async function sync(env, user, body) {

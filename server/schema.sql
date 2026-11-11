@@ -12,8 +12,10 @@ CREATE TABLE IF NOT EXISTS users (
   full_at       INTEGER NOT NULL DEFAULT 0,  -- 하트가 가득 차는 시각 (0 = 이미 가득)
   full_notified INTEGER NOT NULL DEFAULT 1,  -- 가득 참 알림을 보냈는지
   push          TEXT,                        -- 웹 푸시 구독 정보 (JSON)
+  backup_hash   TEXT,                        -- 백업 코드의 해시 (코드 자체는 저장하지 않아요)
   created       INTEGER NOT NULL
 );
+CREATE INDEX IF NOT EXISTS users_backup ON users(backup_hash);
 CREATE INDEX IF NOT EXISTS users_full ON users(full_notified, full_at);
 
 -- 친구 (양쪽 방향으로 한 줄씩). last_gift = a가 b에게 마지막으로 하트를 보낸 시각

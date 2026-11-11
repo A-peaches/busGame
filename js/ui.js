@@ -245,61 +245,85 @@ function drawTrumpeters(c, T) {
 const BOOK_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g fill="none" stroke="#4a3b2c" stroke-width="1.6" stroke-linejoin="round">
   <path d="M12 6.5 C9.5 4.8 6.5 4.6 3.5 5.2 V18.6 C6.5 18 9.5 18.2 12 19.9 C14.5 18.2 17.5 18 20.5 18.6 V5.2 C17.5 4.6 14.5 4.8 12 6.5Z" fill="#f6dd92"/>
   <path d="M12 6.5 V19.9"/></g></svg>`;
-function showHelp() {
-  const card = $('card');
-  card.classList.add('help');
-  card.innerHTML = `<h2>멍냥이의 버스여행 설명서</h2>
-    <h3>🚌 버스 꺼내기</h3>
-    <ul>
+// 책갈피 한 장 = 한 쪽. [제목, 짧은 이름, 내용]
+const HELP_PAGES = [
+  ['🚌 버스 꺼내기', '버스', `<ul>
       <li>주차장의 버스를 누르면 <b>화살표 방향</b>으로 나가요.</li>
       <li>앞이 막혀 있으면 부딪히고 제자리로 돌아와요. <b>앞이 뚫린 버스</b>부터 꺼내요.</li>
       <li>버스는 위·아래·양옆·대각선 <b>8방향</b>이 있어요. 숫자는 탈 수 있는 자리 수(8·16·24·32석)예요.</li>
       <li><b>❓ 버스</b>는 색이 숨겨져 있다가 앞길이 열리면 색이 보여요.</li>
-    </ul>
-    <h3>🐱🐶 멍냥이 태우기</h3>
-    <ul>
+    </ul>`],
+  ['🐱🐶 멍냥이 태우기', '태우기', `<ul>
       <li>꺼낸 버스는 가운데 <b>대기 칸</b>에 서요. 처음엔 4칸이에요.</li>
       <li><b>하트 길</b> 위의 멍냥이는 <b>같은 색 버스</b>가 오면 걸어가서 타요.</li>
       <li>버스가 다 차면 신나게 출발하고, 대기 칸이 비어요.</li>
       <li>가운데 <b>나무를 누르면</b> 3초 동안 빨리감기! 줄과 탑승이 빨라져요.</li>
-    </ul>
-    <h3>😵 실패</h3>
-    <ul>
+      <li>멍냥이를 모두 태워 보내면 <b>클리어!</b></li>
+    </ul>`],
+  ['🧰 실패와 아이템', '아이템', `<ul>
       <li>대기 칸이 꽉 찼는데 하트 길의 누구도 탈 수 없으면 <b>꽉 막혀요</b>.</li>
-      <li>멍냥이를 모두 태워 보내면 클리어!</li>
-    </ul>
-    <h3>🧰 아이템</h3>
-    <ul>
       <li><b>자리 추가</b>: 대기 칸이 한 칸 늘어나요. 단계마다 1개 (별 5개 단계는 2개).</li>
       <li><b>크레인</b>: 막혀 있는 버스도 아무거나 하나 바로 꺼내요. 단계마다 1개.</li>
       <li>꽉 막혔을 때 [아이템 사용]으로 자리를 늘려 이어서 할 수도 있어요.</li>
-    </ul>
-    <h3>❤️ 하트</h3>
-    <ul>
+    </ul>`],
+  ['❤️ 하트', '하트', `<ul>
       <li>하트는 최대 5개, <b>10분마다 1개</b>씩 충전돼요.</li>
       <li>실패한 뒤 다시 하거나 지도로 나가면 1개 줄어요. 게임 도중 나가도 1개 줄어요.</li>
       <li>클리어하면 하트는 줄지 않아요. 하트가 0개면 단계를 시작할 수 없어요.</li>
-    </ul>
-    <h3>⭐ 단계와 난이도</h3>
-    <ul>
+      <li>친구가 보낸 하트를 받으면 5개를 넘을 수도 있어요.</li>
+    </ul>`],
+  ['⭐ 단계와 레일', '단계', `<ul>
       <li>모두 <b>100단계</b>예요. 한 단계를 깨면 다음 단계가 열려요.</li>
       <li>10단계마다 <b>쉬움 → 어려움 → 매우 어려움</b>이 반복되고, 갈수록 조금씩 어려워져요.</li>
       <li><b>별 5개(최고 난이도)</b>는 30단계마다 나와요.</li>
     </ul>
-    <h3>🚃 이벤트: 레일 버스 (31단계부터)</h3>
+    <h3>🚃 레일 버스 (31단계부터)</h3>
     <ul>
       <li>주차장 아래 레일 위에 버스가 있어요.</li>
       <li>버스를 <b>누를 때마다 레일이 한 칸씩</b> 움직여요.</li>
       <li><b>노란 출구 칸</b>에 온 버스만 출발할 수 있어요.</li>
-    </ul>
-    <h3>⚙ 설정</h3>
-    <ul>
-      <li>배경음악·효과음 켜기와 크기, <b>계절 테마</b>(지금 계절/봄/여름/가을/겨울), 닉네임을 바꿀 수 있어요.</li>
+    </ul>`],
+  ['💌 친구와 알림', '친구', `<ul>
+      <li>왼쪽 아래 <b>친구 버튼</b>에서 내 친구 코드를 보고, 친구 코드를 넣어 친구를 맺어요.</li>
+      <li>친구에게 <b>6시간마다 하트 1개</b>를 보낼 수 있어요.</li>
+      <li>하트가 도착하면 친구 버튼에 빨간 점이 생기고, 지도에서 받을 수 있어요.</li>
+      <li><b>폰 알림</b>을 켜면 하트가 도착했을 때와 하트가 가득 찼을 때 알려 드려요. (설정에서 켜고 끌 수 있어요)</li>
+    </ul>`],
+  ['🔑 백업 코드', '백업', `<ul>
+      <li>이름·이메일 같은 개인정보는 받지 않아요. 대신 <b>백업 코드</b>로 다른 기기에서 이어 할 수 있어요.</li>
+      <li><b>설정 → 백업 코드 · 만들기</b>를 누르면 12자리 코드가 나와요. 캡처하거나 메모해 두세요.</li>
+      <li>새 기기에서는 처음 화면의 <b>[백업 코드로 불러오기]</b>, 또는 설정 → 백업 코드 · 불러오기에 입력해요.</li>
+      <li>단계, 하트, 친구, 친구 코드가 그대로 돌아와요.</li>
+      <li>코드를 새로 만들면 <b>예전 코드는 쓸 수 없어요</b>. 서버에는 코드 자체가 아니라 알아볼 수 없게 바꾼 값만 저장해요.</li>
+      <li>코드를 아는 사람은 누구나 불러올 수 있으니 다른 사람에게 알려 주지 마세요.</li>
+    </ul>`],
+  ['⚙ 설정', '설정', `<ul>
+      <li>배경음악·효과음 켜기와 크기를 바꿀 수 있어요.</li>
+      <li><b>계절 테마</b>: 지금 계절 / 봄 / 여름 / 가을 / 겨울.</li>
+      <li>폰 알림, 백업 코드, 닉네임도 여기서 바꿔요.</li>
       <li>메인 화면의 하늘은 실제 시간과 날씨를 따라가요.</li>
-    </ul>
-    <button class="btn" id="ovClose" style="margin-top:14px">알겠어요</button>`;
+    </ul>`],
+];
+let helpPage = 0;
+function showHelp(page) {
+  if (page !== undefined) helpPage = page;
+  const card = $('card');
+  card.classList.add('help');
+  const [title, , body] = HELP_PAGES[helpPage];
+  card.innerHTML = `<h2>설명서</h2>
+    <div class="bookmarks">${HELP_PAGES.map((p, i) =>
+      `<button class="bm${i === helpPage ? ' on' : ''}" data-p="${i}"><b>${i + 1}</b>${p[1]}</button>`).join('')}</div>
+    <div class="helpPage"><h3>${helpPage + 1}. ${title}</h3>${body}</div>
+    <div class="helpNav">
+      <button class="btn alt mini" id="hPrev" ${helpPage ? '' : 'disabled'}>‹ 이전</button>
+      <span>${helpPage + 1} / ${HELP_PAGES.length}</span>
+      <button class="btn alt mini" id="hNext" ${helpPage < HELP_PAGES.length - 1 ? '' : 'disabled'}>다음 ›</button>
+    </div>
+    <button class="btn" id="ovClose">알겠어요</button>`;
+  card.querySelectorAll('.bm').forEach(b => b.onclick = () => showHelp(+b.dataset.p));
+  card.querySelector('#hPrev').onclick = () => showHelp(helpPage - 1);
+  card.querySelector('#hNext').onclick = () => showHelp(helpPage + 1);
   card.querySelector('#ovClose').onclick = () => hideOverlay();
-  card.scrollTop = 0;
   $('overlay').classList.add('show');
 }
 $('helpBtn').innerHTML = BOOK_SVG;

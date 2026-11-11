@@ -148,9 +148,8 @@ function bestVehicleFor(color) {
   let best = null;
   for (let i = 0; i < S.slotCount; i++) {
     const v = S.slots[i];
-    if (v && v.state === 'slot' && v.color === color && v.filled + v.incoming < v.cap) {
-      if (!best || v.filled + v.incoming > best.filled + best.incoming) best = v;
-    }
+    // 같은 색 버스가 여럿이면 왼쪽 칸부터 채워요
+    if (v && v.state === 'slot' && v.color === color && v.filled + v.incoming < v.cap) return v;
   }
   return best;
 }

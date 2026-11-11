@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
   full_notified INTEGER NOT NULL DEFAULT 1,  -- 가득 참 알림을 보냈는지
   push          TEXT,                        -- 웹 푸시 구독 정보 (JSON)
   backup_hash   TEXT,                        -- 백업 코드의 해시 (코드 자체는 저장하지 않아요)
+  last_seen     INTEGER NOT NULL DEFAULT 0,  -- 마지막으로 게임에 들어온 시각
+  reminded_at   INTEGER NOT NULL DEFAULT 0,  -- 마지막 여행 알림 시각 (하루 한 번)
   created       INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS users_backup ON users(backup_hash);

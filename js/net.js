@@ -232,8 +232,23 @@ async function saveAuthForSW() {
     await c.put(new URL('__meow_auth', location.href).href, new Response(JSON.stringify({ token: acct.token, api: API })));
   } catch (e) { /* 무시 */ }
 }
-async function enablePush(permP) {
+// 실제로 알림이 연결돼 있는지 확인해요 (권한 + 구독). 권한만 있고 구독이 없으면 조용히 다시 연결해요.
+async function pushState() {
+  if (!pushSupported() || Notification.permission !== 'granted') return false;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration() || await navigator.serviceWorker.register('sw.js');
+    const sub = reg && await reg.pushManager.getSubscription();
+    if (sub) {
+      store.set('busGame.push', true);
+      if (await ensureAccount()) { await saveAuthForSW(); api('/push', { subscription: sub.toJSON() }).catch(() => {}); }
+      return true;
+    }
+  } catch (e) { /* 아래에서 다시 연결 */ }
+  return enablePush(undefined, true);
+}
+async function enablePush(permP, silent) {
   if (!pushSupported()) { toast('이 브라우저는 폰 알림을 지원하지 않아요', 2400); return false; }
+  if (Notification.permission === 'denied') { toast('폰 설정에서 이 앱(크롬)의 알림을 허용해 주세요', 2600); return false; }
   // 권한은 먼저(버튼을 누른 순간) 물어보고, 계정은 그다음에 만들어요
   permP = permP || Notification.requestPermission();
   if (!(await ensureAccount())) { toast('인터넷 연결을 확인해 주세요'); return false; }
@@ -247,15 +262,15 @@ async function enablePush(permP) {
     await saveAuthForSW();
     await api('/push', { subscription: sub.toJSON() });
     store.set('busGame.push', true);
-    toast('폰 알림을 켰어요 🔔', 1800);
+    if (!silent) toast('폰 알림을 켰어요 🔔', 1800);
     return true;
-  } catch (e) { toast('알림을 켜지 못했어요', 2000); return false; }
+  } catch (e) { if (!silent) toast('알림을 켜지 못했어요', 2000); return false; }
 }
 // 알림 동의를 꼭 받아요: 아직 정하지 않았으면 시작할 때마다 물어보고, 허용돼 있으면 조용히 연결해요
 function askPushIfNeeded() {
   if (!nickname || !pushSupported()) return;
   const p = Notification.permission;
-  if (p === 'granted') { if (!store.get('busGame.push', false)) enablePush(); return; }
+  if (p === 'granted') { pushState(); return; }     // 허용돼 있으면 구독을 확인하고 서버와 다시 맞춰요
   if (p !== 'default' || $('overlay').classList.contains('show')) return;
   const card = $('card');
   card.innerHTML = `<h2>🔔 알림을 켜 주세요</h2>

@@ -239,7 +239,7 @@ function showSettings() {
     <div class="seasonPick" id="seasonPick">
       <button data-s="auto">지금 계절</button><button data-s="spring">봄</button><button data-s="summer">여름</button><button data-s="autumn">가을</button><button data-s="winter">겨울</button>
     </div>
-    <div class="setRow"><span>폰 알림 <small>(하트 도착 · 하트 가득)</small></span><label class="switch"><input type="checkbox" id="pushOn"><span></span></label></div>
+    <div class="setRow"><span>폰 알림 <small>(하트 · 쪽지 · 여행 알림)</small></span><label class="switch"><input type="checkbox" id="pushOn"><span></span></label></div>
     <div class="setRow"><span>닉네임 · ${esc(nickname || '없음')}</span>
       <button class="btn alt mini" id="nickBtn">변경</button></div>
     <div class="setRow"><span>백업 코드</span>
@@ -263,6 +263,7 @@ function showSettings() {
   q('#sfxVol').onchange = () => sfx('depart');   // 크기 미리 듣기
   // 폰 알림 켜기/끄기 (처음 켤 때 크롬이 알림 권한을 물어봐요)
   q('#pushOn').checked = typeof pushOn === 'function' && pushOn();
+  if (typeof pushState === 'function') pushState().then(on => { const c = q('#pushOn'); if (c) c.checked = on; });
   q('#pushOn').onchange = async e => {
     if (e.target.checked) e.target.checked = await enablePush();
     else await disablePush();

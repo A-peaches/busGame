@@ -60,7 +60,7 @@ export default {
 
   // 5분마다: 하트가 가득 찬 사람에게 알림
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(notifyFullHearts(env));
+    ctx.waitUntil(notifyFullHearts(env).then(() => remindTravelers(env)));
   },
 };
 
@@ -113,8 +113,8 @@ async function sync(env, user, body) {
     const newFull = hearts >= HEART_MAX ? 0 : hearts_t + (HEART_MAX - hearts) * HEART_MS;
     if (newFull !== full_at) { full_at = newFull; full_notified = newFull ? 0 : 1; }
   }
-  await env.DB.prepare('UPDATE users SET nickname = ?, unlocked = ?, hearts = ?, hearts_t = ?, full_at = ?, full_notified = ? WHERE id = ?')
-    .bind(nickname, unlocked, hearts, hearts_t, full_at, full_notified, user.id).run();
+  await env.DB.prepare('UPDATE users SET nickname = ?, unlocked = ?, hearts = ?, hearts_t = ?, full_at = ?, full_notified = ?, last_seen = ? WHERE id = ?')
+    .bind(nickname, unlocked, hearts, hearts_t, full_at, full_notified, now(), user.id).run();
   const g = await env.DB.prepare('SELECT COUNT(*) AS c FROM gifts WHERE to_id = ? AND claimed = 0').bind(user.id).first();
   const l = await env.DB.prepare('SELECT COUNT(*) AS c FROM letters WHERE to_id = ? AND read = 0').bind(user.id).first();
   return json({ unlocked, gifts: g ? g.c : 0, letters: l ? l.c : 0, code: user.code });
@@ -231,6 +231,28 @@ async function notifyFullHearts(env) {
   for (const u of results) {
     await env.DB.prepare('UPDATE users SET full_notified = 1 WHERE id = ?').bind(u.id).run();
     await notify(env, u, '❤️ 하트가 가득 찼어요', '멍냥이들이 정류장에서 기다리고 있어요. 버스를 출발시켜 볼까요?');
+  }
+}
+
+// ---- 여행 알림: 하루 넘게 안 온 사람에게, 낮 시간(한국 11~20시)에 하루 한 번만 ----
+const REMIND = [
+  ['🐱 멍냥이들이 기다려요!', '정류장에 멍냥이들이 줄을 섰어요. 버스를 출발시켜 주세요 🚌'],
+  ['🐶 오늘도 여행 가요!', '멍멍! 냥냥! 멍냥이들의 여행을 도와주세요 🐾'],
+  ['🚌 버스가 시동을 걸었어요', '부릉부릉~ 멍냥이들이 태워 주기를 기다리고 있어요 🐱🐶'],
+  ['🐾 정류장이 북적북적해요', '꼬리를 살랑살랑 흔들며 기다리는 중이에요. 잠깐 들러 주실래요?'],
+  ['🌼 멍냥이들의 여행 시간', '오늘은 몇 단계까지 갈 수 있을까요? 멍냥이들이 응원해요 🐶🐱'],
+];
+const DAY = 86400000;
+async function remindTravelers(env) {
+  const kstHour = new Date(now() + 9 * 3600000).getUTCHours();
+  if (kstHour < 11 || kstHour >= 20) return;
+  const t = now();
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM users WHERE push IS NOT NULL AND last_seen < ? AND reminded_at < ? LIMIT 100`).bind(t - DAY * 0.8, t - DAY).all();
+  for (const u of results) {
+    await env.DB.prepare('UPDATE users SET reminded_at = ? WHERE id = ?').bind(t, u.id).run();
+    const [title, body] = REMIND[Math.floor(Math.random() * REMIND.length)];
+    await notify(env, u, title, body);
   }
 }
 

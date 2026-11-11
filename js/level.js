@@ -65,10 +65,10 @@ function levelTier(n) {
   return [1, 3, 4][(pos - 1) % 3];
 }
 // 실제로 버스 수, 색 수 등을 정할 때 쓰는 "체감 난이도" 값
+//   전체를 한 단계(+1.5) 올리고, 단계마다 0.27씩 미세하게 계속 어려워져요 (같은 별이라도 뒤 단계가 조금 더 어려워요)
 function effectiveLevel(n) {
-  const block = Math.floor((n - 1) / 10);
   const tier = levelTier(n) === 5 ? 4.4 : levelTier(n);     // 별 5개는 너무 어렵지 않게 살짝 완화
-  return Math.round((tier - 1) * 3) + 1 + Math.round(block * 2.5);
+  return (tier - 1) * 3 + 1 + 1.5 + (n - 1) * 0.27;
 }
 
 function levelParams(n) {
@@ -78,8 +78,8 @@ function levelParams(n) {
     rows: Math.min(8 + Math.floor((e - 1) / 3), 12),
     colorCount: Math.min(3 + Math.floor((e - 1) / 3), COLORS.length),
     diagChance: Math.min(0.1 + e * 0.025, 0.35),
-    hiddenChance: e >= 4 ? Math.min(0.08 + e * 0.02, 0.3) : 0,
-    mix: Math.min(24 + e * 6, 160),  // 승객 순서가 섞이는 정도 (좌석이 많아진 만큼 크게)
+    hiddenChance: e >= 4 ? Math.min(0.08 + e * 0.012, 0.36) : 0,
+    mix: Math.min(24 + e * 6, 260),  // 승객 순서가 섞이는 정도 (좌석이 많아진 만큼 크게)
     target: e,
   };
 }

@@ -2432,17 +2432,17 @@ function piano(m, t, dur, vel, bus) {
 }
 
 // 버튼 소리 "뿅": 날카로운 배음 없이 둥근 사인파가 살짝 올라가며 작게 사라져요
-function blip(t, f0 = 520, f1v = 880, vol = 0.07) {
+function blip(t, f0 = 520, f1v = 880, vol = 0.07, len = 0.13, cut = 2200) {
   const o = AC.createOscillator(), g = AC.createGain(), lp = AC.createBiquadFilter();
   o.type = 'sine';
   o.frequency.setValueAtTime(f0, t);
   o.frequency.exponentialRampToValueAtTime(f1v, t + 0.07);
-  lp.type = 'lowpass'; lp.frequency.value = 2200;
+  lp.type = 'lowpass'; lp.frequency.value = cut;
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + len);
   o.connect(lp).connect(g).connect(sfxBus);
-  o.start(t); o.stop(t + 0.15);
+  o.start(t); o.stop(t + len + 0.02);
 }
 
 // 효과음: "뿅뿅" 느낌을 피아노로
@@ -2453,7 +2453,7 @@ function sfx(kind, arg = 0) {
   const t = AC.currentTime + 0.01, B = sfxBus;
   switch (kind) {
     case 'click':  blip(t); break;                                                            // 뿅 (작고 동그랗게)
-    case 'go':     [[660, 840], [840, 1060], [1060, 1320]].forEach(([a, b], i) => blip(t + i * 0.065, a, b, 0.05)); break;   // 뾰로롱
+    case 'go':     blip(t, 440, 660, 0.05, 0.1, 1300); blip(t + 0.085, 600, 520, 0.045, 0.2, 1100); break;   // 뾰롱 (낮고 부드럽게)
     case 'block':  piano(50, t, 0.2, 0.17, B); piano(49, t + 0.06, 0.25, 0.1, B); break;     // 쿵
     case 'board':  piano(PENTA[arg % PENTA.length], t, 0.12, 0.07, B); break;                 // 폴짝
     case 'depart': [72, 76, 79, 84].forEach((m, i) => piano(m, t + i * 0.07, 0.35, 0.1, B)); break;

@@ -58,20 +58,20 @@
   /* 눈송이: 하얀 눈밭 위에서도 보이도록 아주 옅은 푸른 테두리 */
   .snow { border-radius: 50%; background: #fff; opacity: .95;
     box-shadow: 0 0 0 .6px rgba(140, 160, 185, .55), 0 0 4px rgba(255, 255, 255, .9); }
-  /* 위쪽: 계절 버튼 / 인사 / 설정 */
-  .seasonBar { position: absolute; top: 14px; left: 12px; z-index: 4; display: flex; gap: 4px; }
-  .seasonBar button {
+  /* 설정 창의 계절 고르기 */
+  .seasonPick { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; margin: 6px 0 4px; }
+  .seasonPick button {
     height: 32px; padding: 0 10px; border-radius: 16px; font-size: 13px; cursor: pointer;
     background: rgba(255, 250, 240, .85); color: var(--ink); border: 1px solid var(--line);
   }
-  .seasonBar button.on { background: #f6dd92; color: var(--ink); }
+  .seasonPick button.on { background: #f6dd92; color: var(--ink); }
   .hello {
-    position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 4; white-space: nowrap;
+    position: absolute; top: 14px; left: 12px; z-index: 4; white-space: nowrap;
     padding: 6px 14px; border-radius: 16px; font-size: 13px; background: rgba(255, 250, 240, .85); border: 1px solid var(--line);
   }
   .hello:empty, .weather:empty { display: none; }
   .weather {
-    position: absolute; top: 92px; left: 50%; transform: translateX(-50%); z-index: 4; white-space: nowrap;
+    position: absolute; top: 52px; left: 12px; z-index: 4; white-space: nowrap;
     padding: 4px 12px; border-radius: 14px; font-size: 12px; color: var(--muted);
     background: rgba(255, 250, 240, .75); border: 1px solid var(--line);
   }
@@ -210,9 +210,6 @@
     <div id="mapScroll"><div id="mapInner"><img id="mapRoad" alt="" draggable="false"></div></div>
     <div class="fx" id="fx"></div>
 
-    <div class="seasonBar" id="seasonBar">
-      <button data-s="spring">봄</button><button data-s="summer">여름</button><button data-s="autumn">가을</button><button data-s="winter">겨울</button>
-    </div>
     <div class="hello" id="hello"></div>
     <div class="weather" id="weather"></div>
     <div class="hearts" id="hearts"></div>
@@ -1070,44 +1067,42 @@ function drawThought(x, headTop, r, kind) {
   }
 }
 
-// 줄이 시작되는 작은 집: 하얀 도자기 집 안에 불이 켜진 듯
-// (따뜻하게 빛나는 아치형 창문 + 지붕 아래 하트 구멍과 점무늬)
+// 줄이 시작되는 작은 집: 네모 지붕을 얹은 하얀 도자기 집 (불 켜진 아치형 창문 + 하트 무늬)
+//   지붕은 벽보다 살짝 넓은 납작한 판으로, 벽 위에 그대로 얹혀 자연스럽게 이어져요
 function drawHouse(x, y, s) {
-  const w = s * 0.86, wallH = s * 0.5, roofH = s * 0.56, dx = s * 0.3, dy = s * 0.17;
-  const L = x - w / 2, Rr = x + w / 2, top = y - wallH, apex = y - wallH - roofH, eave = s * 0.07;
-  const glow = (fn) => { ctx.save(); ctx.shadowColor = 'rgba(255,196,110,.95)'; ctx.shadowBlur = s * 0.22; fn(); ctx.restore(); };
+  const w = s * 0.8, wallH = s * 0.6, dx = s * 0.26, dy = s * 0.15;
+  const rt = s * 0.1, o = s * 0.06;                       // 지붕 두께, 처마가 벽 밖으로 나온 길이
+  const L = x - w / 2, Rr = x + w / 2, top = y - wallH;
+  const glow = (fn) => { ctx.save(); ctx.shadowColor = 'rgba(255,196,110,.95)'; ctx.shadowBlur = s * 0.2; fn(); ctx.restore(); };
+  const poly = (pts, fill) => { ctx.beginPath(); pts.forEach(([px, py], i) => i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); ctx.stroke(); };
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   ctx.strokeStyle = LINE; ctx.lineWidth = 1;
 
   // 바닥 그림자 + 바닥에 번지는 불빛
-  ctx.fillStyle = 'rgba(70,55,40,.18)'; ell(x + dx * 0.4, y + s * 0.02, w * 0.75, s * 0.08);
-  ctx.fillStyle = 'rgba(255,205,120,.18)'; ell(x, y + s * 0.03, w * 0.55, s * 0.06);
+  ctx.fillStyle = 'rgba(70,55,40,.18)'; ell(x + dx * 0.4, y + s * 0.02, w * 0.72, s * 0.07);
+  ctx.fillStyle = 'rgba(255,205,120,.18)'; ell(x, y + s * 0.03, w * 0.5, s * 0.05);
 
-  // 옆벽 (그늘)
-  ctx.beginPath(); ctx.moveTo(Rr, y); ctx.lineTo(Rr + dx, y - dy); ctx.lineTo(Rr + dx, top - dy); ctx.lineTo(Rr, top); ctx.closePath();
-  ctx.fillStyle = '#ddd7cc'; ctx.fill(); ctx.stroke();
-  // 옆 지붕 (반짝이는 유약)
-  ctx.beginPath();
-  ctx.moveTo(x, apex); ctx.lineTo(x + dx, apex - dy); ctx.lineTo(Rr + dx + eave, top - dy + eave * 0.6); ctx.lineTo(Rr + eave, top + eave * 0.6); ctx.closePath();
-  ctx.fillStyle = '#e9e5dc'; ctx.fill(); ctx.stroke();
-  const R = mulberry32(31);
-  for (let i = 0; i < 14; i++) {
+  // 옆벽 (그늘) → 앞벽
+  poly([[Rr, y], [Rr + dx, y - dy], [Rr + dx, top - dy], [Rr, top]], '#ddd7cc');
+  const g = ctx.createLinearGradient(L, top, Rr, y);
+  g.addColorStop(0, '#fbf9f4'); g.addColorStop(1, '#ebe6dc');
+  poly([[L, y], [L, top], [Rr, top], [Rr, y]], g);
+
+  // 네모 지붕: 윗면 → 옆면 → 앞면 (앞면이 벽 꼭대기를 덮어 이음새가 자연스러워요)
+  const rl = L - o, rr2 = Rr + o, rb = top + rt * 0.25, rtp = rb - rt;
+  poly([[rl, rtp], [rr2, rtp], [rr2 + dx, rtp - dy], [rl + dx, rtp - dy]], '#f3dccb');
+  poly([[rr2, rtp], [rr2 + dx, rtp - dy], [rr2 + dx, rb - dy], [rr2, rb]], '#d8b9a2');
+  poly([[rl, rtp], [rr2, rtp], [rr2, rb], [rl, rb]], '#e8c9b3');
+  const R = mulberry32(31);                                // 유약이 반짝이는 작은 점
+  for (let i = 0; i < 10; i++) {
     const t = R(), u = R();
-    const px = lerp(x, Rr + eave, t) + dx * u, py = lerp(apex, top + eave * 0.6, t) - dy * u;
-    ctx.fillStyle = `rgba(255,255,255,${f1(0.5 + R() * 0.5)})`; circle(px, py, s * 0.01 + R() * s * 0.012);
+    ctx.fillStyle = `rgba(255,255,255,${f1(0.5 + R() * 0.5)})`;
+    circle(lerp(rl, rr2, t) + dx * u, rtp - dy * u, s * 0.01 + R() * s * 0.01);
   }
 
-  // 앞면 (왼쪽 위에서 빛이 드는 은은한 음영)
-  const g = ctx.createLinearGradient(L, apex, Rr, y);
-  g.addColorStop(0, '#fbf9f4'); g.addColorStop(1, '#ebe6dc');
-  ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(L, top); ctx.lineTo(x, apex); ctx.lineTo(Rr, top); ctx.lineTo(Rr, y); ctx.closePath();
-  ctx.fillStyle = g; ctx.fill(); ctx.stroke();
-  // (처마는 앞면의 1px 테두리 하나로만 — 두꺼운 이중선이 생기지 않게)
-  ctx.lineWidth = 1;
-
   // 불 켜진 아치형 창문 두 개 (십자 창살)
-  for (const cx of [x - w * 0.22, x + w * 0.22]) {
-    const ww = w * 0.2, wh = wallH * 0.5, wy = y - wallH * 0.2 - wh;
+  for (const cx of [x - w * 0.23, x + w * 0.23]) {
+    const ww = w * 0.22, wh = wallH * 0.42, wy = y - wallH * 0.14 - wh;
     glow(() => {
       ctx.beginPath(); ctx.moveTo(cx - ww / 2, wy + wh); ctx.lineTo(cx - ww / 2, wy + ww / 2);
       ctx.arc(cx, wy + ww / 2, ww / 2, Math.PI, 0); ctx.lineTo(cx + ww / 2, wy + wh); ctx.closePath();
@@ -1115,11 +1110,11 @@ function drawHouse(x, y, s) {
     });
     ctx.strokeStyle = '#f3efe7'; ctx.lineWidth = Math.max(1, ww * 0.14);
     ctx.beginPath(); ctx.moveTo(cx, wy); ctx.lineTo(cx, wy + wh); ctx.moveTo(cx - ww / 2, wy + wh * 0.5); ctx.lineTo(cx + ww / 2, wy + wh * 0.5); ctx.stroke();
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = LINE; ctx.lineWidth = 1;
   }
 
-  // 지붕 아래 빛나는 하트 + 둘레의 작은 점들
-  const hx = x, hy = top - roofH * 0.32, hs = s * 0.085;
+  // 벽 위쪽 가운데의 빛나는 하트 + 둘레의 작은 점들
+  const hx = x, hy = top + wallH * 0.24, hs = s * 0.065;
   glow(() => {
     ctx.beginPath();
     ctx.moveTo(hx, hy + hs * 0.9);
@@ -1127,9 +1122,9 @@ function drawHouse(x, y, s) {
     ctx.bezierCurveTo(hx + hs * 0.9, hy - hs * 1.0, hx + hs * 1.3, hy + hs * 0.1, hx, hy + hs * 0.9);
     ctx.fillStyle = '#ffd98c'; ctx.fill();
     ctx.fillStyle = '#ffe3a6';
-    for (let i = 0; i < 12; i++) {
-      const a = -Math.PI / 2 + (i / 12) * Math.PI * 2;
-      circle(hx + Math.cos(a) * hs * 2, hy + Math.sin(a) * hs * 1.9, s * 0.014);
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (i / 10) * Math.PI * 2;
+      circle(hx + Math.cos(a) * hs * 1.9, hy + Math.sin(a) * hs * 1.8, s * 0.012);
     }
   });
 }
@@ -1375,8 +1370,8 @@ function drawQueueArea() {
   // 줄이 시작되는 곳의 작은 집 (멍냥이들이 여기서 나와요)
   const [hx0, hy0] = L.wait.pts[L.wait.pts.length - 1];
   // 길 끝에 걸쳐 앉도록, 패널 밖으로 삐져나가지 않게 위치를 맞춰요
-  const hs = L.laneW * 2.1;
-  const hBase = hy0 < L.qTop + L.qH / 2 ? Math.max(hy0 + L.laneW * 0.5, L.qTop + hs * 1.12) : hy0 + L.laneW * 0.6;
+  const hs = L.laneW * 1.75;    // 살짝 작게
+  const hBase = hy0 < L.qTop + L.qH / 2 ? Math.max(hy0 + L.laneW * 0.5, L.qTop + hs * 0.95) : hy0 + L.laneW * 0.6;
   drawHouse(Math.min(hx0 - L.laneW * 0.15, L.W - 16 - hs * 0.75), hBase, hs);
 
   // 하트 가운데 잔디 섬 + 큰 나무 + 꽃
@@ -1724,7 +1719,10 @@ const SEASONS = {
   },
 };
 const SEASON_KEYS = ['spring', 'summer', 'autumn', 'winter'];
-let season = store.get('busGame.season', SEASON_KEYS[Math.floor(((new Date().getMonth() + 10) % 12) / 3)]);
+// 계절: 기본은 '지금 계절'(오늘 날짜 기준, 3~5월 봄 / 6~8월 여름 / 9~11월 가을 / 12~2월 겨울). 설정에서 바꿀 수 있어요.
+const seasonByDate = () => SEASON_KEYS[Math.floor(((new Date().getMonth() + 10) % 12) / 3)];
+let seasonPref = store.get('busGame.seasonPref', 'auto');
+let season = SEASONS[seasonPref] ? seasonPref : seasonByDate();
 const f1 = n => n.toFixed(1);
 const pick = (R, arr) => arr[Math.floor(R() * arr.length)];
 
@@ -2097,7 +2095,6 @@ function renderScene() {
 
   makeParticles();
   updateSky();
-  document.querySelectorAll('#seasonBar button').forEach(b => b.classList.toggle('on', b.dataset.s === season));
   islandTree.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-60 -110 120 120" width="240" height="240">
       <defs><filter id="wash" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter></defs>
@@ -2278,13 +2275,13 @@ function makeParticles() {
   }
 }
 
-function setSeason(s) {
-  season = s;
-  store.set('busGame.season', s);
+function setSeason(pref) {
+  seasonPref = pref;
+  store.set('busGame.seasonPref', pref);
+  season = SEASONS[pref] ? pref : seasonByDate();
   renderScene();
   renderMap();
 }
-document.querySelectorAll('#seasonBar button').forEach(b => b.onclick = () => setSeason(b.dataset.s));
 
 // =====================================================================
 //  닉네임 (같은 기기에서 이어하기)
@@ -2326,10 +2323,17 @@ function showSettings() {
     <div class="setRow"><input type="range" id="bgmVol" min="0" max="100" aria-label="배경음악 크기"></div>
     <div class="setRow"><span>효과음</span><label class="switch"><input type="checkbox" id="sfxOn"><span></span></label></div>
     <div class="setRow"><input type="range" id="sfxVol" min="0" max="100" aria-label="효과음 크기"></div>
+    <div class="setRow"><span>계절 테마</span></div>
+    <div class="seasonPick" id="seasonPick">
+      <button data-s="auto">지금 계절</button><button data-s="spring">봄</button><button data-s="summer">여름</button><button data-s="autumn">가을</button><button data-s="winter">겨울</button>
+    </div>
     <div class="setRow"><span>닉네임 · ${nickname || '없음'}</span>
       <button class="btn alt" id="nickBtn" style="width:auto;margin:0;padding:6px 14px;font-size:14px">변경</button></div>
     <button class="btn alt" id="ovClose">닫기</button>`;
   card.querySelector('#nickBtn').onclick = () => showNickname(false);
+  const markSeason = () => card.querySelectorAll('#seasonPick button').forEach(b => b.classList.toggle('on', b.dataset.s === seasonPref));
+  card.querySelectorAll('#seasonPick button').forEach(b => b.onclick = () => { setSeason(b.dataset.s); markSeason(); });
+  markSeason();
   const q = s => card.querySelector(s);
   q('#bgmOn').checked = settings.bgmOn;
   q('#sfxOn').checked = settings.sfxOn;

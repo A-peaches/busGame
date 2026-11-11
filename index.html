@@ -638,6 +638,12 @@ function buildWaitPath() {
       }
     }
   }
+  // 마지막 줄은 패널 위쪽 경계선까지 쭉 이어서, 줄이 밖에서부터 계속 이어지는 것처럼
+  const [lx, ly] = pts[pts.length - 1];
+  if (ly < L.qTop + L.qH / 2) {
+    for (let y = ly - 6; y > L.qTop - 4; y -= 6) pts.push([lx, y]);
+    pts.push([lx, L.qTop - 4]);
+  }
   L.wait = makePath(pts, false);
   L.waitMax = Math.max(0, Math.floor(L.wait.total / L.sp) - 1);
 }
@@ -1367,12 +1373,7 @@ function drawQueueArea() {
   ctx.strokeStyle = dirt; ctx.lineWidth = L.laneW;
   waitPath(); ctx.stroke(); ringPath(); ctx.stroke(); exitPath(); ctx.stroke();
 
-  // 줄이 시작되는 곳의 작은 집 (멍냥이들이 여기서 나와요)
-  const [hx0, hy0] = L.wait.pts[L.wait.pts.length - 1];
-  // 길 끝에 걸쳐 앉도록, 패널 밖으로 삐져나가지 않게 위치를 맞춰요
-  const hs = L.laneW * 1.75;    // 살짝 작게
-  const hBase = hy0 < L.qTop + L.qH / 2 ? Math.max(hy0 + L.laneW * 0.5, L.qTop + hs * 0.95) : hy0 + L.laneW * 0.6;
-  drawHouse(Math.min(hx0 - L.laneW * 0.15, L.W - 16 - hs * 0.75), hBase, hs);
+  // (집은 없애고, 대기 줄 길이 풀밭 패널 위쪽 경계선까지 쭉 이어져요)
 
   // 하트 가운데 잔디 섬 + 큰 나무 + 꽃
   const iry = L.ry - L.laneW / 2 - 4;
@@ -1386,7 +1387,7 @@ function drawQueueArea() {
   }
   // 가운데 큰 나무 (메인 화면과 같은 계절의 잎사귀 나무)
   if (islandTree.complete && islandTree.naturalWidth) {
-    const imgH = iry * 1.75, baseY = L.rcy + iry * 0.4;
+    const imgH = iry * 1.55, baseY = L.rcy + iry * 0.42;   // 하트 섬 안에 들어가는 크기
     ctx.drawImage(islandTree, L.rcx - imgH / 2, baseY - imgH * (110 / 120), imgH, imgH);
   }
 
@@ -2098,7 +2099,7 @@ function renderScene() {
   islandTree.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-60 -110 120 120" width="240" height="240">
       <defs><filter id="wash" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter></defs>
-      ${makeTree(77, 100)}</svg>`);
+      ${makeTree(77, 100).replace(/<g filter="url\(#wash\)">[\s\S]*?<\/g>/, '')}</svg>`);   // 뿌연 물감 번짐은 빼서 잎·가지만 길을 가려요
 }
 const islandTree = new Image();
 
@@ -2419,14 +2420,14 @@ function piano(m, t, dur, vel, bus) {
 }
 
 // 버튼 소리 "뿅": 날카로운 배음 없이 둥근 사인파가 살짝 올라가며 작게 사라져요
-function blip(t) {
+function blip(t, f0 = 520, f1v = 880, vol = 0.07) {
   const o = AC.createOscillator(), g = AC.createGain(), lp = AC.createBiquadFilter();
   o.type = 'sine';
-  o.frequency.setValueAtTime(520, t);
-  o.frequency.exponentialRampToValueAtTime(880, t + 0.07);
-  lp.type = 'lowpass'; lp.frequency.value = 1800;
+  o.frequency.setValueAtTime(f0, t);
+  o.frequency.exponentialRampToValueAtTime(f1v, t + 0.07);
+  lp.type = 'lowpass'; lp.frequency.value = 2200;
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(0.07, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
   g.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
   o.connect(lp).connect(g).connect(sfxBus);
   o.start(t); o.stop(t + 0.15);
@@ -2440,7 +2441,7 @@ function sfx(kind, arg = 0) {
   const t = AC.currentTime + 0.01, B = sfxBus;
   switch (kind) {
     case 'click':  blip(t); break;                                                            // 뿅 (작고 동그랗게)
-    case 'go':     piano(79, t, 0.1, 0.12, B); piano(86, t + 0.07, 0.25, 0.12, B); break;    // 뿅!
+    case 'go':     [[660, 840], [840, 1060], [1060, 1320]].forEach(([a, b], i) => blip(t + i * 0.065, a, b, 0.05)); break;   // 뾰로롱
     case 'block':  piano(50, t, 0.2, 0.17, B); piano(49, t + 0.06, 0.25, 0.1, B); break;     // 쿵
     case 'board':  piano(PENTA[arg % PENTA.length], t, 0.12, 0.07, B); break;                 // 폴짝
     case 'depart': [72, 76, 79, 84].forEach((m, i) => piano(m, t + i * 0.07, 0.35, 0.1, B)); break;

@@ -62,3 +62,10 @@ CREATE TABLE IF NOT EXISTS letters (
 CREATE INDEX IF NOT EXISTS letters_to ON letters(to_id, read);
 CREATE INDEX IF NOT EXISTS letters_from ON letters(from_id, at);
 CREATE INDEX IF NOT EXISTS gifts_from ON gifts(from_id, at);
+
+-- 너무 많이 두드리기 막기 (계정 만들기·백업 불러오기·친구 추가)
+CREATE TABLE IF NOT EXISTS throttle (
+  key    TEXT PRIMARY KEY,
+  n      INTEGER NOT NULL,
+  reset  INTEGER NOT NULL
+);

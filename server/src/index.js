@@ -8,13 +8,34 @@ const HEART_MAX = 5;
 const HEART_MS = 10 * 60 * 1000;      // 하트 1개 충전 시간
 const GIFT_MS = 6 * 60 * 60 * 1000;   // 친구에게 하트를 보낼 수 있는 간격
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+// ---- 보안 ----
+// 1) 모든 개인 데이터는 기기마다 받은 비밀 열쇠(토큰, 192비트 무작위)가 있어야만 읽고 쓸 수 있어요.
+//    주소(URL)만 알아서는 아무것도 못 가져가고, 열쇠가 있어도 "자기 것"만 보여요.
+// 2) 게임 화면이 있는 주소에서만 브라우저가 이 서버를 부를 수 있게 해요 (다른 웹사이트에서 몰래 부르기 차단).
+// 3) 계정 만들기·백업 불러오기·친구 추가는 너무 많이 두드리면 잠깐 막아요 (무차별 대입·도배 방지).
+const ALLOWED_ORIGINS = ['https://meowbus.bbhtodo.workers.dev', 'https://a-peaches.github.io', 'http://127.0.0.1:8080', 'http://localhost:8080'];
+const corsFor = req => {
+  const o = req.headers.get('Origin') || '';
+  return {
+    ...(ALLOWED_ORIGINS.includes(o) ? { 'Access-Control-Allow-Origin': o, Vary: 'Origin' } : {}),
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  };
 };
 const json = (data, status = 200) =>
-  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS } });
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
+
+// 같은 사람(또는 같은 인터넷 주소)이 짧은 시간에 너무 많이 시도하면 막아요
+async function tooMany(env, key, max, windowMs) {
+  const t = now();
+  const row = await env.DB.prepare(
+    `INSERT INTO throttle (key, n, reset) VALUES (?1, 1, ?2)
+     ON CONFLICT(key) DO UPDATE SET n = CASE WHEN reset < ?3 THEN 1 ELSE n + 1 END, reset = CASE WHEN reset < ?3 THEN ?2 ELSE reset END
+     RETURNING n`).bind(key, t + windowMs, t).first();
+  return row && row.n > max;
+}
+const ipOf = req => req.headers.get('CF-Connecting-IP') || 'unknown';
+const slowDown = () => json({ error: '잠시 후에 다시 시도해 주세요' }, 429);
 
 const hex = n => { const a = new Uint8Array(n); crypto.getRandomValues(a); return [...a].map(b => b.toString(16).padStart(2, '0')).join(''); };
 const CODE_CH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // 헷갈리는 0/O, 1/I 는 빼요
@@ -27,14 +48,35 @@ const cleanName = s => String(s || '').trim().slice(0, 10);
 const now = () => Date.now();
 
 export default {
+  // 요청마다 그 요청의 주소에 맞는 CORS 머리글을 붙여요 (요청끼리 섞이지 않게)
   async fetch(req, env, ctx) {
-    if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
+    const cors = corsFor(req);
+    if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
+    const res = await handle(req, env, ctx);
+    for (const [k, v] of Object.entries(cors)) res.headers.set(k, v);
+    return res;
+  },
+
+  // 5분마다: 하트가 가득 찬 사람에게 알림 + 여행 알림
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(notifyFullHearts(env).then(() => remindTravelers(env)));
+  },
+};
+
+async function handle(req, env, ctx) {
+  {
     const url = new URL(req.url), path = url.pathname;
     try {
       const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
       if (path === '/' ) return json({ ok: true, name: 'meow-bus-api' });
-      if (path === '/register' && req.method === 'POST') return register(env, body);
-      if (path === '/restore' && req.method === 'POST') return restore(env, body);
+      if (path === '/register' && req.method === 'POST') {
+        if (await tooMany(env, 'reg:' + ipOf(req), 20, 3600000)) return slowDown();      // 한 시간에 20개까지
+        return register(env, body);
+      }
+      if (path === '/restore' && req.method === 'POST') {
+        if (await tooMany(env, 'rst:' + ipOf(req), 10, 3600000)) return slowDown();      // 한 시간에 10번까지
+        return restore(env, body);
+      }
 
       const user = await auth(req, env);
       if (!user) return json({ error: 'unauthorized' }, 401);
@@ -42,7 +84,10 @@ export default {
       if (path === '/me') return json(publicMe(user));
       if (path === '/sync' && req.method === 'POST') return sync(env, user, body);
       if (path === '/friends' && req.method === 'GET') return listFriends(env, user);
-      if (path === '/friends/add' && req.method === 'POST') return addFriend(env, ctx, user, body);
+      if (path === '/friends/add' && req.method === 'POST') {
+        if (await tooMany(env, 'add:' + user.id, 20, 3600000)) return slowDown();         // 한 시간에 20번까지
+        return addFriend(env, ctx, user, body);
+      }
       if (path === '/gift' && req.method === 'POST') return gift(env, ctx, user, body);
       if (path === '/gifts' && req.method === 'GET') return listGifts(env, user);
       if (path === '/gifts/claim' && req.method === 'POST') return claimGifts(env, user);
@@ -54,20 +99,16 @@ export default {
       if (path === '/mail/read' && req.method === 'POST') return readMail(env, user);
       return json({ error: 'not found' }, 404);
     } catch (e) {
-      return json({ error: String((e && e.message) || e) }, 500);
+      console.log('error', path, e && e.stack || e);      // 자세한 내용은 서버 기록에만 남기고
+      return json({ error: '서버에 문제가 생겼어요' }, 500);   // 밖으로는 알려 주지 않아요
     }
-  },
-
-  // 5분마다: 하트가 가득 찬 사람에게 알림
-  async scheduled(event, env, ctx) {
-    ctx.waitUntil(notifyFullHearts(env).then(() => remindTravelers(env)));
-  },
-};
+  }
+}
 
 async function auth(req, env) {
   const h = req.headers.get('Authorization') || '';
   const token = h.startsWith('Bearer ') ? h.slice(7) : '';
-  if (!token) return null;
+  if (!/^[0-9a-f]{48}$/.test(token)) return null;      // 열쇠 모양이 아니면 DB를 찾아보지도 않아요
   return env.DB.prepare('SELECT * FROM users WHERE token = ?').bind(token).first();
 }
 const publicMe = u => ({ id: u.id, code: u.code, nickname: u.nickname, unlocked: u.unlocked });
@@ -105,7 +146,7 @@ async function restore(env, body) {
 
 async function sync(env, user, body) {
   const nickname = body.nickname !== undefined ? cleanName(body.nickname) : user.nickname;
-  const unlocked = Math.min(100, Math.max(user.unlocked, body.unlocked | 0));
+  const unlocked = Math.min(100, user.unlocked + 5, Math.max(user.unlocked, body.unlocked | 0));   // 한 번에 5단계 넘게 뛰지 않게
   let { hearts, hearts_t, full_at, full_notified } = user;
   if (body.hearts && Number.isFinite(body.hearts.n) && Number.isFinite(body.hearts.t)) {
     hearts = Math.max(0, Math.min(99, body.hearts.n | 0));
@@ -212,7 +253,11 @@ async function claimGifts(env, user) {
 }
 
 async function savePush(env, user, body) {
-  const sub = body.subscription && body.subscription.endpoint ? JSON.stringify(body.subscription) : null;
+  // 진짜 브라우저 푸시 서버 주소(https)만 받아요 (다른 곳으로 요청을 보내게 하는 장난 방지)
+  const s = body.subscription;
+  let ok = false;
+  try { ok = !!(s && s.endpoint && new URL(s.endpoint).protocol === 'https:' && String(s.endpoint).length < 1000); } catch (e) { ok = false; }
+  const sub = ok ? JSON.stringify({ endpoint: s.endpoint, expirationTime: s.expirationTime || null, keys: s.keys || {} }) : null;
   await env.DB.prepare('UPDATE users SET push = ? WHERE id = ?').bind(sub, user.id).run();
   return json({ ok: true, enabled: !!sub });
 }

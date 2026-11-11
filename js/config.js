@@ -46,6 +46,8 @@ const BUS_SVG = `<svg class="busIcon" viewBox="0 0 42 28" aria-hidden="true"><g 
   <circle cx="11" cy="22" r="1.4" fill="#cfcbc4" stroke="none"/><circle cx="32" cy="22" r="1.4" fill="#cfcbc4" stroke="none"/></g></svg>`;
 
 // 저장 (브라우저에 진행 상황 기억)
+// 지금 쓰는 파일 버전 (index.html 의 ?v= 와 같게). 설정 창 맨 아래에 보여서 폰이 새 파일을 받았는지 알 수 있어요
+const APP_VER = 15;
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },

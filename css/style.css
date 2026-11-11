@@ -254,3 +254,4 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 /* 알림이 안 켜질 때 이유 (작게) */
 .pushWhy { font-size: 11px; color: #b0675a; text-align: left; margin: -4px 0 6px; word-break: break-all; }
 .pushWhy:empty { display: none; }
+.verLine { font-size: 10.5px; color: #b3a58e; margin: 6px 0 0; }

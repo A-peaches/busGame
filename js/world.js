@@ -245,7 +245,8 @@ function showSettings() {
       <button class="btn alt mini" id="nickBtn">변경</button></div>
     <div class="setRow"><span>백업 코드</span>
       <span style="display:flex;gap:6px"><button class="btn alt mini" id="backupBtn">만들기</button><button class="btn alt mini" id="restoreBtn">불러오기</button></span></div>
-    <button class="btn alt" id="ovClose">닫기</button>`;
+    <button class="btn alt" id="ovClose">닫기</button>
+    <p class="verLine">버전 ${APP_VER}</p>`;
   card.querySelector('#nickBtn').onclick = () => showNickname(false);
   card.querySelector('#backupBtn').onclick = () => showBackup();
   card.querySelector('#restoreBtn').onclick = () => showRestore(false);

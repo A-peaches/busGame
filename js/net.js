@@ -224,7 +224,10 @@ async function showFriends() {
 // 설치한 앱(멍냥버스 APK) 안에서 열렸는지: 앱은 알림 권한을 크롬과 따로, 폰 설정에서 관리해요
 const IN_APP = (() => {
   try {
-    if (document.referrer.startsWith('android-app://')) sessionStorage.setItem('meowApp', '1');
+    if (document.referrer.startsWith('android-app://')) {
+      sessionStorage.setItem('meowApp', '1');
+      sessionStorage.setItem('meowFrom', document.referrer.slice(14).split('/')[0]);   // 어떤 앱이 열었는지
+    }
     return sessionStorage.getItem('meowApp') === '1' || matchMedia('(display-mode: standalone)').matches;
   } catch (e) { return false; }
 })();
@@ -232,9 +235,13 @@ const IN_APP = (() => {
 function appMode() {
   let standalone = false;
   try { standalone = matchMedia('(display-mode: standalone)').matches; } catch (e) { /* 무시 */ }
-  if (IN_APP && standalone) return '앱 (인증됨)';
-  if (IN_APP) return '앱 (인증 안 됨)';
-  return standalone ? '홈 화면 앱' : '브라우저';
+  let from = '', moved = false;
+  try { from = sessionStorage.getItem('meowFrom') || ''; moved = sessionStorage.getItem('meowMoved') === '1'; } catch (e) { /* 무시 */ }
+  const kind = from.startsWith('org.chromium.webapk') ? '크롬 앱' : from.startsWith('io.github.apeaches') ? 'APK 앱' : from ? '앱(' + from + ')' : '';
+  const tail = (moved ? ' · 예전 주소에서 옴' : '') + (from ? ' · ' + from.slice(-6) : '');
+  if (IN_APP && standalone) return (kind || '앱') + ' (전체 화면)' + tail;
+  if (IN_APP) return (kind || '앱') + ' (주소 표시)' + tail;
+  return (standalone ? '홈 화면 앱' : '브라우저') + tail;
 }
 // 알림이 막혀 있을 때: 어디서 켜는지 알려 드려요 (웹은 폰 설정을 직접 바꿀 수 없어요)
 function showPushBlocked() {

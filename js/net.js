@@ -221,6 +221,25 @@ async function showFriends() {
 }
 
 // ---- 폰 알림 (웹 푸시) ----
+// 설치한 앱(멍냥버스 APK) 안에서 열렸는지: 앱은 알림 권한을 크롬과 따로, 폰 설정에서 관리해요
+const IN_APP = (() => {
+  try {
+    if (document.referrer.startsWith('android-app://')) sessionStorage.setItem('meowApp', '1');
+    return sessionStorage.getItem('meowApp') === '1' || matchMedia('(display-mode: standalone)').matches;
+  } catch (e) { return false; }
+})();
+// 알림이 막혀 있을 때: 어디서 켜는지 알려 드려요 (웹은 폰 설정을 직접 바꿀 수 없어요)
+function showPushBlocked() {
+  const card = $('card');
+  card.innerHTML = `<h2>🔔 알림이 꺼져 있어요</h2>
+    <p>${IN_APP
+      ? '폰의 <b>설정 → 애플리케이션 → 멍냥버스 → 알림</b>을<br>켜 주세요. 켠 뒤 앱을 다시 열면 연결돼요.'
+      : '크롬 주소창 왼쪽 <b>자물쇠(또는 설정) 아이콘 → 권한 → 알림</b>을<br>허용으로 바꿔 주세요.'}</p>
+    <p><small>하트 도착 · 쪽지 · 하트 가득 · 여행 알림을 받을 수 있어요</small></p>
+    <button class="btn" id="ovClose">알겠어요</button>`;
+  card.querySelector('#ovClose').onclick = () => hideOverlay();
+  $('overlay').classList.add('show');
+}
 const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 const pushOn = () => pushSupported() && Notification.permission === 'granted' && store.get('busGame.push', false);
 const b64uToU8 = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), c => c.charCodeAt(0));
@@ -264,12 +283,12 @@ async function pushState() {
 }
 async function enablePush(permP, silent) {
   if (!pushSupported()) { toast('이 브라우저는 폰 알림을 지원하지 않아요', 2400); return false; }
-  if (Notification.permission === 'denied') { toast('폰 설정에서 이 앱(크롬)의 알림을 허용해 주세요', 2600); return false; }
+  if (Notification.permission === 'denied') { setWhy('알림 권한: 차단됨'); if (!silent) showPushBlocked(); return false; }
   // 권한은 먼저(버튼을 누른 순간) 물어보고, 계정은 그다음에 만들어요
   permP = permP || Notification.requestPermission();
   if (!(await ensureAccount())) { setWhy('계정 연결 실패 (인터넷 확인)'); toast('인터넷 연결을 확인해 주세요'); return false; }
   const perm = await permP;
-  if (perm !== 'granted') { setWhy('알림 권한: ' + perm); toast('알림이 허용되지 않았어요', 2000); return false; }
+  if (perm !== 'granted') { setWhy('알림 권한: ' + perm); if (perm === 'denied') showPushBlocked(); else toast('알림이 허용되지 않았어요', 2000); return false; }
   let step = '서비스 워커';
   try {
     const reg = await swReady();
@@ -294,7 +313,12 @@ function askPushIfNeeded() {
   if (!nickname || !pushSupported()) return;
   const p = Notification.permission;
   if (p === 'granted') { pushState(); return; }     // 허용돼 있으면 구독을 확인하고 서버와 다시 맞춰요
-  if (p !== 'default' || $('overlay').classList.contains('show')) return;
+  if ($('overlay').classList.contains('show')) return;
+  if (p === 'denied') {                          // 막혀 있으면 사흘에 한 번 켜는 방법을 알려 드려요
+    if (Date.now() - store.get('busGame.blockedTip', 0) > 3 * 86400000) { store.set('busGame.blockedTip', Date.now()); showPushBlocked(); }
+    return;
+  }
+  if (p !== 'default') return;
   const card = $('card');
   card.innerHTML = `<h2>🔔 알림을 켜 주세요</h2>
     <p>친구가 <b>하트</b>나 <b>쪽지</b>를 보냈을 때,<br>하트가 <b>가득 찼을 때</b> 알려 드려요.</p>

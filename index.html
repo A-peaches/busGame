@@ -502,7 +502,8 @@ function startLevel(n) {
     ring: [],           // 원 위의 자리들 (승객 또는 빈자리 null)
     ringOff: 0,         // 원이 돌아간 거리
     slots: new Array(MAX_SLOTS).fill(null), slotCount: BASE_SLOTS,
-    flying: [], boardTimer: 0.6, boost: { slot: 1, lift: 1 }, liftMode: false, over: false, time: 0,
+    flying: [], boardTimer: 0.6, liftMode: false, over: false, time: 0,
+    boost: { slot: levelTier(n) === 5 ? 2 : 1, lift: 1 },   // 별 5개(최고 난이도) 단계는 자리 추가 2개
     tries: allTries[n], rush: 0, treeShake: 0,
   };
   g.vehicles.forEach((v, i) => {

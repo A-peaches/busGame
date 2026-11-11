@@ -319,8 +319,6 @@ document.addEventListener('touchend', e => {
 document.addEventListener('gesturestart', e => e.preventDefault());
 // 화면의 모든 버튼에 "톡" 피아노 소리
 document.addEventListener('click', e => { if (e.target.closest('button')) sfx('click'); }, true);
-// 브라우저는 사용자가 한 번 터치해야 소리를 낼 수 있어서, 첫 터치 때 배경음악을 시작해요
-document.addEventListener('pointerdown', () => startBgm(), { once: true });
 window.addEventListener('resize', () => { if (S) layout(); else renderMap(); });
 
 // =====================================================================

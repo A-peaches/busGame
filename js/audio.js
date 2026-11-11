@@ -131,6 +131,21 @@ function startBgm() {
   scheduleBgm();
   bgmTimer = setInterval(scheduleBgm, 300);
 }
+// 브라우저는 사람이 화면을 한 번 만져야 소리를 허락해요.
+// 아이폰 사파리는 "손가락을 뗄 때(touchend/click)"만 인정해서, 여러 신호에 계속 걸어 두고 소리가 켜질 때까지 다시 시도해요.
+function unlockAudio() {
+  if (!audio()) return;
+  if (AC.state !== 'running') {
+    AC.resume();
+    // 아이폰: 사용자 동작 안에서 아주 짧은 무음을 한 번 재생해야 소리 길이 열려요
+    const s = AC.createBufferSource();
+    s.buffer = AC.createBuffer(1, 1, 22050);
+    s.connect(AC.destination); s.start(0);
+  }
+  startBgm();
+}
+['pointerdown', 'touchend', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, unlockAudio, true));
+
 function stopBgm() {
   clearInterval(bgmTimer);
   bgmTimer = null;

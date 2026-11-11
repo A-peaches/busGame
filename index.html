@@ -55,7 +55,9 @@
   .particle > * { display: block; animation: sway ease-in-out infinite alternate; }
   @keyframes fall { to { transform: translateY(calc(100vh + 60px)); } }
   @keyframes sway { from { transform: translateX(-18px) rotate(-35deg); } to { transform: translateX(18px) rotate(45deg); } }
-  .snow { border-radius: 50%; background: #fff; box-shadow: 0 0 3px rgba(255, 255, 255, .9); opacity: .9; }
+  /* 눈송이: 하얀 눈밭 위에서도 보이도록 아주 옅은 푸른 테두리 */
+  .snow { border-radius: 50%; background: #fff; opacity: .95;
+    box-shadow: 0 0 0 .6px rgba(140, 160, 185, .55), 0 0 4px rgba(255, 255, 255, .9); }
   /* 위쪽: 계절 버튼 / 인사 / 설정 */
   .seasonBar { position: absolute; top: 14px; left: 12px; z-index: 4; display: flex; gap: 4px; }
   .seasonBar button {
@@ -2239,14 +2241,15 @@ function tryStart(n) {
   startLevel(n);
 }
 
-// 날리는 것: 날씨가 눈/비면 진짜 눈/비, 아니면 계절 (벚꽃잎·나뭇잎·단풍). 겨울엔 실제로 눈이 올 때만 눈.
+// 날리는 것: 비 오는 날엔 비, 겨울이거나 실제로 눈 오는 날엔 눈, 그 밖엔 계절 (벚꽃잎·나뭇잎·단풍).
 function makeParticles() {
   const fx = $('fx');
   fx.innerHTML = '';
   const R = Math.random;
-  const kind = weather.kind === 'snow' ? 'snow' : weather.kind === 'rain' ? 'rain' : season === 'winter' ? null : season;
-  if (!kind) return;
-  const n = kind === 'snow' ? 45 : kind === 'rain' ? 70 : 20;
+  // 겨울엔 항상 눈이 내리고, 실제로 눈이 오는 날엔 더 펑펑 내려요. 비 오는 날엔 비.
+  const realSnow = weather.kind === 'snow';
+  const kind = weather.kind === 'rain' ? 'rain' : (realSnow || season === 'winter') ? 'snow' : season;
+  const n = kind === 'snow' ? (realSnow ? 70 : 40) : kind === 'rain' ? 70 : 20;
   for (let i = 0; i < n; i++) {
     const p = document.createElement('div');
     p.className = 'particle' + (kind === 'rain' ? ' rainy' : '');

@@ -2,7 +2,9 @@
 
 시골 버스 정류장 분위기의 컬러 매칭 주차 퍼즐 웹게임.
 
-▶ 플레이: https://a-peaches.github.io/busGame/
+▶ 플레이: https://meowbus.bbhtodo.workers.dev/
+
+(예전 주소 https://a-peaches.github.io/busGame/ 로 들어오면 기록을 들고 새 주소로 자동으로 옮겨 가요. 같은 주소를 쓰는 투두 앱과 알림 권한이 섞이지 않게 나눴어요.)
 
 - 주차장에서 앞이 뚫린 버스를 눌러 대기 칸으로 보내요. 상하좌우와 대각선, 8방향이 있어요.
 - 하트 모양 길을 도는 고양이·강아지 승객은 같은 색 버스에 걸어가서 타요.
@@ -36,6 +38,8 @@ python -m http.server 8080
 | `js/audio.js` | 피아노 합성 배경음악과 효과음 |
 | `js/main.js` | 시작 |
 
-스크립트는 위 순서대로 불러와요. 파일을 고친 뒤 배포할 때는 `index.html`의 `?v=` 번호를 올려야 폰에서 바로 새 버전이 보여요.
+스크립트는 위 순서대로 불러와요. 파일을 고친 뒤 배포할 때는 `index.html`의 `?v=` 번호(그리고 `js/config.js`의 `APP_VER`)를 올려야 폰에서 바로 새 버전이 보여요.
+
+배포: `deploy` 폴더에서 `sh build.sh && npx wrangler@4 deploy` (게임 화면, Cloudflare). 서버는 `server` 폴더에서 `npx wrangler@4 deploy`.
 
 폰트: [마루 부리](https://hangeul.naver.com) (네이버, SIL OFL — 상업적 사용 가능)

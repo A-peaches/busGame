@@ -3,3 +3,7 @@ server/.wrangler/
 server/node_modules/
 .dev.vars
 *.log
+
+# 배포용으로 모은 파일
+deploy/dist/
+deploy/.wrangler/

@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.apeaches.meowbus",
+        "sha256_cert_fingerprints": ["D8:65:E9:46:E3:82:92:9D:57:8E:31:30:1A:91:57:E6:CF:AD:6B:0F:3A:37:A2:E7:0B:F6:43:04:63:59:88:52"]
+      }
+    }]

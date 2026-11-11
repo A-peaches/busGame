@@ -1,0 +1,12 @@
+# 게임 화면(정적 파일)을 Cloudflare에 올리는 설정 → https://meowbus.bbhtodo.workers.dev
+# 투두 앱(a-peaches.github.io)과 주소를 분리해서 알림 권한이 섞이지 않게 해요.
+# 올리기: deploy 폴더에서 `bash build.sh && npx wrangler@4 deploy`
+name = "meowbus"
+compatibility_date = "2024-11-01"
+
+[assets]
+directory = "./dist"
+
+# 이 워커는 화면만 보여 줘요. 예약 작업은 서버(meow-bus-api)에서만 돌아요.
+[triggers]
+crons = []

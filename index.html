@@ -4,11 +4,52 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>멍냥이의 버스여행</title>
+<script>
+// ===== 주소 이사 =====
+// 게임은 이제 https://meowbus.bbhtodo.workers.dev 에 있어요 (투두 앱과 주소를 나눠서 알림이 섞이지 않게).
+// 예전 주소(a-peaches.github.io/busGame)로 오면: 이 기기의 기록을 들고 새 주소로 옮겨 가요.
+(function () {
+  var NEW_HOME = 'https://meowbus.bbhtodo.workers.dev/';
+  try {
+    if (location.hostname === 'a-peaches.github.io') {
+      var data = {};
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf('busGame') === 0) data[k] = localStorage.getItem(k);
+      }
+      var moved = false;
+      var go = function () {
+        if (moved) return; moved = true;
+        location.replace(NEW_HOME + '#move=' + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(data))))));
+      };
+      // 예전 주소의 게임 알림 연결만 끊어요 (투두 앱 것은 건드리지 않아요). 새 주소에서 다시 연결해요.
+      if (navigator.serviceWorker) {
+        navigator.serviceWorker.getRegistrations().then(function (rs) {
+          return Promise.all(rs.filter(function (r) { return r.scope.indexOf('/busGame/') >= 0; }).map(function (r) { return r.unregister(); }));
+        }).then(go, go);
+        setTimeout(go, 1500);
+      } else go();
+      document.documentElement.style.background = '#f6dd92';
+      window.stop();                      // 예전 주소에서는 게임을 불러오지 않아요
+      return;
+    }
+    // 새 주소: 옮겨 온 기록 받기 (이 기기의 새 주소에 아직 기록이 없을 때만)
+    if (location.hash.indexOf('#move=') === 0) {
+      var d = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(location.hash.slice(6))))));
+      if (!localStorage.getItem('busGame.acct') && !localStorage.getItem('busGame.nickname')) {
+        for (var key in d) if (key.indexOf('busGame') === 0) localStorage.setItem(key, d[key]);
+      }
+      localStorage.removeItem('busGame.push');   // 알림은 새 주소에서 다시 연결해요
+      history.replaceState(null, '', location.pathname);
+    }
+  } catch (e) { /* 이사에 실패해도 게임은 열려요 (백업 코드로 불러올 수 있어요) */ }
+})();
+</script>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#f6dd92">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="css/style.css?v=17">
+<link rel="stylesheet" href="css/style.css?v=18">
 </head>
 <body>
 <div id="app">
@@ -57,15 +98,15 @@
   <canvas id="confetti" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:7"></canvas>
 </div>
 
-<script src="js/config.js?v=17"></script>
-<script src="js/level.js?v=17"></script>
-<script src="js/game.js?v=17"></script>
-<script src="js/draw.js?v=17"></script>
-<script src="js/ui.js?v=17"></script>
-<script src="js/scene.js?v=17"></script>
-<script src="js/world.js?v=17"></script>
-<script src="js/net.js?v=17"></script>
-<script src="js/audio.js?v=17"></script>
-<script src="js/main.js?v=17"></script>
+<script src="js/config.js?v=18"></script>
+<script src="js/level.js?v=18"></script>
+<script src="js/game.js?v=18"></script>
+<script src="js/draw.js?v=18"></script>
+<script src="js/ui.js?v=18"></script>
+<script src="js/scene.js?v=18"></script>
+<script src="js/world.js?v=18"></script>
+<script src="js/net.js?v=18"></script>
+<script src="js/audio.js?v=18"></script>
+<script src="js/main.js?v=18"></script>
 </body>
 </html>

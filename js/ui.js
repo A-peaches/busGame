@@ -18,11 +18,12 @@ function showMenu() {
 // 지도 단계 모양: 고양이 → 강아지 → 고양이 … (눈코입 없이 실루엣만)
 //   같은 모양을 두 번 그려요: 먼저 굵은 테두리로, 그 위에 색으로 덮어서 바깥 테두리만 남게 (귀와 머리 사이 선이 안 보여요)
 const NODE_SHAPE = {
-  cat: '<path d="M10.5 26 L12.5 5.5 L26 15.5Z M34 15.5 L47.5 5.5 L49.5 26Z"/><circle cx="30" cy="34" r="21.5"/>',
+  // 고양이: 끝이 살짝 뭉뚝한 귀, 옆으로 조금 넓적한 얼굴
+  cat: '<path d="M15 25 L13.6 10.5 Q13.2 5.6 17.4 7.8 L31 16Z M 59 25 L 60.4 10.5 Q 60.8 5.6 56.6 7.8 L 43 16 Z"/><ellipse cx="37" cy="36" rx="26" ry="21"/>',
   // 강아지: 머리 양옆에서 길게 축 처진 귀
-  dog: '<path d="M18 13 C7 12 1.5 27 3.5 41 C4.5 49 12.5 51 15.5 44 C18 37 21.5 24 18 13Z M42 13 C53 12 58.5 27 56.5 41 C55.5 49 47.5 51 44.5 44 C42 37 38.5 24 42 13Z"/><circle cx="30" cy="32" r="20.5"/>',
+  dog: '<path d="M21 15 C10 14 4.5 29 6.5 43 C7.5 51 15.5 53 18.5 46 C21 39 24.5 26 21 15Z M 53 15 C 64 14 69.5 29 67.5 43 C 66.5 51 58.5 53 55.5 46 C 53 39 49.5 26 53 15 Z"/><ellipse cx="37" cy="34" rx="25" ry="21"/>',
 };
-const nodeSvg = kind => `<svg class="nodeShape" viewBox="0 0 60 60" aria-hidden="true">
+const nodeSvg = kind => `<svg class="nodeShape" viewBox="0 0 74 62" aria-hidden="true">
   <g class="ol">${NODE_SHAPE[kind]}</g><g class="fl">${NODE_SHAPE[kind]}</g></svg>`;
 
 function renderMap() {

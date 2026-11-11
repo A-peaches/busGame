@@ -15,6 +15,16 @@ function showMenu() {
   if (typeof updateSky === 'function' && document.getElementById('celestial')) updateSky();
 }
 
+// 지도 단계 모양: 고양이 → 강아지 → 고양이 … (눈코입 없이 실루엣만)
+//   같은 모양을 두 번 그려요: 먼저 굵은 테두리로, 그 위에 색으로 덮어서 바깥 테두리만 남게 (귀와 머리 사이 선이 안 보여요)
+const NODE_SHAPE = {
+  cat: '<path d="M10.5 26 L12.5 5.5 L26 15.5Z M34 15.5 L47.5 5.5 L49.5 26Z"/><circle cx="30" cy="34" r="21.5"/>',
+  // 강아지: 머리 양옆에서 길게 축 처진 귀
+  dog: '<path d="M18 13 C7 12 1.5 27 3.5 41 C4.5 49 12.5 51 15.5 44 C18 37 21.5 24 18 13Z M42 13 C53 12 58.5 27 56.5 41 C55.5 49 47.5 51 44.5 44 C42 37 38.5 24 42 13Z"/><circle cx="30" cy="32" r="20.5"/>',
+};
+const nodeSvg = kind => `<svg class="nodeShape" viewBox="0 0 60 60" aria-hidden="true">
+  <g class="ol">${NODE_SHAPE[kind]}</g><g class="fl">${NODE_SHAPE[kind]}</g></svg>`;
+
 function renderMap() {
   const scroll = $('mapScroll'), inner = $('mapInner');
   const W = scroll.clientWidth;
@@ -53,10 +63,11 @@ function renderMap() {
   pts.forEach((p, i) => {
     const n = i + 1;
     const b = document.createElement('button');
-    b.className = 'node ' + (n < unlocked ? 'done' : n === unlocked ? 'current' : 'locked');
+    const kind = i % 2 ? 'dog' : 'cat';
+    b.className = 'node ' + kind + ' ' + (n < unlocked ? 'done' : n === unlocked ? 'current' : 'locked');
     b.style.left = p.x + 'px';
     b.style.top = p.y + 'px';
-    b.innerHTML = n > unlocked ? LOCK_SVG : `${n}<small>${'★'.repeat(TIERS[levelTier(n)].stars)}</small>`;
+    b.innerHTML = nodeSvg(kind) + `<span class="nodeIn">${n > unlocked ? LOCK_SVG : `${n}<small>${'★'.repeat(TIERS[levelTier(n)].stars)}</small>`}</span>`;
     if (n === unlocked) b.innerHTML += BUS_SVG;
     b.onclick = () => n <= unlocked ? showLevelPopup(n) : toast('앞 단계를 먼저 깨 주세요');
     inner.appendChild(b);

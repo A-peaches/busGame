@@ -59,7 +59,7 @@ export default {
 
   // 5분마다: 하트가 가득 찬 사람에게 알림 + 여행 알림
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(notifyFullHearts(env).then(() => remindTravelers(env)));
+    ctx.waitUntil(notifyFullHearts(env).then(() => remindTravelers(env)).then(() => cleanUp(env)));
   },
 };
 
@@ -277,6 +277,14 @@ async function notifyFullHearts(env) {
     await env.DB.prepare('UPDATE users SET full_notified = 1 WHERE id = ?').bind(u.id).run();
     await notify(env, u, '❤️ 하트가 가득 찼어요', '멍냥이들이 정류장에서 기다리고 있어요. 버스를 출발시켜 볼까요?');
   }
+}
+
+// 남길 필요 없는 기록은 지워요: 이미 보여 준 알림(쪽지 내용 복사본 포함)은 7일 뒤, 지난 횟수 제한 기록은 바로
+async function cleanUp(env) {
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM notes WHERE seen = 1 AND at < ?').bind(now() - 7 * DAY),
+    env.DB.prepare('DELETE FROM throttle WHERE reset < ?').bind(now()),
+  ]);
 }
 
 // ---- 여행 알림: 하루 넘게 안 온 사람에게, 낮 시간(한국 11~20시)에 하루 한 번만 ----

@@ -1856,22 +1856,24 @@ function makeBusStopScene() {
   s += `<rect x="38" y="${y0 - 33}" width="10" height="14" fill="#f2e6c9" opacity=".9"/>`;            // 노선도
 
   // 가로등 (버스는 움직이는 별도 층에서 그려요 → busLive)
-  s += `<path d="M238 ${y0 - 2} L238 ${y0 - 84} Q238 ${y0 - 92} 248 ${y0 - 92} L256 ${y0 - 92}" fill="none" stroke="#9c9891" stroke-width="2"/>`;
-  s += `<path d="M252 ${y0 - 94} L262 ${y0 - 94} L260 ${y0 - 90} L254 ${y0 - 90}Z" fill="#cfcbc4"/>`;
-  return s + '</g>';
+  s += `<path d="M206 ${y0 - 2} L206 ${y0 - 84} Q206 ${y0 - 92} 216 ${y0 - 92} L224 ${y0 - 92}" fill="none" stroke="#9c9891" stroke-width="2"/>`;
+  s += `<path d="M220 ${y0 - 94} L230 ${y0 - 94} L228 ${y0 - 90} L222 ${y0 - 90}Z" fill="#cfcbc4"/>`;
+  // 길가 장면 전체를 약 1.15배 크게 (양옆이 잘리지 않게 기준점을 왼쪽에 둬요)
+  return `<g transform="${SCENE_T}">${s}</g></g>`;
 }
+const SCENE_T = 'translate(42.7 372) scale(1.15) translate(-42.7 -372)';
 
 // =====================================================================
 //  메인 화면의 움직이는 버스: 멍냥이 5마리가 줄 서 있다가 5초마다 한 마리씩 타고,
 //  탄 친구는 창밖을 바라보는 얼굴로 창문에 나타나요. 창문이 다 차면 출발 → 새 버스 도착.
 // =====================================================================
-const BUS = { x: 248, y0: 372, w: 120, h: 44, windows: 6, doorX: 270, gap: 11, every: 5 };
+const BUS = { x: 222, y0: 372, w: 120, h: 44, windows: 6, doorX: 244, gap: 11, every: 5 };
 const busLive = { dx: 0, phase: 'arrive', t: 0, faces: [], queue: [], walker: null, timer: 2.5, last: 0 };
 const OUTL = 'rgba(112,104,96,.75)';
 const randFriend = () => ({ kind: Math.random() < 0.5 ? 'cat' : 'dog', c: Math.floor(Math.random() * COLORS.length), ribbon: Math.random() < 0.2 });
 
 // 줄 서 있는 작은 멍냥이 (발 위치 = 0,0)
-function miniAnimalSVG(a) {
+function miniAnimalSVG(a, sleep = false) {
   const C = COLORS[a.c], o = `stroke="${OUTL}" stroke-width=".55"`;
   const ears = a.kind === 'cat'
     ? `<path d="M-4.2 -12 L-3.3 -17.2 L-0.8 -14.6Z M4.2 -12 L3.3 -17.2 L0.8 -14.6Z" fill="${C.c}" ${o}/>`
@@ -1883,8 +1885,10 @@ function miniAnimalSVG(a) {
     <ellipse cx="0" cy="-3.4" rx="3.9" ry="3.6" fill="${C.c}" ${o}/>${ears}
     <circle cx="0" cy="-11" r="4.6" fill="${C.c}" ${o}/>${dogEars}
     <ellipse cx="0" cy="-9.4" rx="1.9" ry="1.2" fill="#fbf1de"/>
-    <circle cx="-1.6" cy="-11.4" r=".75" fill="#2e231a"/><circle cx="1.6" cy="-11.4" r=".75" fill="#2e231a"/>
-    <circle cx="-1.8" cy="-11.7" r=".28" fill="#fff"/><circle cx="1.4" cy="-11.7" r=".28" fill="#fff"/>
+    ${sleep
+      ? `<path d="M-2.5 -11.6 Q-1.6 -10.6 -0.7 -11.6 M0.7 -11.6 Q1.6 -10.6 2.5 -11.6" fill="none" stroke="#2e231a" stroke-width=".55" stroke-linecap="round"/>`
+      : `<circle cx="-1.6" cy="-11.4" r=".75" fill="#2e231a"/><circle cx="1.6" cy="-11.4" r=".75" fill="#2e231a"/>
+    <circle cx="-1.8" cy="-11.7" r=".28" fill="#fff"/><circle cx="1.4" cy="-11.7" r=".28" fill="#fff"/>`}
     <ellipse cx="-2.9" cy="-9.9" rx=".9" ry=".55" fill="rgba(255,110,140,.55)"/><ellipse cx="2.9" cy="-9.9" rx=".9" ry=".55" fill="rgba(255,110,140,.55)"/>
     ${a.ribbon ? `<path d="M2 -15.2 L4.6 -16.6 L4.6 -13.8Z M2 -15.2 L-0.6 -16.6 L-0.6 -13.8Z" fill="#e8768e" ${o}/>` : ''}`;
 }
@@ -1935,8 +1939,16 @@ function renderBusLive() {
     const w = B.walker;
     s += `<g transform="translate(${f1(w.x)} ${f1(w.y)}) scale(${f1(w.k)})" opacity="${f1(w.op)}">${miniAnimalSVG(w)}</g>`;
   }
-  el.innerHTML = s;
+  // 정류장 벤치에서 쿨쿨 자는 친구 (고개를 살짝 기울이고, z가 둥실둥실)
+  const tz = performance.now() / 1000;
+  s += `<g transform="translate(54 ${BUS.y0 - 14.5}) rotate(${f1(-6 + Math.sin(tz * 1.3) * 2)})">${miniAnimalSVG(benchSleeper, true)}</g>`;
+  for (let i = 0; i < 3; i++) {
+    const k = (tz / 2.4 + i / 3) % 1;
+    s += `<text x="${f1(58 + k * 9)}" y="${f1(BUS.y0 - 32 - k * 12)}" font-size="${f1(3 + k * 3)}" font-family="MaruBuri, serif" font-weight="700" fill="#8f9bb3" opacity="${f1(Math.sin(k * Math.PI) * 0.9)}">z</text>`;
+  }
+  el.innerHTML = `<g transform="${SCENE_T}">${s}</g>`;
 }
+const benchSleeper = { kind: 'cat', c: 3, ribbon: true };
 function tickBusLive() {
   const now = performance.now(), dt = Math.min(0.1, (now - (busLive.last || now)) / 1000);
   busLive.last = now;

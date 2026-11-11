@@ -87,7 +87,7 @@
   .tint { position: absolute; inset: 0; z-index: 1; pointer-events: none; transition: background 2s; }
   /* 단계 지도는 지평선 아래 들판에서만 보여요 */
   #menu > #mapScroll {
-    position: absolute; left: 0; right: 0; top: 33%; bottom: 0; overflow-y: auto; scrollbar-width: none; z-index: 2;
+    position: absolute; left: 0; right: 0; top: 26%; bottom: 0; overflow-y: auto; scrollbar-width: none; z-index: 2;
     -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 60px);
     mask-image: linear-gradient(to bottom, transparent 0, #000 60px);
   }
@@ -2020,12 +2020,12 @@ function renderScene() {
     <filter id="wash" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter>
   </defs>`;
   // (먼 산은 없애고, 들판 숲 위로 바로 하늘이 보여요)
-  const ridge = x => 262 + Math.sin(x / 37) * 6 + Math.sin(x / 13) * 3;
+  const ridge = x => 202 + Math.sin(x / 37) * 6 + Math.sin(x / 13) * 3;   // 지평선 (땅을 위로 넓힘)
   // 숲 아래와 들판 사이 빈틈을 덤불로 꽉 채우기: 물감 번짐 띠 + 자잘한 잎
   let bushTop = `M-6 ${f1(ridge(-6) + 4)}`;
   for (let x = 4; x <= 410; x += 10) bushTop += ` L${x} ${f1(ridge(x) + 4 + Math.sin(x / 7) * 2)}`;
-  s += `<path d="${bushTop} L410 304 L-6 304Z" fill="${P.forest[2]}" opacity=".95" filter="url(#wash)"/>`;
-  s += `<path d="${bushTop} L410 304 L-6 304Z" fill="${P.forest[0]}" opacity=".55"/>`;
+  s += `<path d="${bushTop} L410 244 L-6 244Z" fill="${P.forest[2]}" opacity=".95" filter="url(#wash)"/>`;
+  s += `<path d="${bushTop} L410 244 L-6 244Z" fill="${P.forest[0]}" opacity=".55"/>`;
   for (let i = 0; i < 420; i++) {
     const x = R() * 412 - 6, y = ridge(x) + 2 + R() * 30, L = 2.2 + R() * 2.2;
     s += `<path d="M0 0 Q${f1(L / 2)} ${f1(-L * 0.45)} ${f1(L)} 0 Q${f1(L / 2)} ${f1(L * 0.45)} 0 0Z" fill="${pick(R, P.forest)}" opacity=".85" transform="translate(${f1(x)} ${f1(y)}) rotate(${Math.round(R() * 360)})"/>`;
@@ -2041,20 +2041,20 @@ function renderScene() {
     s += g + '</g>';
   }
   // 들판
-  s += `<path d="M0 282 C 80 270 160 290 240 278 C 300 270 360 282 400 276 L400 800 L0 800Z" fill="url(#mdG)"/>`;
+  s += `<path d="M0 222 C 80 210 160 230 240 218 C 300 210 360 222 400 216 L400 800 L0 800Z" fill="url(#mdG)"/>`;
   // 들판 끝자락의 작은 나무들과 양옆의 큰 나무 (모두 땅 위에)
-  for (const [x, y, h, sd] of [[34, 300, 46, 1], [372, 296, 52, 2], [120, 292, 30, 3], [262, 290, 28, 4]])
+  for (const [x, y, h, sd] of [[34, 244, 46, 1], [372, 240, 52, 2], [120, 234, 30, 3], [262, 232, 28, 4], [200, 300, 40, 5], [330, 320, 36, 6]])
     s += `<g transform="translate(${x} ${y})">${makeTree(sd, h)}</g>`;
   // 풀잎: 멀수록 작고 옅게, 가까울수록 크고 진하게
   let grass = '';
-  for (let i = 0; i < 520; i++) {
-    const y = 290 + Math.pow(R(), 0.8) * 510, x = R() * 400, k = (y - 280) / 520;
+  for (let i = 0; i < 600; i++) {
+    const y = 230 + Math.pow(R(), 0.8) * 570, x = R() * 400, k = (y - 220) / 580;
     const hgt = 3 + k * 13 + R() * 4, bend = (R() - 0.5) * hgt * 0.8;
     grass += `<path d="M${f1(x)} ${f1(y)} q${f1(bend * 0.3)} ${f1(-hgt * 0.6)} ${f1(bend)} ${f1(-hgt)}" stroke="${pick(R, P.grass)}" stroke-width="${f1(0.6 + k * 1.1)}" opacity="${f1(0.45 + k * 0.5)}" fill="none" stroke-linecap="round"/>`;
   }
   s += grass;
   for (let i = 0; i < 46 && P.flowers.length; i++) {
-    const y = 300 + R() * 490, k = (y - 280) / 520;
+    const y = 240 + R() * 550, k = (y - 220) / 580;
     s += `<circle cx="${f1(R() * 400)}" cy="${f1(y)}" r="${f1(0.8 + k * 2)}" fill="${pick(R, P.flowers)}"/>`;
   }
   s += makeBusStopScene();
@@ -2067,8 +2067,8 @@ function renderScene() {
   sky.innerHTML = '';
   const gloomy = ['cloudy', 'rain', 'snow'].includes(weather.kind);
   const CP = gloomy ? { cloudShade: '#bfc5cd' } : P;
-  const cl = [[3, 230, 80, -20], [12, 160, 110, -70], [21, 260, 140, -15], [7, 130, 95, -40]];
-  if (gloomy) cl.push([1, 300, 90, -55], [16, 280, 120, -95], [9, 240, 100, -5]);
+  const cl = [[2, 230, 80, -20], [9, 160, 110, -70], [14, 220, 140, -15], [5, 130, 95, -40]];
+  if (gloomy) cl.push([0, 300, 90, -55], [11, 260, 120, -95], [6, 240, 100, -5]);
   cl.forEach(([top, w, dur, delay], i) => {
     const c = document.createElement('div');
     c.className = 'cloud';
@@ -2117,7 +2117,7 @@ function updateSky() {
   const day = t > sun.rise && t < sun.set;
   let skyCols, tint = 'transparent', cel = '';
   // 해/달이 지나가는 큰 호: 왼쪽 지평선에서 떠서 오른쪽 지평선으로 져요
-  const arc = f => ({ x: 30 + f * 340, y: 250 - Math.sin(Math.PI * f) * 200 });
+  const arc = f => ({ x: 30 + f * 340, y: 192 - Math.sin(Math.PI * f) * 160 });
   if (day || dawn || dusk) {
     const f = clamp((t - sun.rise) / (sun.set - sun.rise), -0.03, 1.03), p = arc(f);
     skyCols = dawn ? ['#8a97bf', '#f0b9a0', '#fbe2c2'] : dusk ? ['#7684b2', '#ee9f86', '#f8cfa2'] : P.sky;
@@ -2132,7 +2132,7 @@ function updateSky() {
     skyCols = ['#1f2b4a', '#36446d', '#58648e'];
     tint = 'rgba(25,35,80,.42)';
     const R = mulberry32(99);
-    for (let i = 0; i < 70; i++) cel += `<circle cx="${f1(R() * 400)}" cy="${f1(R() * 230)}" r="${f1(0.4 + R() * 1.1)}" fill="#fffbe8" opacity="${f1(0.4 + R() * 0.6)}"/>`;
+    for (let i = 0; i < 70; i++) cel += `<circle cx="${f1(R() * 400)}" cy="${f1(R() * 185)}" r="${f1(0.4 + R() * 1.1)}" fill="#fffbe8" opacity="${f1(0.4 + R() * 0.6)}"/>`;
     const ph = moonPhase(), r = 13;
     const dx = ph <= 0.5 ? 4 * r * ph : -4 * r * (1 - ph);
     cel += `<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="50" fill="url(#glowG)" opacity=".5"/>

@@ -202,6 +202,7 @@
     <!-- 계절 풍경 (자바스크립트가 그려요) -->
     <svg class="scene" id="skyLayer" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
     <img class="scene" id="land" alt="" draggable="false">
+    <svg class="scene" id="busLive" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="pointer-events:none"></svg>
     <div class="sky" id="sky"></div>
     <div class="tint" id="tint"></div>
     <div id="mapScroll"><div id="mapInner"><img id="mapRoad" alt="" draggable="false"></div></div>
@@ -1858,34 +1859,129 @@ function makeBusStopScene() {
   s += `<rect x="40" y="${y0 - 14}" width="28" height="3" rx="1" fill="#a87c5c"/><path d="M43 ${y0 - 11} L43 ${y0 - 3} M65 ${y0 - 11} L65 ${y0 - 3}"/>`;
   s += `<rect x="38" y="${y0 - 33}" width="10" height="14" fill="#f2e6c9" opacity=".9"/>`;            // 노선도
 
-  // ---- 오른쪽: 서 있는 시내버스 (하얀 차체 + 하늘색 띠, 왼쪽을 보고 서 있어요) ----
-  const bx = 248, bw = 120, bh = 44, by = y0 - 6 - bh;
-  // 가로등
+  // 가로등 (버스는 움직이는 별도 층에서 그려요 → busLive)
   s += `<path d="M238 ${y0 - 2} L238 ${y0 - 84} Q238 ${y0 - 92} 248 ${y0 - 92} L256 ${y0 - 92}" fill="none" stroke="#9c9891" stroke-width="2"/>`;
   s += `<path d="M252 ${y0 - 94} L262 ${y0 - 94} L260 ${y0 - 90} L254 ${y0 - 90}Z" fill="#cfcbc4"/>`;
-  // 그림자
-  s += `<ellipse cx="${bx + bw / 2}" cy="${y0 - 3}" rx="${bw * 0.52}" ry="4" fill="rgba(70,65,60,.25)" stroke="none" filter="url(#wash)"/>`;
-  // 차체
-  s += `<path d="M${bx + 6} ${by} L${bx + bw - 4} ${by} Q${bx + bw} ${by} ${bx + bw} ${by + 5} L${bx + bw} ${by + bh - 4} L${bx} ${by + bh - 4} L${bx} ${by + 9} Q${bx} ${by} ${bx + 6} ${by}Z" fill="#f6f5f1"/>`;
-  // 하늘색 물감 띠 (지붕 쪽 앞부분 + 옆 아래)
-  s += `<path d="M${bx + 1} ${by + 6} Q${bx + 2} ${by + 1} ${bx + 8} ${by + 1} L${bx + 54} ${by + 1} L${bx + 40} ${by + 9} L${bx + 1} ${by + 9}Z" fill="#8cbfdd" opacity=".85" stroke="none"/>`;
-  s += `<path d="M${bx + 30} ${by + bh - 12} L${bx + bw} ${by + bh - 16} L${bx + bw} ${by + bh - 10} L${bx + 26} ${by + bh - 6}Z" fill="#8cbfdd" opacity=".7" stroke="none"/>`;
-  // 앞유리 + 행선판
-  s += `<path d="M${bx + 2} ${by + 11} L${bx + 14} ${by + 11} L${bx + 14} ${by + 30} L${bx + 2} ${by + 32}Z" fill="#6f7c86"/>`;
-  s += `<rect x="${bx + 3}" y="${by + 3}" width="18" height="4" rx=".8" fill="#e8c56a"/>`;
-  // 옆 창문 줄
-  for (let i = 0; i < 6; i++) s += `<rect x="${f1(bx + 30 + i * 15)}" y="${by + 11}" width="13.5" height="15" rx="1" fill="#5f6b74"/>`;
-  // 앞문
-  s += `<rect x="${bx + 17}" y="${by + 11}" width="10" height="${bh - 16}" fill="#7d8992"/><path d="M${bx + 22} ${by + 11} L${bx + 22} ${by + bh - 5}"/>`;
-  // 범퍼, 전조등, 바퀴
-  s += `<rect x="${bx - 1}" y="${by + bh - 7}" width="${bw + 2}" height="4" rx="1.5" fill="#d9d6cf"/>`;
-  s += `<circle cx="${bx + 4}" cy="${by + bh - 11}" r="1.8" fill="#fff3c4"/>`;
-  for (const wx of [bx + 30, bx + bw - 24]) {
-    s += `<circle cx="${wx}" cy="${y0 - 6}" r="8" fill="#4b4642"/><circle cx="${wx}" cy="${y0 - 6}" r="3.6" fill="#cfcbc4"/>`;
-    s += `<path d="M${wx - 10} ${y0 - 14} Q${wx} ${y0 - 22} ${wx + 10} ${y0 - 14}" fill="none"/>`;
-  }
   return s + '</g>';
 }
+
+// =====================================================================
+//  메인 화면의 움직이는 버스: 멍냥이 5마리가 줄 서 있다가 5초마다 한 마리씩 타고,
+//  탄 친구는 창밖을 바라보는 얼굴로 창문에 나타나요. 창문이 다 차면 출발 → 새 버스 도착.
+// =====================================================================
+const BUS = { x: 248, y0: 372, w: 120, h: 44, windows: 6, doorX: 270, gap: 11, every: 5 };
+const busLive = { dx: 0, phase: 'arrive', t: 0, faces: [], queue: [], walker: null, timer: 2.5, last: 0 };
+const OUTL = 'rgba(112,104,96,.75)';
+const randFriend = () => ({ kind: Math.random() < 0.5 ? 'cat' : 'dog', c: Math.floor(Math.random() * COLORS.length), ribbon: Math.random() < 0.2 });
+
+// 줄 서 있는 작은 멍냥이 (발 위치 = 0,0)
+function miniAnimalSVG(a) {
+  const C = COLORS[a.c], o = `stroke="${OUTL}" stroke-width=".55"`;
+  const ears = a.kind === 'cat'
+    ? `<path d="M-4.2 -12 L-3.3 -17.2 L-0.8 -14.6Z M4.2 -12 L3.3 -17.2 L0.8 -14.6Z" fill="${C.c}" ${o}/>`
+    : '';
+  const dogEars = a.kind === 'dog'
+    ? `<ellipse cx="-4.1" cy="-11.4" rx="1.5" ry="2.9" transform="rotate(18 -4.1 -11.4)" fill="${C.d}"/><ellipse cx="4.1" cy="-11.4" rx="1.5" ry="2.9" transform="rotate(-18 4.1 -11.4)" fill="${C.d}"/>`
+    : '';
+  return `<ellipse cx="0" cy=".4" rx="4.6" ry="1.2" fill="rgba(70,50,30,.2)"/>
+    <ellipse cx="0" cy="-3.4" rx="3.9" ry="3.6" fill="${C.c}" ${o}/>${ears}
+    <circle cx="0" cy="-11" r="4.6" fill="${C.c}" ${o}/>${dogEars}
+    <ellipse cx="0" cy="-9.4" rx="1.9" ry="1.2" fill="#fbf1de"/>
+    <circle cx="-1.6" cy="-11.4" r=".75" fill="#2e231a"/><circle cx="1.6" cy="-11.4" r=".75" fill="#2e231a"/>
+    <circle cx="-1.8" cy="-11.7" r=".28" fill="#fff"/><circle cx="1.4" cy="-11.7" r=".28" fill="#fff"/>
+    <ellipse cx="-2.9" cy="-9.9" rx=".9" ry=".55" fill="rgba(255,110,140,.55)"/><ellipse cx="2.9" cy="-9.9" rx=".9" ry=".55" fill="rgba(255,110,140,.55)"/>
+    ${a.ribbon ? `<path d="M2 -15.2 L4.6 -16.6 L4.6 -13.8Z M2 -15.2 L-0.6 -16.6 L-0.6 -13.8Z" fill="#e8768e" ${o}/>` : ''}`;
+}
+// 창밖을 바라보는 얼굴 (창문 안쪽)
+function windowFaceSVG(a, wx, wy) {
+  const C = COLORS[a.c], o = `stroke="${OUTL}" stroke-width=".5"`, cx = wx + 6.75, cy = wy + 10.5;
+  const ears = a.kind === 'cat'
+    ? `<path d="M${cx - 4.2} ${cy - 2} L${cx - 3.3} ${cy - 7} L${cx - 0.8} ${cy - 4.4}Z M${cx + 4.2} ${cy - 2} L${cx + 3.3} ${cy - 7} L${cx + 0.8} ${cy - 4.4}Z" fill="${C.c}" ${o}/>`
+    : `<ellipse cx="${cx - 4}" cy="${cy - 0.6}" rx="1.5" ry="2.8" fill="${C.d}"/><ellipse cx="${cx + 4}" cy="${cy - 0.6}" rx="1.5" ry="2.8" fill="${C.d}"/>`;
+  return `<g>${a.kind === 'cat' ? ears : ''}<circle cx="${cx}" cy="${cy}" r="4.6" fill="${C.c}" ${o}/>${a.kind === 'dog' ? ears : ''}
+    <ellipse cx="${cx}" cy="${cy + 1.6}" rx="1.9" ry="1.2" fill="#fbf1de"/>
+    <circle cx="${cx - 1.6}" cy="${cy - 0.4}" r=".75" fill="#2e231a"/><circle cx="${cx + 1.6}" cy="${cy - 0.4}" r=".75" fill="#2e231a"/>
+    <circle cx="${cx - 1.8}" cy="${cy - 0.7}" r=".28" fill="#fff"/><circle cx="${cx + 1.4}" cy="${cy - 0.7}" r=".28" fill="#fff"/>
+    <ellipse cx="${cx - 2.9}" cy="${cy + 1.1}" rx=".9" ry=".55" fill="rgba(255,110,140,.55)"/><ellipse cx="${cx + 2.9}" cy="${cy + 1.1}" rx=".9" ry=".55" fill="rgba(255,110,140,.55)"/></g>`;
+}
+// 버스 그림 (왼쪽 위 = 0,0)
+function busBodySVG(faces) {
+  const bw = BUS.w, bh = BUS.h, I = `stroke="rgba(80,74,68,.85)" stroke-width=".8" stroke-linejoin="round"`;
+  let s = `<ellipse cx="${bw / 2}" cy="${bh + 3}" rx="${bw * 0.52}" ry="4" fill="rgba(70,65,60,.22)"/>`;
+  s += `<path d="M6 0 L${bw - 4} 0 Q${bw} 0 ${bw} 5 L${bw} ${bh - 4} L0 ${bh - 4} L0 9 Q0 0 6 0Z" fill="#f6f5f1" ${I}/>`;
+  s += `<path d="M1 6 Q2 1 8 1 L54 1 L40 9 L1 9Z" fill="#8cbfdd" opacity=".85"/>`;
+  s += `<path d="M30 ${bh - 12} L${bw} ${bh - 16} L${bw} ${bh - 10} L26 ${bh - 6}Z" fill="#8cbfdd" opacity=".7"/>`;
+  s += `<path d="M2 11 L14 11 L14 30 L2 32Z" fill="#6f7c86" ${I}/>`;
+  s += `<rect x="3" y="3" width="18" height="4" rx=".8" fill="#e8c56a" ${I}/>`;
+  for (let i = 0; i < BUS.windows; i++) {
+    const wx = 30 + i * 15;
+    s += `<rect x="${wx}" y="11" width="13.5" height="15" rx="1" fill="#6d7a83" ${I}/>`;
+    if (faces[i]) s += windowFaceSVG(faces[i], wx, 11);
+    s += `<rect x="${wx}" y="11" width="13.5" height="15" rx="1" fill="rgba(200,225,235,.18)" stroke="none"/>`;   // 유리 반사
+  }
+  s += `<rect x="17" y="11" width="10" height="${bh - 16}" fill="#7d8992" ${I}/><path d="M22 11 L22 ${bh - 5}" ${I}/>`;
+  s += `<rect x="-1" y="${bh - 7}" width="${bw + 2}" height="4" rx="1.5" fill="#d9d6cf" ${I}/>`;
+  s += `<circle cx="4" cy="${bh - 11}" r="1.8" fill="#fff3c4" ${I}/>`;
+  for (const wx of [30, bw - 24]) s += `<circle cx="${wx}" cy="${bh}" r="8" fill="#4b4642" ${I}/><circle cx="${wx}" cy="${bh}" r="3.6" fill="#cfcbc4"/>`;
+  return s;
+}
+function renderBusLive() {
+  const el = $('busLive');
+  if (!el) return;
+  const B = busLive, by = BUS.y0 - 6 - BUS.h;
+  let s = `<g transform="translate(${f1(BUS.x + B.dx)} ${by})">${busBodySVG(B.faces)}</g>`;
+  // 줄 선 친구들 (앞에서부터)
+  B.queue.forEach((a, i) => {
+    const bob = B.phase === 'board' ? 0 : 0;
+    s += `<g transform="translate(${f1(a.x)} ${BUS.y0 + 7 - bob})" opacity="${f1(a.op)}">${miniAnimalSVG(a)}</g>`;
+  });
+  if (B.walker) {
+    const w = B.walker;
+    s += `<g transform="translate(${f1(w.x)} ${f1(w.y)}) scale(${f1(w.k)})" opacity="${f1(w.op)}">${miniAnimalSVG(w)}</g>`;
+  }
+  el.innerHTML = s;
+}
+function tickBusLive() {
+  const now = performance.now(), dt = Math.min(0.1, (now - (busLive.last || now)) / 1000);
+  busLive.last = now;
+  if (S || document.hidden) return;                       // 게임 중이거나 화면이 꺼져 있으면 쉬어요
+  const B = busLive;
+  while (B.queue.length < 5) B.queue.push({ ...randFriend(), x: 150, op: 0 });
+  // 줄 선 친구들은 자기 자리로 조금씩 걸어가요
+  B.queue.forEach((a, i) => {
+    const tx = BUS.doorX - 12 - i * BUS.gap;
+    a.x += (tx - a.x) * Math.min(1, dt * 4);
+    a.op = Math.min(1, a.op + dt * 2);
+  });
+  B.t += dt;
+  if (B.phase === 'arrive') {                             // 새 버스가 오른쪽에서 들어와요
+    B.dx = 230 * Math.pow(1 - Math.min(1, B.t / 2.6), 3);
+    if (B.t >= 2.6) { B.phase = 'board'; B.t = 0; B.timer = 1.2; B.dx = 0; }
+  } else if (B.phase === 'board') {
+    B.timer -= dt;
+    if (B.timer <= 0 && !B.walker && B.faces.length < BUS.windows) {
+      const a = B.queue.shift();                          // 맨 앞 친구가 문으로 쏙
+      B.walker = { ...a, y: BUS.y0 + 7, k: 1, op: 1, t: 0 };
+      B.timer = BUS.every;
+    }
+    if (B.walker) {
+      const w = B.walker;
+      w.t += dt / 0.9;
+      w.x = lerp(w.x, BUS.x + 22, Math.min(1, dt * 6));
+      w.y = BUS.y0 + 7 - w.t * 8;
+      w.k = 1 - w.t * 0.3; w.op = 1 - w.t;
+      if (w.t >= 1) { B.faces.push(w); B.walker = null; }   // 창문에 얼굴이 나타나요
+    }
+    if (B.faces.length >= BUS.windows && !B.walker) { B.phase = 'full'; B.t = 0; }
+  } else if (B.phase === 'full') {                        // 모두 창밖을 바라보는 모습을 잠깐 보여 주고
+    if (B.t >= 1.6) { B.phase = 'leave'; B.t = 0; }
+  } else if (B.phase === 'leave') {                       // 왼쪽으로 출발!
+    B.dx = -360 * Math.pow(Math.min(1, B.t / 3.4), 2);
+    if (B.t >= 3.4) { B.phase = 'arrive'; B.t = 0; B.faces = []; B.dx = 230; }
+  }
+  renderBusLive();
+}
+setInterval(tickBusLive, 50);
 
 function makeSnowman() {
   return `<g transform="translate(318 470)" stroke="rgba(112,104,96,.6)" stroke-width="1">
@@ -1923,11 +2019,18 @@ function renderScene() {
     <filter id="haze"><feGaussianBlur stdDeviation=".6"/></filter>
     <filter id="wash" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter>
   </defs>`;
-  // 먼 산 (겨울엔 눈 덮인 봉우리)
-  s += `<path d="M0 238 C 40 210 70 196 110 206 C 150 178 190 172 232 196 C 270 178 318 166 360 190 C 380 186 395 188 400 190 L400 320 L0 320Z" fill="url(#mtG)" stroke="rgba(112,104,96,.3)" stroke-width="1"/>`;
-  if (season === 'winter') s += `<path d="M150 186 C 170 176 195 174 214 186 C 200 184 190 190 178 188 C 168 192 160 188 150 186Z M300 176 C 320 168 340 170 354 184 C 340 182 330 186 320 184 C 312 188 306 182 300 176Z" fill="#fbfcfd" opacity=".9"/>`;
-  // 지평선 숲: 먼 줄은 흐릿하고 작게, 앞 줄은 크고 진하게
+  // (먼 산은 없애고, 들판 숲 위로 바로 하늘이 보여요)
   const ridge = x => 262 + Math.sin(x / 37) * 6 + Math.sin(x / 13) * 3;
+  // 숲 아래와 들판 사이 빈틈을 덤불로 꽉 채우기: 물감 번짐 띠 + 자잘한 잎
+  let bushTop = `M-6 ${f1(ridge(-6) + 4)}`;
+  for (let x = 4; x <= 410; x += 10) bushTop += ` L${x} ${f1(ridge(x) + 4 + Math.sin(x / 7) * 2)}`;
+  s += `<path d="${bushTop} L410 304 L-6 304Z" fill="${P.forest[2]}" opacity=".95" filter="url(#wash)"/>`;
+  s += `<path d="${bushTop} L410 304 L-6 304Z" fill="${P.forest[0]}" opacity=".55"/>`;
+  for (let i = 0; i < 420; i++) {
+    const x = R() * 412 - 6, y = ridge(x) + 2 + R() * 30, L = 2.2 + R() * 2.2;
+    s += `<path d="M0 0 Q${f1(L / 2)} ${f1(-L * 0.45)} ${f1(L)} 0 Q${f1(L / 2)} ${f1(L * 0.45)} 0 0Z" fill="${pick(R, P.forest)}" opacity=".85" transform="translate(${f1(x)} ${f1(y)}) rotate(${Math.round(R() * 360)})"/>`;
+    if (season === 'winter' && R() < 0.3) s += `<ellipse cx="${f1(x)}" cy="${f1(y - 1)}" rx="1.6" ry=".7" fill="#fbfcfd"/>`;
+  }
   // 지평선 숲: 앞쪽 나무와 똑같은 수채화 나무를 작게 촘촘히 (먼 줄은 흐릿하게)
   for (const [row, hmin, hmax, step, dy, op] of [[0, 22, 30, 7, 16, 0.65], [1, 28, 40, 9, 28, 0.95]]) {
     let g = `<g opacity="${op}">`;

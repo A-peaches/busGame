@@ -263,7 +263,8 @@ const BODY_W = 0.74;    // 버스 폭 (칸 단위)
 const GAP = 0.03;       // 버스 사이 최소 간격의 절반
 
 const canvas = document.getElementById('cv');
-const ctx = canvas.getContext('2d');
+let ctx = canvas.getContext('2d');      // (작은 그림 이미지를 만들 때 잠깐 다른 그림판으로 바꿔 써요)
+let LW_SCALE = 1;                         // 테두리 굵기 배율 (크게 그린 뒤 줄여 쓸 때 보정)
 const stage = document.getElementById('stage');
 const $ = id => document.getElementById(id);
 
@@ -1139,7 +1140,7 @@ function drawHouse(x, y, s) {
 //   opts: bag(분홍 보따리) ribbon(리본 색) sleep(쿨쿨) excited(버스 타러 가는 중: 눈이 초롱초롱)
 function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, opts = {}) {
   const C = COLORS[colorIdx], LT = lightOf(C), SH = shadeOf(C);
-  const lw = 0.9;
+  const lw = 0.9 * LW_SCALE;
   const line = (w = lw) => { ctx.strokeStyle = LINE; ctx.lineWidth = w; ctx.stroke(); };
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   ctx.fillStyle = 'rgba(70,50,30,.2)';
@@ -1241,7 +1242,7 @@ function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, opts = {}) {
     ctx.fillStyle = 'rgba(253,245,230,.85)'; ell(hx, hy + hr * 0.32, hr * 0.36, hr * 0.22);
     ctx.fillStyle = '#d98490'; ell(hx, hy + hr * 0.2, hr * 0.12, hr * 0.08);
     if (r >= 7) {
-      ctx.strokeStyle = 'rgba(60,40,30,.55)'; ctx.lineWidth = 0.8;
+      ctx.strokeStyle = 'rgba(60,40,30,.55)'; ctx.lineWidth = 0.8 * LW_SCALE;
       ctx.beginPath();
       for (const s of [-1, 1]) {
         ctx.moveTo(hx + s * hr * 0.32, hy + hr * 0.3); ctx.lineTo(hx + s * hr * 1.0, hy + hr * 0.2);
@@ -1256,7 +1257,7 @@ function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, opts = {}) {
     ctx.fillStyle = `rgba(255,130,160,${opts.excited ? 0.5 : 0.35})`; ell(bx, by, hr * 0.24, hr * 0.16);
     ctx.fillStyle = 'rgba(255,95,135,.6)'; ell(bx, by, hr * 0.15, hr * 0.1);
     if (r >= 7) {
-      ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 0.7;
+      ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 0.7 * LW_SCALE;
       ctx.beginPath();
       ctx.moveTo(bx - hr * 0.08, by + hr * 0.04); ctx.lineTo(bx - hr * 0.02, by - hr * 0.04);
       ctx.moveTo(bx + hr * 0.02, by + hr * 0.04); ctx.lineTo(bx + hr * 0.08, by - hr * 0.04);
@@ -1867,10 +1868,14 @@ const SCENE_T = 'translate(42.7 372) scale(1.15) translate(-42.7 -372)';
 //  메인 화면의 움직이는 버스: 멍냥이 5마리가 줄 서 있다가 5초마다 한 마리씩 타고,
 //  탄 친구는 창밖을 바라보는 얼굴로 창문에 나타나요. 창문이 다 차면 출발 → 새 버스 도착.
 // =====================================================================
-const BUS = { x: 222, y0: 372, w: 120, h: 44, windows: 6, doorX: 244, gap: 11, every: 5 };
+const BUS = { x: 222, y0: 372, w: 120, h: 44, windows: 6, doorX: 244, gap: 13, every: 5 };
 const busLive = { dx: 0, phase: 'arrive', t: 0, faces: [], queue: [], walker: null, timer: 2.5, last: 0 };
 const OUTL = 'rgba(112,104,96,.75)';
-const randFriend = () => ({ kind: Math.random() < 0.5 ? 'cat' : 'dog', c: Math.floor(Math.random() * COLORS.length), ribbon: Math.random() < 0.2 });
+const RIBBONS = ['#e8768e', '#7fb4d6', '#f2c35a', '#b9a2d8'];
+const randFriend = () => ({
+  kind: Math.random() < 0.5 ? 'cat' : 'dog', c: Math.floor(Math.random() * COLORS.length),
+  ribbon: Math.random() < 0.18 ? RIBBONS[Math.floor(Math.random() * 4)] : null, bag: Math.random() < 0.16,
+});
 
 // 줄 서 있는 작은 멍냥이 (발 위치 = 0,0)
 function miniAnimalSVG(a, sleep = false) {
@@ -1925,30 +1930,120 @@ function busBodySVG(faces) {
   for (const wx of [30, bw - 24]) s += `<circle cx="${wx}" cy="${bh}" r="8" fill="#4b4642" ${I}/><circle cx="${wx}" cy="${bh}" r="3.6" fill="#cfcbc4"/>`;
   return s;
 }
+// ---- 인게임과 똑같은 멍냥이를 작은 그림(스프라이트)으로 한 번 그려 두고 메인 화면에서 재사용 ----
+const SPR_PX = 26 / 5.3;      // 스프라이트 픽셀 ÷ 메인 화면 단위 (인게임 r=26으로 그려서 r=5.3 크기로 보여요)
+const spriteIds = new Map();
+function animalSpriteId(a, lying = false) {
+  const key = `${a.kind}-${a.c}-${a.ribbon ? a.ribbon.slice(1) : 'n'}-${a.bag ? 1 : 0}-${lying ? 1 : 0}`;
+  if (spriteIds.has(key)) return spriteIds.get(key);
+  const W = lying ? 200 : 128, H = lying ? 120 : 128;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const saved = ctx, savedLW = LW_SCALE;
+  ctx = cv.getContext('2d'); LW_SCALE = 2.6;
+  try {
+    if (lying) drawLyingAnimal(W / 2, H - 14, 26, a.c, a.kind, a.ribbon);
+    else drawAnimal(64, 108, 26, a.c, a.kind, 0, 0, { ribbon: a.ribbon, bag: a.bag });
+  } finally { ctx = saved; LW_SCALE = savedLW; }
+  const id = 'spr-' + key;
+  const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+  img.setAttribute('id', id);
+  img.setAttribute('href', cv.toDataURL());
+  img.setAttribute('width', f1(W / SPR_PX)); img.setAttribute('height', f1(H / SPR_PX));
+  // 발 위치가 (0,0)에 오도록
+  img.setAttribute('x', f1(-W / 2 / SPR_PX)); img.setAttribute('y', f1(-(lying ? H - 14 : 108) / SPR_PX));
+  $('busDefs').appendChild(img);
+  spriteIds.set(key, id);
+  return id;
+}
+
+// 엎드려서 자는 멍냥이 (앞발 위에 턱을 괴고). x=가운데, y=바닥
+function drawLyingAnimal(x, y, r, colorIdx, kind, ribbon) {
+  const C = COLORS[colorIdx], LT = lightOf(C), SH = shadeOf(C), lw = 0.9 * LW_SCALE;
+  const line = (w = lw) => { ctx.strokeStyle = LINE; ctx.lineWidth = w; ctx.stroke(); };
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.fillStyle = 'rgba(70,50,30,.18)'; ell(x + r * 0.2, y + r * 0.05, r * 1.9, r * 0.22);
+  const bx = x + r * 0.35, by = y - r * 0.5;                    // 몸 가운데
+  const hx = x - r * 0.95, hy = y - r * 0.8, hr = r * 0.85;     // 머리
+  const body = () => rr(bx - r * 1.25, by - r * 0.5, r * 2.5, r * 1.0, r * 0.5);
+  const head = () => { ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2); };
+  const catEar = s => {
+    ctx.beginPath();
+    ctx.moveTo(hx + s * hr * 0.95, hy - hr * 0.1); ctx.lineTo(hx + s * hr * 0.75, hy - hr * 1.22); ctx.lineTo(hx + s * hr * 0.12, hy - hr * 0.75);
+    ctx.closePath();
+  };
+  const dogEar = s => { ctx.beginPath(); ctx.ellipse(hx + s * hr * 0.86, hy + hr * 0.12, hr * 0.3, hr * 0.6, -s * 0.35, 0, Math.PI * 2); };
+  const ear = kind === 'cat' ? catEar : dogEar;
+
+  // 꼬리: 몸 뒤쪽에서 동그랗게 말려 있어요
+  ctx.beginPath();
+  ctx.moveTo(bx + r * 1.1, by + r * 0.1);
+  ctx.bezierCurveTo(bx + r * 1.9, by + r * 0.2, bx + r * 1.9, by - r * 0.8, bx + r * 1.35, by - r * 0.75);
+  ctx.strokeStyle = LINE; ctx.lineWidth = r * 0.3 + lw * 2; ctx.stroke();
+  ctx.strokeStyle = C.c; ctx.lineWidth = r * 0.3; ctx.stroke();
+
+  // 몸·귀·머리를 하나의 실루엣으로 (바깥만 테두리)
+  ctx.strokeStyle = LINE; ctx.lineWidth = lw * 2;
+  body(); ctx.stroke(); ear(-1); ctx.stroke(); ear(1); ctx.stroke(); head(); ctx.stroke();
+  const bg = ctx.createLinearGradient(0, by - r * 0.5, 0, by + r * 0.5);
+  bg.addColorStop(0, LT); bg.addColorStop(0.55, C.c); bg.addColorStop(1, SH);
+  body(); ctx.fillStyle = bg; ctx.fill();
+  for (const s of [-1, 1]) {
+    ear(s); ctx.fillStyle = kind === 'cat' ? C.c : SH; ctx.fill();
+    if (kind === 'cat') {
+      ctx.fillStyle = '#efb5bf'; ctx.beginPath();
+      ctx.moveTo(hx + s * hr * 0.78, hy - hr * 0.38); ctx.lineTo(hx + s * hr * 0.7, hy - hr * 0.95); ctx.lineTo(hx + s * hr * 0.38, hy - hr * 0.72);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  const hg = ctx.createRadialGradient(hx - hr * 0.35, hy - hr * 0.42, hr * 0.1, hx, hy, hr * 1.05);
+  hg.addColorStop(0, LT); hg.addColorStop(0.65, C.c); hg.addColorStop(1, SH);
+  head(); ctx.fillStyle = hg; ctx.fill();
+  if (kind === 'dog') for (const s of [-1, 1]) { dogEar(s); ctx.fillStyle = SH; ctx.fill(); }
+
+  // 턱 아래 앞발 두 개
+  for (const s of [-1, 1]) {
+    ctx.beginPath(); ctx.ellipse(hx + s * hr * 0.42, y - r * 0.12, r * 0.28, r * 0.15, 0, 0, Math.PI * 2);
+    ctx.fillStyle = C.c; ctx.fill(); line(lw * 0.9);
+  }
+  // 주둥이·코
+  ctx.fillStyle = kind === 'dog' ? '#fbf1de' : 'rgba(253,245,230,.85)'; ell(hx, hy + hr * 0.34, hr * 0.38, hr * 0.24);
+  ctx.fillStyle = kind === 'dog' ? '#3a2c20' : '#d98490'; ell(hx, hy + hr * 0.22, hr * 0.13, hr * 0.09);
+  // 감은 눈 + 발그레한 볼
+  ctx.strokeStyle = '#2e231a'; ctx.lineWidth = Math.max(1, hr * 0.08);
+  for (const s of [-1, 1]) { ctx.beginPath(); ctx.arc(hx + s * hr * 0.34, hy - hr * 0.06, hr * 0.13, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke(); }
+  for (const s of [-1, 1]) { ctx.fillStyle = 'rgba(255,120,150,.45)'; ell(hx + s * hr * 0.58, hy + hr * 0.2, hr * 0.2, hr * 0.13); }
+  if (ribbon) {
+    const rx = hx + hr * 0.42, ry = hy - hr * 0.92, k = hr * 0.32;
+    ctx.fillStyle = ribbon; ctx.strokeStyle = LINE; ctx.lineWidth = lw;
+    for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx + s * k * 1.25, ry - k * 0.7); ctx.lineTo(rx + s * k * 1.25, ry + k * 0.7); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(rx, ry, k * 0.32, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
+}
+
 function renderBusLive() {
   const el = $('busLive');
   if (!el) return;
+  if (!$('busDyn')) el.innerHTML = `<defs id="busDefs"></defs><g transform="${SCENE_T}" id="busDyn"></g>`;
   const B = busLive, by = BUS.y0 - 6 - BUS.h;
   let s = `<g transform="translate(${f1(BUS.x + B.dx)} ${by})">${busBodySVG(B.faces)}</g>`;
-  // 줄 선 친구들 (앞에서부터)
-  B.queue.forEach((a, i) => {
-    const bob = B.phase === 'board' ? 0 : 0;
-    s += `<g transform="translate(${f1(a.x)} ${BUS.y0 + 7 - bob})" opacity="${f1(a.op)}">${miniAnimalSVG(a)}</g>`;
+  // 줄 선 친구들 (인게임과 똑같은 그림, 크기만 작게)
+  B.queue.forEach(a => {
+    s += `<use href="#${animalSpriteId(a)}" transform="translate(${f1(a.x)} ${BUS.y0 + 7})" opacity="${f1(a.op)}"/>`;
   });
   if (B.walker) {
     const w = B.walker;
-    s += `<g transform="translate(${f1(w.x)} ${f1(w.y)}) scale(${f1(w.k)})" opacity="${f1(w.op)}">${miniAnimalSVG(w)}</g>`;
+    s += `<use href="#${animalSpriteId(w)}" transform="translate(${f1(w.x)} ${f1(w.y)}) scale(${f1(w.k)})" opacity="${f1(w.op)}"/>`;
   }
-  // 정류장 벤치에서 쿨쿨 자는 친구 (고개를 살짝 기울이고, z가 둥실둥실)
+  // 정류장 벤치에 엎드려 쿨쿨 자는 친구 + 둥실 떠오르는 z
   const tz = performance.now() / 1000;
-  s += `<g transform="translate(54 ${BUS.y0 - 14.5}) rotate(${f1(-6 + Math.sin(tz * 1.3) * 2)})">${miniAnimalSVG(benchSleeper, true)}</g>`;
+  s += `<use href="#${animalSpriteId(benchSleeper, true)}" transform="translate(54 ${f1(BUS.y0 - 14 + Math.sin(tz * 1.6) * 0.25)}) scale(.72)"/>`;
   for (let i = 0; i < 3; i++) {
     const k = (tz / 2.4 + i / 3) % 1;
-    s += `<text x="${f1(58 + k * 9)}" y="${f1(BUS.y0 - 32 - k * 12)}" font-size="${f1(3 + k * 3)}" font-family="MaruBuri, serif" font-weight="700" fill="#8f9bb3" opacity="${f1(Math.sin(k * Math.PI) * 0.9)}">z</text>`;
+    s += `<text x="${f1(48 + k * 8)}" y="${f1(BUS.y0 - 24 - k * 12)}" font-size="${f1(3 + k * 3)}" font-family="MaruBuri, serif" font-weight="700" fill="#8f9bb3" opacity="${f1(Math.sin(k * Math.PI) * 0.9)}">z</text>`;
   }
-  el.innerHTML = `<g transform="${SCENE_T}">${s}</g>`;
+  $('busDyn').innerHTML = s;
 }
-const benchSleeper = { kind: 'cat', c: 3, ribbon: true };
+const benchSleeper = { kind: 'cat', c: 3, ribbon: '#e8768e', bag: false };
 function tickBusLive() {
   const now = performance.now(), dt = Math.min(0.1, (now - (busLive.last || now)) / 1000);
   busLive.last = now;

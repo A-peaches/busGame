@@ -1,0 +1,1227 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>버스 출발!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #3b3226;
+    --muted: #7a6a55;
+    --accent: #f08a3c;
+    --accent-dark: #c0652a;
+    --green: #6aab52;
+    --green-dark: #4b8538;
+    --cream: #fffaf0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%; overflow: hidden; user-select: none; color: var(--ink);
+    background: #cfe9f1;
+    font-family: 'Jua', system-ui, -apple-system, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  }
+  button { font-family: inherit; }
+  #app { position: relative; height: 100%; max-width: 560px; margin: 0 auto; overflow: hidden; }
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  .screen.hidden { display: none; }
+
+  /* ---------------- 메인 화면 ---------------- */
+  #menu .scene { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+  #menu > *:not(.scene) { position: relative; z-index: 1; }
+  .menuTop { padding: 16px 16px 0; text-align: center; }
+  .menuTop h1 {
+    font-size: 44px; font-weight: 400; color: #fff; letter-spacing: 2px;
+    text-shadow: 0 3px 0 var(--accent-dark), 0 6px 14px rgba(0, 0, 0, .18);
+  }
+  .menuTop .sub { color: #4d6b3c; font-size: 17px; margin-top: 2px; }
+  .stopArt { display: block; width: 100%; max-width: 380px; height: 120px; margin: 4px auto 0; }
+  #mapScroll { flex: 1; overflow-y: auto; position: relative; scrollbar-width: none; }
+  #mapScroll::-webkit-scrollbar { display: none; }
+  #mapInner { position: relative; width: 100%; }
+  #mapRoad { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+  .node {
+    position: absolute; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%;
+    border: 4px solid #fff; color: #fff; font-size: 26px; line-height: 1; cursor: pointer;
+    box-shadow: 0 5px 0 rgba(0, 0, 0, .18);
+  }
+  .node small { display: block; font-size: 12px; margin-top: 1px; }
+  .node.done { background: var(--green); }
+  .node.current { background: var(--accent); animation: pulse 1.3s ease-in-out infinite; }
+  .node.locked { background: #b9b3a6; color: #f1ece2; cursor: default; box-shadow: 0 5px 0 rgba(0, 0, 0, .1); }
+  .node .busIcon {
+    position: absolute; left: 50%; top: -40px; font-size: 28px; transform: translateX(-50%);
+    animation: bob 1s ease-in-out infinite; pointer-events: none;
+  }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+  @keyframes bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -6px); } }
+  .menuBottom { padding: 10px 16px 18px; }
+  #playBtn {
+    width: 100%; height: 62px; border: none; border-radius: 20px; cursor: pointer;
+    background: var(--accent); color: #fff; font-size: 24px; box-shadow: 0 5px 0 var(--accent-dark);
+  }
+  #playBtn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--accent-dark); }
+  #menu > #soundBtn { position: absolute; top: 14px; right: 14px; z-index: 2; }
+
+  /* ---------------- 게임 화면 ---------------- */
+  #game { background: linear-gradient(#cfe9f1, #eef3dc 45%, #e6efd3); }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 4px; }
+  .round {
+    width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
+    background: var(--green); color: #fff; font-size: 21px; box-shadow: 0 3px 0 var(--green-dark);
+  }
+  .round:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--green-dark); }
+  .round.off { opacity: .45; }
+  #title { text-align: center; }
+  #levelLabel { font-size: 24px; }
+  #leftLabel { font-size: 14px; color: var(--muted); }
+  #stage { flex: 1; position: relative; min-height: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+  footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16px; }
+  .booster {
+    position: relative; flex: 1; max-width: 160px; height: 56px; border: none; border-radius: 16px; cursor: pointer;
+    background: var(--cream); color: var(--ink); font-size: 17px; box-shadow: 0 4px 0 #cdbf9f;
+  }
+  .booster:active { transform: translateY(2px); box-shadow: 0 2px 0 #cdbf9f; }
+  .booster:disabled { opacity: .45; cursor: default; }
+  .booster.active { background: #ffd54a; box-shadow: 0 4px 0 #c9a425; }
+  .booster .cnt {
+    position: absolute; top: -8px; right: -6px; min-width: 24px; height: 24px; padding: 0 6px;
+    border-radius: 12px; background: var(--green); color: #fff; font-size: 14px; line-height: 24px;
+  }
+
+  #toast {
+    position: absolute; left: 50%; top: 68px; transform: translateX(-50%);
+    background: rgba(59, 50, 38, .9); color: #fff; padding: 10px 16px; border-radius: 12px;
+    font-size: 16px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .25s; z-index: 6;
+  }
+  #toast.show { opacity: 1; }
+
+  #overlay {
+    position: absolute; inset: 0; background: rgba(40, 34, 25, .5); z-index: 5;
+    display: none; align-items: center; justify-content: center;
+  }
+  #overlay.show { display: flex; }
+  .card { background: var(--cream); border-radius: 24px; padding: 26px 22px 20px; text-align: center; width: min(86%, 340px); }
+  .card h2 { font-size: 30px; font-weight: 400; margin-bottom: 8px; }
+  .card p { margin-bottom: 14px; color: var(--muted); line-height: 1.5; font-size: 16px; }
+  .btn {
+    display: block; width: 100%; padding: 14px; margin-top: 10px; border: none; border-radius: 14px; cursor: pointer;
+    font-size: 19px; background: var(--accent); color: #fff; box-shadow: 0 4px 0 var(--accent-dark);
+  }
+  .btn.alt { background: #efe6d2; color: var(--ink); box-shadow: 0 4px 0 #cdbf9f; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ================= 메인 화면 ================= -->
+  <section class="screen" id="menu">
+    <svg class="scene" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#9fd3e8"/>
+          <stop offset="0.55" stop-color="#e6f2e4"/>
+          <stop offset="1" stop-color="#fdf1d0"/>
+        </linearGradient>
+      </defs>
+      <rect width="400" height="800" fill="url(#sky)"/>
+      <g fill="#fff" opacity=".9">
+        <ellipse cx="70" cy="70" rx="46" ry="16"/><ellipse cx="96" cy="58" rx="28" ry="18"/>
+        <ellipse cx="320" cy="110" rx="52" ry="15"/><ellipse cx="300" cy="99" rx="26" ry="16"/>
+        <ellipse cx="210" cy="40" rx="30" ry="10"/>
+      </g>
+      <path d="M0 330 C 80 270 150 300 210 280 C 280 255 340 290 400 270 L400 800 L0 800Z" fill="#b4d79c"/>
+      <path d="M0 420 C 90 370 170 410 250 380 C 320 355 360 380 400 365 L400 800 L0 800Z" fill="#94c47d"/>
+      <path d="M0 540 C 100 500 200 540 290 510 C 340 495 370 505 400 500 L400 800 L0 800Z" fill="#7eb468"/>
+      <g stroke="#6fa65a" stroke-width="3" opacity=".6" fill="none">
+        <path d="M-20 640 Q 200 600 420 640"/><path d="M-20 690 Q 200 650 420 690"/>
+        <path d="M-20 740 Q 200 700 420 740"/><path d="M-20 790 Q 200 750 420 790"/>
+      </g>
+    </svg>
+
+    <button class="round" id="soundBtn" title="소리 켜기/끄기">♪</button>
+    <div class="menuTop">
+      <h1>버스 출발!</h1>
+      <div class="sub">시골 버스 정류장 퍼즐</div>
+    </div>
+
+    <!-- 정류장 그림 -->
+    <svg class="stopArt" viewBox="0 0 360 120" aria-hidden="true">
+      <ellipse cx="180" cy="108" rx="178" ry="12" fill="#8cc070"/>
+      <!-- 큰 나무 -->
+      <rect x="292" y="52" width="14" height="56" rx="4" fill="#7a5233"/>
+      <circle cx="270" cy="58" r="26" fill="#3f7a3a"/>
+      <circle cx="326" cy="60" r="25" fill="#3f7a3a"/>
+      <circle cx="298" cy="38" r="36" fill="#4a8a42"/>
+      <circle cx="288" cy="28" r="14" fill="#5d9e50"/>
+      <!-- 정류장 지붕과 기둥 -->
+      <rect x="124" y="56" width="80" height="30" fill="#d9b98a"/>
+      <g stroke="#c4a171" stroke-width="2"><line x1="144" y1="56" x2="144" y2="86"/><line x1="164" y1="56" x2="164" y2="86"/><line x1="184" y1="56" x2="184" y2="86"/></g>
+      <rect x="119" y="50" width="7" height="56" fill="#8a5a36"/>
+      <rect x="202" y="50" width="7" height="56" fill="#8a5a36"/>
+      <path d="M104 54 L224 54 L212 30 L116 30 Z" fill="#c94f3d"/>
+      <g stroke="#a83d2e" stroke-width="2"><line x1="132" y1="32" x2="124" y2="53"/><line x1="152" y1="32" x2="148" y2="53"/><line x1="172" y1="32" x2="172" y2="53"/><line x1="192" y1="32" x2="196" y2="53"/></g>
+      <rect x="130" y="84" width="68" height="6" rx="2" fill="#8a5a36"/>
+      <rect x="134" y="90" width="4" height="14" fill="#8a5a36"/><rect x="190" y="90" width="4" height="14" fill="#8a5a36"/>
+      <!-- 정류장 표지판 -->
+      <rect x="240" y="44" width="4" height="62" fill="#777"/>
+      <circle cx="242" cy="38" r="14" fill="#fff" stroke="#d9534f" stroke-width="4"/>
+      <rect x="234" y="33" width="16" height="10" rx="2" fill="#3f86f2"/>
+      <rect x="236" y="35" width="12" height="3" fill="#cfe9f1"/>
+      <!-- 시골 버스 -->
+      <g transform="translate(14 60)">
+        <rect x="0" y="0" width="82" height="38" rx="12" fill="#f3c55b"/>
+        <rect x="0" y="22" width="82" height="6" fill="#e08a3c"/>
+        <rect x="8" y="6" width="14" height="12" rx="3" fill="#bfe3f0"/>
+        <rect x="26" y="6" width="14" height="12" rx="3" fill="#bfe3f0"/>
+        <rect x="44" y="6" width="14" height="12" rx="3" fill="#bfe3f0"/>
+        <rect x="62" y="6" width="14" height="14" rx="3" fill="#bfe3f0"/>
+        <circle cx="18" cy="40" r="7" fill="#3b3226"/><circle cx="64" cy="40" r="7" fill="#3b3226"/>
+        <circle cx="18" cy="40" r="3" fill="#bbb"/><circle cx="64" cy="40" r="3" fill="#bbb"/>
+        <circle cx="80" cy="30" r="3" fill="#fff3a0"/>
+      </g>
+      <g fill="#6fa65a"><path d="M110 108 l4 -10 l4 10z"/><path d="M226 108 l3 -8 l3 8z"/><path d="M340 108 l4 -9 l4 9z"/></g>
+    </svg>
+
+    <div id="mapScroll"><div id="mapInner"><svg id="mapRoad"></svg></div></div>
+    <div class="menuBottom"><button id="playBtn">▶ 1단계 시작</button></div>
+  </section>
+
+  <!-- ================= 게임 화면 ================= -->
+  <section class="screen hidden" id="game">
+    <header>
+      <button class="round" id="homeBtn" title="지도로">⌂</button>
+      <div id="title">
+        <div id="levelLabel">1단계</div>
+        <div id="leftLabel">남은 승객 0명</div>
+      </div>
+      <button class="round" id="restartBtn" title="다시 하기">↻</button>
+    </header>
+    <div id="stage"><canvas id="cv"></canvas></div>
+    <footer>
+      <button class="booster" id="slotBtn">➕ 자리 추가<span class="cnt" id="slotCnt">1</span></button>
+      <button class="booster" id="liftBtn">🏗️ 크레인<span class="cnt" id="liftCnt">1</span></button>
+    </footer>
+  </section>
+
+  <div id="toast"></div>
+  <div id="overlay"><div class="card" id="card"></div></div>
+</div>
+
+<script>
+// =====================================================================
+//  기본 설정
+// =====================================================================
+const COLORS = [
+  { c: '#ef4b4b', d: '#b92f35' }, // 빨강
+  { c: '#3f86f2', d: '#2a5fb8' }, // 파랑
+  { c: '#4cc75a', d: '#2f9140' }, // 초록
+  { c: '#f7c935', d: '#c49616' }, // 노랑
+  { c: '#9b5cf0', d: '#6c3bb5' }, // 보라
+  { c: '#ff8a2b', d: '#c9611a' }, // 주황
+  { c: '#f25bb5', d: '#b8388a' }, // 분홍
+  { c: '#38d0e0', d: '#1f9aa8' }, // 하늘
+  { c: '#a8693c', d: '#764522' }, // 갈색
+];
+const HIDDEN_COLOR = { c: '#3a3c48', d: '#1d1e26' };
+const MAX_SLOTS = 7;    // 대기 칸 최대
+const BASE_SLOTS = 4;   // 처음 열린 대기 칸
+const BODY_W = 0.74;    // 버스 폭 (칸 단위)
+const GAP = 0.03;       // 버스 사이 최소 간격의 절반
+
+const canvas = document.getElementById('cv');
+const ctx = canvas.getContext('2d');
+const stage = document.getElementById('stage');
+const $ = id => document.getElementById(id);
+
+// 저장 (브라우저에 진행 상황 기억)
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+};
+let unlocked = Math.max(store.get('busGame.unlocked', 1), store.get('busGameLevel', 1));
+let soundOn = store.get('busGame.sound', true);
+
+let S = null;  // 게임 상태 (메인 화면에서는 null)
+const L = {};  // 게임 화면 배치 정보
+
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const easeOut = t => 1 - (1 - t) * (1 - t);
+const easeIn = t => t * t;
+const easeInOut = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const normAng = a => { while (a > Math.PI) a -= Math.PI * 2; while (a <= -Math.PI) a += Math.PI * 2; return a; };
+
+// =====================================================================
+//  도형 계산 (버스 = 회전된 직사각형)
+//  ang = 버스가 바라보는 방향. 0 = 위, 90도 = 오른쪽, 45도 = 오른쪽 위 ...
+// =====================================================================
+function axes(ang) {
+  return { ux: Math.sin(ang), uy: -Math.cos(ang), vx: Math.cos(ang), vy: Math.sin(ang) };
+}
+function makeBox(cx, cy, ang, hl, hw) { return { cx, cy, hl, hw, ...axes(ang) }; }
+function bodyBox(v, inflate = 0) { return makeBox(v.cx, v.cy, v.ang, v.l / 2 + inflate, v.w / 2 + inflate); }
+// 버스가 앞으로 쭉 나갈 때 쓸고 지나가는 영역
+function sweepBox(v) {
+  const F = 40, a = axes(v.ang);
+  return makeBox(v.cx + a.ux * F / 2, v.cy + a.uy * F / 2, v.ang, v.l / 2 + F / 2, v.w / 2 - 0.02);
+}
+function proj(b, ax, ay) {
+  const c = b.cx * ax + b.cy * ay;
+  const r = b.hl * Math.abs(b.ux * ax + b.uy * ay) + b.hw * Math.abs(b.vx * ax + b.vy * ay);
+  return [c - r, c + r];
+}
+// 두 직사각형이 겹치는지 (분리축 정리)
+function overlap(A, B) {
+  const dx = A.cx - B.cx, dy = A.cy - B.cy;
+  const rs = Math.hypot(A.hl, A.hw) + Math.hypot(B.hl, B.hw);
+  if (dx * dx + dy * dy > rs * rs) return false;
+  for (const [ax, ay] of [[A.ux, A.uy], [A.vx, A.vy], [B.ux, B.uy], [B.vx, B.vy]]) {
+    const pa = proj(A, ax, ay), pb = proj(B, ax, ay);
+    if (pa[1] <= pb[0] + 1e-6 || pb[1] <= pa[0] + 1e-6) return false;
+  }
+  return true;
+}
+function insideBoard(v, cols, rows) {
+  const b = bodyBox(v);
+  for (const s of [1, -1]) for (const t of [1, -1]) {
+    const x = b.cx + b.ux * b.hl * s + b.vx * b.hw * t;
+    const y = b.cy + b.uy * b.hl * s + b.vy * b.hw * t;
+    if (x < 0.04 || y < 0.04 || x > cols - 0.04 || y > rows - 0.04) return false;
+  }
+  return true;
+}
+
+// =====================================================================
+//  단계(레벨) 만들기
+//  1) 주차장을 버스로 빽빽하게 채웁니다 (가로/세로/대각선).
+//  2) "지금 앞이 뚫린 버스"를 하나씩 골라 방향을 정하고 빼냅니다.
+//     → 이 순서대로 빼면 반드시 풀리므로, 모든 단계는 풀 수 있습니다.
+// =====================================================================
+function levelParams(n) {
+  return {
+    cols: Math.min(6 + Math.floor((n - 1) / 4), 9),
+    rows: Math.min(8 + Math.floor((n - 1) / 3), 11),
+    colorCount: Math.min(3 + Math.floor((n - 1) / 2), COLORS.length),
+    diagChance: Math.min(0.1 + n * 0.025, 0.35),
+    hiddenChance: n >= 4 ? Math.min(0.08 + n * 0.02, 0.3) : 0,
+    mix: Math.min(10 + n * 3, 70),   // 승객 순서가 섞이는 정도
+  };
+}
+
+function genLevel(n) {
+  const rng = mulberry32(n * 7919 + 13);
+  const P = levelParams(n);
+  const { cols, rows } = P;
+  const target = Math.min(17 + 3 * (n - 1), Math.floor(cols * rows / 2));
+
+  // 1) 빽빽하게 배치
+  const placed = [];
+  for (let tries = 0; tries < 25000 && placed.length < target; tries++) {
+    const len = rng() < 0.38 ? 3 : 2;
+    let base, cx, cy;
+    if (rng() < P.diagChance) {
+      base = rng() < 0.5 ? Math.PI / 4 : Math.PI * 3 / 4;
+      cx = Math.round(rng() * cols * 2) / 2;
+      cy = Math.round(rng() * rows * 2) / 2;
+    } else if (rng() < 0.5) {
+      base = 0;
+      cx = Math.floor(rng() * cols) + 0.5;
+      cy = Math.floor(rng() * (rows - len + 1)) + len / 2;
+    } else {
+      base = Math.PI / 2;
+      cx = Math.floor(rng() * (cols - len + 1)) + len / 2;
+      cy = Math.floor(rng() * rows) + 0.5;
+    }
+    const v = { cx, cy, ang: base, len, l: len - 0.14, w: BODY_W };
+    if (!insideBoard(v, cols, rows)) continue;
+    v.pack = bodyBox(v, GAP);
+    if (placed.some(o => overlap(v.pack, o.pack))) continue;
+    v.body = bodyBox(v);
+    placed.push(v);
+  }
+
+  // 2) 빼낼 수 있는 순서와 방향 정하기
+  let remaining = placed.slice();
+  const order = [];
+  while (remaining.length) {
+    const cands = [];
+    for (const v of remaining) {
+      for (const flip of [0, Math.PI]) {
+        const sw = sweepBox({ ...v, ang: v.ang + flip });
+        if (!remaining.some(o => o !== v && overlap(sw, o.body))) cands.push([v, v.ang + flip]);
+      }
+    }
+    if (!cands.length) {  // 꽉 막혀 아무도 못 나가면 버스 하나를 없앱니다
+      remaining.splice(Math.floor(rng() * remaining.length), 1);
+      continue;
+    }
+    const [v, ang] = cands[Math.floor(rng() * cands.length)];
+    v.ang = normAng(ang);
+    order.push(v);
+    remaining = remaining.filter(o => o !== v);
+  }
+
+  // 색 / 정원 / 미스터리
+  const idx = COLORS.map((_, i) => i);
+  for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+  const palette = idx.slice(0, P.colorCount);
+  order.forEach((v, i) => {
+    v.color = palette[i < P.colorCount ? i : Math.floor(rng() * P.colorCount)];
+    v.cap = v.len === 3 ? 6 : 4;
+    v.hidden = rng() < P.hiddenChance;
+  });
+
+  // 승객 줄: 빼낼 순서대로 만든 뒤 단계가 오를수록 더 섞기
+  const q = [];
+  let k = 0;
+  for (const v of order) for (let j = 0; j < v.cap; j++) q.push({ color: v.color, key: k++ });
+  q.forEach(p => p.key += rng() * P.mix);
+  q.sort((a, b) => a.key - b.key);
+
+  return { cols, rows, vehicles: order, queue: q.map(p => ({ color: p.color, kind: rng() < 0.5 ? 'cat' : 'dog' })) };
+}
+
+// =====================================================================
+//  게임 시작
+// =====================================================================
+function startLevel(n) {
+  const g = genLevel(n);
+  S = {
+    level: n, cols: g.cols, rows: g.rows, vehicles: [],
+    waiting: g.queue,   // 원 밖에서 줄 서서 기다리는 승객
+    ring: [],           // 원 위의 자리들 (승객 또는 빈자리 null)
+    ringOff: 0,         // 원이 돌아간 거리
+    slots: new Array(MAX_SLOTS).fill(null), slotCount: BASE_SLOTS,
+    flying: [], boardTimer: 0.6, boost: { slot: 1, lift: 1 }, liftMode: false, over: false, time: 0,
+  };
+  g.vehicles.forEach((v, i) => {
+    S.vehicles.push({
+      id: i, cx: v.cx, cy: v.cy, ang: v.ang, len: v.len, l: v.l, w: v.w, body: bodyBox(v),
+      color: v.color, cap: v.cap, hidden: v.hidden,
+      state: 'parked', off: 0, bump: null, shake: 0, filled: 0, incoming: 0, pop: 1, t: 0,
+    });
+  });
+  showScreen('game');
+  revealCheck(true);
+  layout();
+  for (let k = 0; k < S.ring.length; k++) if (S.waiting.length) S.ring[k] = S.waiting.shift();
+  hideOverlay();
+  updateUI();
+  if (n === 1) toast('화살표 앞이 뚫린 버스를 눌러 보세요!', 2600);
+}
+
+const parkedBlockers = v => {
+  const sw = sweepBox(v);
+  return S.vehicles.filter(o => o !== v && o.state === 'parked' && overlap(sw, o.body));
+};
+
+function revealCheck(instant) {
+  for (const v of S.vehicles) {
+    if (v.state === 'parked' && v.hidden && parkedBlockers(v).length === 0) {
+      v.hidden = false;
+      v.pop = instant ? 1 : 0;
+    }
+  }
+}
+
+function freeSlot() {
+  for (let i = 0; i < S.slotCount; i++) if (!S.slots[i]) return i;
+  return -1;
+}
+
+// =====================================================================
+//  게임 화면 배치
+// =====================================================================
+function layout() {
+  const W = stage.clientWidth, H = stage.clientHeight;
+  if (!W || !H) return;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  L.W = W; L.H = H;
+  const pad = 10;
+
+  // 승객 구역: 빙글빙글 도는 원형 길 + 원에 들어가려고 기다리는 줄
+  L.pr = clamp(W / 46, 6, 10);
+  L.laneW = L.pr * 2.9;
+  L.sp = L.pr * 2.15;
+  L.qTop = 2; L.qH = clamp(H * 0.27, 130, 250);
+  L.headRoom = L.pr * 2.3;
+  L.ry = Math.max(20, (L.qH - L.laneW - L.headRoom - 12) / 2);
+  L.rx = Math.max(L.ry * 1.2, Math.min((W - 28) * 0.34, L.ry * 2.4));
+  L.rcx = 16 + L.laneW / 2 + L.rx + 4;
+  L.rcy = L.qTop + L.headRoom + 6 + L.laneW / 2 + L.ry;
+  buildRing();
+  buildWaitPath();
+  L.tufts = [];
+  const tr = mulberry32(7);
+  for (let i = 0; i < 26; i++) L.tufts.push([14 + tr() * (W - 28), L.qTop + 8 + tr() * (L.qH - 16), tr()]);
+
+  // 정류장 대기 칸
+  L.sTop = L.qTop + L.qH + 8;
+  L.sH = clamp(H * 0.12, 60, 110);
+  L.sw = Math.min((W - 2 * pad) / MAX_SLOTS, L.sH * 0.62);
+  L.sx0 = (W - L.sw * MAX_SLOTS) / 2;
+
+  // 주차장
+  const bTop = L.sTop + L.sH + 12, bH = H - bTop - pad;
+  L.cs = Math.floor(Math.min((W - 2 * pad) / (S.cols + 0.4), bH / (S.rows + 0.4)));
+  L.bx = (W - L.cs * S.cols) / 2;
+  L.by = bTop + (bH - L.cs * S.rows) / 2;
+
+  syncRing();
+}
+
+// 점들을 이어 만든 길 (길이를 따라 위치를 구할 수 있게)
+function makePath(pts, closed) {
+  if (closed) pts = pts.concat([pts[0]]);
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  return { pts, cum, total: cum[cum.length - 1] };
+}
+function pathPoint(path, s) {
+  const { cum, pts, total } = path;
+  if (s <= 0) return { x: pts[0][0], y: pts[0][1] };
+  if (s >= total) { const p = pts[pts.length - 1]; return { x: p[0], y: p[1] }; }
+  let lo = 0, hi = cum.length - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (cum[m] <= s) lo = m; else hi = m; }
+  const t = (s - cum[lo]) / (cum[hi] - cum[lo] || 1);
+  return { x: lerp(pts[lo][0], pts[hi][0], t), y: lerp(pts[lo][1], pts[hi][1], t) };
+}
+
+// 원형 길 (오른쪽 끝에서 시작해 시계 방향으로 돕니다)
+function buildRing() {
+  const pts = [];
+  for (let i = 0; i < 160; i++) {
+    const a = i / 160 * Math.PI * 2;
+    pts.push([L.rcx + Math.cos(a) * L.rx, L.rcy + Math.sin(a) * L.ry]);
+  }
+  L.ring = makePath(pts, true);
+  L.ringN = Math.max(8, Math.floor(L.ring.total / (L.sp * 1.05)));
+  L.ringSp = L.ring.total / L.ringN;
+}
+
+// 원 입구(오른쪽)에서 시작해 위아래로 구불구불한 대기 줄
+function buildWaitPath() {
+  const g = L.laneW + 7, ex = L.rcx + L.rx, ey = L.rcy;
+  const xa = ex + L.laneW / 2 + 6, xb = L.W - 16;
+  const C = Math.max(1, Math.floor((xb - xa) / g));
+  const yT = L.qTop + L.headRoom + 6 + L.laneW / 2 + g / 2;
+  const yB = L.qTop + L.qH - 6 - L.laneW / 2 - g / 2;
+  const pts = [[ex, ey]];
+  for (let c = 0; c < C; c++) {
+    const x = xa + g / 2 + c * g, down = c % 2 === 0;
+    const ys = c === 0 ? ey : (down ? yT : yB), ye = down ? yB : yT;
+    const steps = Math.max(2, Math.ceil(Math.abs(ye - ys) / 6));
+    for (let i = 0; i <= steps; i++) pts.push([x, lerp(ys, ye, i / steps)]);
+    if (c < C - 1) {
+      for (let i = 1; i < 14; i++) {
+        const a = down ? Math.PI - (i / 14) * Math.PI : Math.PI + (i / 14) * Math.PI;
+        pts.push([x + g / 2 + Math.cos(a) * g / 2, ye + Math.sin(a) * g / 2]);
+      }
+    }
+  }
+  L.wait = makePath(pts, false);
+  L.waitMax = Math.max(0, Math.floor(L.wait.total / L.sp) - 1);
+}
+
+// 화면 크기가 바뀌어 원 위 자리 수가 달라지면 승객을 다시 배치
+function syncRing() {
+  if (S.ring.length === L.ringN) return;
+  const ppl = S.ring.filter(Boolean);
+  S.ring = new Array(L.ringN).fill(null);
+  ppl.forEach((p, i) => { if (i < L.ringN) S.ring[i] = p; else S.waiting.unshift(p); });
+}
+const ringS = k => (k * L.ringSp + S.ringOff) % L.ring.total;
+const remainingCount = () => S.waiting.length + S.ring.filter(Boolean).length + S.flying.length;
+
+function bestVehicleFor(color) {
+  let best = null;
+  for (let i = 0; i < S.slotCount; i++) {
+    const v = S.slots[i];
+    if (v && v.state === 'slot' && v.color === color && v.filled + v.incoming < v.cap) {
+      if (!best || v.filled + v.incoming > best.filled + best.incoming) best = v;
+    }
+  }
+  return best;
+}
+
+const slotPos = i => ({ x: L.sx0 + L.sw * (i + 0.5), y: L.sTop + L.sH / 2 });
+const slotSize = v => { const w = L.sw * 0.72; return { w, l: Math.min(L.sH * 0.9, w * (v.len === 3 ? 2.4 : 1.8)) }; };
+
+// =====================================================================
+//  입력
+// =====================================================================
+canvas.addEventListener('pointerdown', e => {
+  if (!S || S.over) return;
+  const r = canvas.getBoundingClientRect();
+  const px = e.clientX - r.left, py = e.clientY - r.top;
+
+  if (py > L.sTop && py < L.sTop + L.sH) {
+    const i = Math.floor((px - L.sx0) / L.sw);
+    if (i >= S.slotCount && i < MAX_SLOTS) { useSlotBooster(); return; }
+  }
+
+  const gx = (px - L.bx) / L.cs, gy = (py - L.by) / L.cs;
+  let hit = null;
+  for (const v of S.vehicles) {
+    if (v.state !== 'parked') continue;
+    const a = axes(v.ang), dx = gx - v.cx, dy = gy - v.cy;
+    if (Math.abs(dx * a.ux + dy * a.uy) <= v.l / 2 + 0.08 && Math.abs(dx * a.vx + dy * a.vy) <= v.w / 2 + 0.14) hit = v;
+  }
+  if (hit) tapVehicle(hit);
+});
+
+function tapVehicle(v) {
+  if (S.liftMode) {
+    const si = freeSlot();
+    if (si < 0) { toast('빈 자리가 없어요!'); return; }
+    S.liftMode = false;
+    S.boost.lift--;
+    launch(v, si, true);
+    updateUI();
+    return;
+  }
+
+  const blockers = parkedBlockers(v);
+  if (blockers.length) {
+    // 막힌 버스: 부딪히는 곳까지 갔다가 돌아오기
+    const a = axes(v.ang), front = v.cx * a.ux + v.cy * a.uy + v.l / 2;
+    let d = Infinity;
+    for (const o of blockers) d = Math.min(d, proj(o.body, a.ux, a.uy)[0] - front);
+    d = Math.max(0, d);
+    v.bump = { d, t: 0, T: 0.22 + d * 0.05 };
+    sfx('block');
+    return;
+  }
+
+  const si = freeSlot();
+  if (si < 0) { v.shake = 0.35; toast('대기 칸이 꽉 찼어요!'); sfx('block'); return; }
+  launch(v, si, false);
+}
+
+function launch(v, si, lifted) {
+  S.slots[si] = v;
+  v.slot = si;
+  v.bump = null;
+  if (lifted) {
+    v.hidden = false;
+    v.lifted = true;
+    v.state = 'toSlot';
+    v.t = 0;
+    v.from = { x: L.bx + v.cx * L.cs, y: L.by + v.cy * L.cs, a: v.ang, w: v.w * L.cs, l: v.l * L.cs };
+  } else {
+    v.state = 'exiting';
+    v.off = 0;
+    // 버스 꼬리가 주차장 밖으로 나갈 때까지의 거리
+    const a = axes(v.ang);
+    const rx = v.cx - a.ux * v.l / 2, ry = v.cy - a.uy * v.l / 2;
+    let t = Infinity;
+    if (a.ux > 1e-6) t = Math.min(t, (S.cols - rx) / a.ux);
+    if (a.ux < -1e-6) t = Math.min(t, -rx / a.ux);
+    if (a.uy > 1e-6) t = Math.min(t, (S.rows - ry) / a.uy);
+    if (a.uy < -1e-6) t = Math.min(t, -ry / a.uy);
+    v.exitDist = t + v.w * 0.5 + 0.1;
+  }
+  revealCheck(false);
+  sfx('go');
+}
+
+function useSlotBooster() {
+  if (S.boost.slot <= 0 || S.slotCount >= MAX_SLOTS) {
+    toast(S.slotCount >= MAX_SLOTS ? '더 이상 늘릴 수 없어요' : '자리 추가를 이미 썼어요');
+    return false;
+  }
+  S.boost.slot--;
+  S.slotCount++;
+  sfx('depart');
+  updateUI();
+  return true;
+}
+
+$('slotBtn').onclick = () => { if (S && !S.over) useSlotBooster(); };
+$('liftBtn').onclick = () => {
+  if (!S || S.over || S.boost.lift <= 0) return;
+  S.liftMode = !S.liftMode;
+  if (S.liftMode) toast('꺼낼 버스를 아무거나 눌러 주세요', 2000);
+  updateUI();
+};
+$('restartBtn').onclick = () => startLevel(S.level);
+$('homeBtn').onclick = () => showMenu();
+$('soundBtn').onclick = () => { soundOn = !soundOn; store.set('busGame.sound', soundOn); $('soundBtn').classList.toggle('off', !soundOn); };
+$('playBtn').onclick = () => startLevel(unlocked);
+window.addEventListener('resize', () => { if (S) layout(); else renderMap(); });
+
+// =====================================================================
+//  매 프레임 업데이트
+// =====================================================================
+function update(dt) {
+  if (!S) return;
+  S.time += dt;
+
+  for (const v of S.vehicles) {
+    if (v.pop < 1) v.pop = Math.min(1, v.pop + dt * 4);
+    if (v.shake > 0) v.shake -= dt;
+
+    if (v.state === 'parked' && v.bump) {
+      const b = v.bump;
+      b.t += dt;
+      if (b.t >= b.T) { v.bump = null; v.off = 0; }
+      else {
+        const u = b.t / b.T, peak = b.d + 0.15;
+        v.off = u < 0.45 ? peak * easeOut(u / 0.45) : peak * (1 - easeIn((u - 0.45) / 0.55));
+      }
+    } else if (v.state === 'exiting') {
+      v.off += dt * 22;
+      if (v.off >= v.exitDist) {
+        const a = axes(v.ang);
+        v.from = {
+          x: L.bx + (v.cx + a.ux * v.off) * L.cs, y: L.by + (v.cy + a.uy * v.off) * L.cs,
+          a: v.ang, w: v.w * L.cs, l: v.l * L.cs,
+        };
+        v.state = 'toSlot';
+        v.t = 0;
+      }
+    } else if (v.state === 'toSlot') {
+      v.t += dt / (v.lifted ? 0.55 : 0.32);
+      if (v.t >= 1) { v.t = 1; v.state = 'slot'; }
+    } else if (v.state === 'slot') {
+      if (v.filled >= v.cap && v.incoming === 0) { v.state = 'departing'; v.t = 0; sfx('depart'); }
+    } else if (v.state === 'departing') {
+      v.t += dt / 0.5;
+      if (v.t >= 1) { S.slots[v.slot] = null; v.state = 'gone'; checkWin(); }
+    }
+  }
+
+  // 원이 빙글빙글 돌고, 빈자리가 입구를 지나가면 기다리던 승객이 들어갑니다
+  S.ringOff = (S.ringOff + dt * L.pr * 3.2) % L.ring.total;
+  for (let k = 0; k < S.ring.length; k++) {
+    if (!S.ring[k] && S.waiting.length && ringS(k) < L.ringSp * 0.7) S.ring[k] = S.waiting.shift();
+  }
+
+  // 승객 태우기: 원 위에 있는 승객은 누구든 같은 색 버스에 탈 수 있어요
+  S.boardTimer -= dt;
+  if (S.boardTimer <= 0) {
+    let pick = null;
+    S.ring.forEach((p, k) => {
+      if (!p || p.x === undefined) return;
+      const v = bestVehicleFor(p.color);
+      if (v && (!pick || p.y > pick.p.y)) pick = { k, p, v };  // 버스에 가까운(아래쪽) 승객부터
+    });
+    if (pick) {
+      const { k, p, v } = pick;
+      S.ring[k] = null;
+      v.incoming++;
+      S.flying.push({ color: p.color, kind: p.kind, x0: p.x, y0: p.y, t: 0, v });
+      S.boardTimer = 0.08;
+      sfx('board');
+      updateUI();
+    }
+  }
+
+  let landed = false;
+  for (const f of S.flying) {
+    f.t += dt / 0.24;
+    if (f.t >= 1) { f.v.filled++; f.v.incoming--; landed = true; }
+  }
+  S.flying = S.flying.filter(f => f.t < 1);
+  if (landed) updateUI();
+
+  // 승객들이 자기 자리로 걸어가기
+  const k = Math.min(1, dt * 10);
+  const walkTo = (p, t) => {
+    if (p.x === undefined) { p.x = t.x; p.y = t.y; }
+    const dx = t.x - p.x, dy = t.y - p.y;
+    p.x += dx * k; p.y += dy * k;
+    p.walking = Math.abs(dx) + Math.abs(dy) > 1.5;
+  };
+  S.ring.forEach((p, i) => { if (p) walkTo(p, pathPoint(L.ring, ringS(i))); });
+  S.waiting.forEach((p, i) => {
+    if (i < L.waitMax) walkTo(p, pathPoint(L.wait, (i + 1) * L.sp));
+    else p.x = undefined;
+  });
+
+  checkLose();
+}
+
+function checkWin() {
+  if (S.over) return;
+  if (remainingCount() === 0 && S.vehicles.every(v => v.state === 'gone')) {
+    S.over = true;
+    if (S.level + 1 > unlocked) { unlocked = S.level + 1; store.set('busGame.unlocked', unlocked); }
+    sfx('win');
+    setTimeout(() => showOverlay('win'), 350);
+  }
+}
+
+function checkLose() {
+  if (S.over || S.flying.length || !remainingCount()) return;
+  if (S.vehicles.some(v => ['exiting', 'toSlot', 'departing'].includes(v.state))) return;
+  if (S.vehicles.some(v => v.state === 'slot' && v.filled >= v.cap)) return;
+  for (let i = 0; i < S.slotCount; i++) if (!S.slots[i]) return;
+  // 원에 빈자리가 있고 기다리는 승객이 있으면 아직 채워지는 중
+  if (S.waiting.length && S.ring.some(p => !p)) return;
+  // 원 위의 누군가가 탈 수 있으면 아직 진행 중
+  if (S.ring.some(p => p && bestVehicleFor(p.color))) return;
+  S.over = true;
+  sfx('lose');
+  setTimeout(() => showOverlay('lose'), 400);
+}
+
+// =====================================================================
+//  그리기
+// =====================================================================
+function rr(x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function circle(x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+
+function drawVehicle(x, y, a, w, l, colorIdx, hidden, o = {}) {
+  const C = hidden ? HIDDEN_COLOR : COLORS[colorIdx];
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(a);
+  if (o.scale) ctx.scale(o.scale, o.scale);
+  ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
+
+  ctx.fillStyle = 'rgba(0,0,0,.2)';
+  rr(-w / 2 + 2, -l / 2 + 4, w, l, w * 0.28); ctx.fill();
+  ctx.fillStyle = C.d;
+  rr(-w / 2, -l / 2, w, l, w * 0.28); ctx.fill();
+  ctx.fillStyle = C.c;
+  rr(-w / 2 + w * 0.07, -l / 2 + w * 0.05, w * 0.86, l - w * 0.16, w * 0.24); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.2)';
+  rr(-w * 0.3, -l / 2 + w * 0.45, w * 0.18, l - w * 0.9, w * 0.08); ctx.fill();
+  ctx.fillStyle = 'rgba(28,42,68,.82)';
+  rr(-w * 0.34, -l / 2 + w * 0.12, w * 0.68, w * 0.24, w * 0.08); ctx.fill();
+  ctx.fillStyle = 'rgba(28,42,68,.5)';
+  rr(-w * 0.28, l / 2 - w * 0.3, w * 0.56, w * 0.13, w * 0.05); ctx.fill();
+
+  if (hidden) {
+    ctx.rotate(-a);
+    ctx.fillStyle = '#fff';
+    ctx.font = `${w * 0.62}px Jua, system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('?', 0, 1);
+  } else if (o.arrow) {
+    const s = Math.min(l * 0.24, w * 0.75);
+    ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff';
+    ctx.lineWidth = w * 0.13; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, s); ctx.lineTo(0, -s + w * 0.12); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, -s - w * 0.12); ctx.lineTo(-w * 0.24, -s + w * 0.2); ctx.lineTo(w * 0.24, -s + w * 0.2);
+    ctx.closePath(); ctx.fill();
+  } else if (o.seats) {
+    const { filled, cap } = o.seats;
+    const rowsN = cap / 2;
+    const top = -l / 2 + w * 0.55, bottom = l / 2 - w * 0.45;
+    const gap = (bottom - top) / Math.max(1, rowsN - 1);
+    const r = Math.min(w * 0.13, gap * 0.38);
+    for (let i = 0; i < cap; i++) {
+      ctx.fillStyle = i < filled ? '#fff' : 'rgba(0,0,0,.22)';
+      circle((i % 2 === 0 ? -1 : 1) * w * 0.2, top + Math.floor(i / 2) * gap, r);
+    }
+  }
+  ctx.restore();
+}
+
+function ell(x, y, rx, ry, rot = 0) { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2); ctx.fill(); }
+
+// 고양이 / 강아지 승객 (발 위치 기준)
+function drawAnimal(x, y, r, colorIdx, kind, bob = 0) {
+  const C = COLORS[colorIdx];
+  ctx.fillStyle = 'rgba(60,45,20,.2)';
+  ell(x, y + r * 0.45, r * 0.8, r * 0.3);
+  y -= bob;
+
+  // 작고 통통한 몸 + 하얀 배 + 발
+  ctx.fillStyle = C.d; rr(x - r * 0.55, y - r * 0.55, r * 1.1, r * 1.0, r * 0.5); ctx.fill();
+  ctx.fillStyle = C.c; rr(x - r * 0.45, y - r * 0.5, r * 0.9, r * 0.85, r * 0.42); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.6)'; ell(x, y - r * 0.02, r * 0.24, r * 0.26);
+  ctx.fillStyle = C.d; ell(x - r * 0.26, y + r * 0.42, r * 0.18, r * 0.12); ell(x + r * 0.26, y + r * 0.42, r * 0.18, r * 0.12);
+
+  // 큰 머리
+  const hx = x, hy = y - r * 1.2, hr = r * 1.02;
+  // 고양이: 뾰족한 귀 (머리 뒤에)
+  if (kind === 'cat') {
+    for (const s of [-1, 1]) {
+      ctx.fillStyle = C.d;
+      ctx.beginPath();
+      ctx.moveTo(hx + s * hr * 0.95, hy - hr * 0.1); ctx.lineTo(hx + s * hr * 0.75, hy - hr * 1.22); ctx.lineTo(hx + s * hr * 0.12, hy - hr * 0.75);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#ffb3c6';
+      ctx.beginPath();
+      ctx.moveTo(hx + s * hr * 0.78, hy - hr * 0.35); ctx.lineTo(hx + s * hr * 0.7, hy - hr * 0.98); ctx.lineTo(hx + s * hr * 0.35, hy - hr * 0.7);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  // 머리
+  ctx.fillStyle = C.d; circle(hx, hy, hr);
+  ctx.fillStyle = C.c; circle(hx, hy - hr * 0.06, hr * 0.86);
+
+  if (kind === 'dog') {
+    // 강아지: 늘어진 귀 + 하얀 주둥이 + 까만 코
+    ctx.fillStyle = C.d;
+    ell(hx - hr * 0.9, hy + hr * 0.08, hr * 0.3, hr * 0.6, 0.35);
+    ell(hx + hr * 0.9, hy + hr * 0.08, hr * 0.3, hr * 0.6, -0.35);
+    ctx.fillStyle = 'rgba(255,255,255,.88)'; ell(hx, hy + hr * 0.34, hr * 0.42, hr * 0.28);
+    ctx.fillStyle = '#2b2118'; ell(hx, hy + hr * 0.2, hr * 0.17, hr * 0.12);
+  } else {
+    // 고양이: 분홍 코 + 수염
+    ctx.fillStyle = 'rgba(255,255,255,.75)'; ell(hx, hy + hr * 0.32, hr * 0.36, hr * 0.22);
+    ctx.fillStyle = '#ff7a9a'; ell(hx, hy + hr * 0.2, hr * 0.12, hr * 0.08);
+    if (r >= 7) {
+      ctx.strokeStyle = 'rgba(60,40,30,.55)'; ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      for (const s of [-1, 1]) {
+        ctx.moveTo(hx + s * hr * 0.32, hy + hr * 0.3); ctx.lineTo(hx + s * hr * 1.0, hy + hr * 0.2);
+        ctx.moveTo(hx + s * hr * 0.32, hy + hr * 0.36); ctx.lineTo(hx + s * hr * 1.0, hy + hr * 0.46);
+      }
+      ctx.stroke();
+    }
+  }
+  // 발그레한 볼 (부드러운 분홍 + 진한 가운데 + 작은 빗금)
+  for (const s of [-1, 1]) {
+    const bx = hx + s * hr * 0.56, by = hy + hr * 0.2;
+    ctx.fillStyle = 'rgba(255,130,160,.35)'; ell(bx, by, hr * 0.24, hr * 0.16);
+    ctx.fillStyle = 'rgba(255,95,135,.6)'; ell(bx, by, hr * 0.15, hr * 0.1);
+    if (r >= 7) {
+      ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 0.7;
+      ctx.beginPath();
+      ctx.moveTo(bx - hr * 0.08, by + hr * 0.04); ctx.lineTo(bx - hr * 0.02, by - hr * 0.04);
+      ctx.moveTo(bx + hr * 0.02, by + hr * 0.04); ctx.lineTo(bx + hr * 0.08, by - hr * 0.04);
+      ctx.stroke();
+    }
+  }
+  // 동글동글 큰 눈 + 반짝이
+  ctx.fillStyle = '#2b2118';
+  circle(hx - hr * 0.34, hy - hr * 0.06, hr * 0.16); circle(hx + hr * 0.34, hy - hr * 0.06, hr * 0.16);
+  ctx.fillStyle = '#fff';
+  circle(hx - hr * 0.39, hy - hr * 0.12, hr * 0.06); circle(hx + hr * 0.29, hy - hr * 0.12, hr * 0.06);
+}
+
+function vehiclePose(v) {
+  if (v.state === 'parked' || v.state === 'exiting') {
+    const a = axes(v.ang);
+    const shake = v.shake > 0 ? Math.sin(v.shake * 60) * 3 : 0;
+    const pop = v.pop < 1 ? 1 + Math.sin(v.pop * Math.PI) * 0.15 : 1;
+    return {
+      x: L.bx + (v.cx + a.ux * v.off) * L.cs + shake, y: L.by + (v.cy + a.uy * v.off) * L.cs,
+      a: v.ang, w: v.w * L.cs, l: v.l * L.cs, scale: pop,
+    };
+  }
+  const p = slotPos(v.slot), s = slotSize(v);
+  if (v.state === 'toSlot') {
+    const e = easeInOut(v.t), f = v.from;
+    const lift = v.lifted ? 1 + Math.sin(v.t * Math.PI) * 0.3 : 1;
+    return {
+      x: lerp(f.x, p.x, e), y: lerp(f.y, p.y, e), a: f.a + normAng(-f.a) * e,
+      w: lerp(f.w, s.w, e), l: lerp(f.l, s.l, e), scale: lift,
+    };
+  }
+  if (v.state === 'departing') return { x: p.x, y: p.y - easeIn(v.t) * L.sH * 1.3, a: 0, w: s.w, l: s.l, alpha: 1 - v.t };
+  return { x: p.x, y: p.y, a: 0, w: s.w, l: s.l };
+}
+
+function drawQueueArea() {
+  // 풀밭
+  const g = ctx.createLinearGradient(0, L.qTop, 0, L.qTop + L.qH);
+  g.addColorStop(0, '#b9dd9b'); g.addColorStop(1, '#93c777');
+  ctx.fillStyle = g;
+  rr(8, L.qTop, L.W - 16, L.qH, 18); ctx.fill();
+  for (const [x, y, k] of L.tufts) {
+    if (k < 0.75) {
+      ctx.strokeStyle = '#78ad60'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x - 3, y + 3); ctx.lineTo(x - 1, y - 3); ctx.moveTo(x, y + 3); ctx.lineTo(x + 2, y - 4); ctx.moveTo(x + 3, y + 3); ctx.lineTo(x + 5, y - 2); ctx.stroke();
+    } else {
+      ctx.fillStyle = k < 0.88 ? '#fff6c8' : '#ffc4d6'; circle(x, y, 2.4);
+    }
+  }
+
+  // 대기 줄 길 + 원형 길 (흙길 + 하얀 울타리)
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.beginPath();
+  L.wait.pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+  ctx.strokeStyle = '#fffaf0'; ctx.lineWidth = L.laneW + 8; ctx.stroke();
+  ctx.strokeStyle = '#e8d6b0'; ctx.lineWidth = L.laneW; ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(L.rcx, L.rcy, L.rx, L.ry, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = '#fffaf0'; ctx.lineWidth = L.laneW + 8; ctx.stroke();
+  ctx.strokeStyle = '#ead9b4'; ctx.lineWidth = L.laneW; ctx.stroke();
+
+  // 원 가운데 잔디 섬 + 큰 나무 + 꽃
+  const irx = L.rx - L.laneW / 2 - 4, iry = L.ry - L.laneW / 2 - 4;
+  ctx.fillStyle = '#a4d487'; ell(L.rcx, L.rcy, irx, iry);
+  for (let i = 0; i < 10; i++) {
+    const a = i / 10 * Math.PI * 2 + 0.3;
+    ctx.fillStyle = i % 3 === 0 ? '#ffc4d6' : i % 3 === 1 ? '#fff6c8' : '#ffffff';
+    circle(L.rcx + Math.cos(a) * irx * 0.78, L.rcy + Math.sin(a) * iry * 0.7, 2.4);
+  }
+  const tr = Math.min(iry * 0.62, irx * 0.4);
+  ctx.fillStyle = '#7a5233'; rr(L.rcx - tr * 0.13, L.rcy - tr * 0.1, tr * 0.26, tr * 0.75, 3); ctx.fill();
+  ctx.fillStyle = '#3f7a3a';
+  circle(L.rcx - tr * 0.55, L.rcy - tr * 0.05, tr * 0.5); circle(L.rcx + tr * 0.55, L.rcy - tr * 0.02, tr * 0.48);
+  ctx.fillStyle = '#4a8a42'; circle(L.rcx, L.rcy - tr * 0.4, tr * 0.68);
+  ctx.fillStyle = '#5d9e50'; circle(L.rcx - tr * 0.2, L.rcy - tr * 0.6, tr * 0.25);
+
+  // 정류장 표지판
+  const sx = L.rcx + irx * 0.62, sy = L.rcy + iry * 0.55;
+  ctx.fillStyle = '#7a7a7a'; ctx.fillRect(sx - 1.5, sy - 26, 3, 26);
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = '#d9534f'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(sx, sy - 30, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#3f86f2'; rr(sx - 5, sy - 33.5, 10, 7, 2); ctx.fill();
+
+  // 도는 방향 화살표
+  ctx.fillStyle = 'rgba(255,255,255,.85)';
+  for (const a of [0.8, 2.4, 3.95, 5.5]) {
+    const px = L.rcx + Math.cos(a) * L.rx, py = L.rcy + Math.sin(a) * L.ry;
+    const ang = Math.atan2(L.ry * Math.cos(a), -L.rx * Math.sin(a));
+    ctx.save(); ctx.translate(px, py); ctx.rotate(ang);
+    ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(-3, -3.5); ctx.lineTo(-3, 3.5); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // 고양이 / 강아지들 (위쪽부터 그려서 아래쪽 친구가 앞에 보이도록)
+  const vis = [];
+  const add = (p, i) => {
+    if (!p || p.x === undefined) return;
+    vis.push({ x: p.x, y: p.y, c: p.color, kind: p.kind, bob: p.walking ? Math.abs(Math.sin(S.time * 14 + i)) * 2 : 0 });
+  };
+  S.ring.forEach(add);
+  S.waiting.forEach((p, i) => add(p, i + 100));
+  vis.sort((a, b) => a.y - b.y);
+  for (const p of vis) drawAnimal(p.x, p.y + L.pr * 0.3, L.pr, p.c, p.kind, p.bob);
+
+  const hiddenN = S.waiting.length - Math.min(S.waiting.length, L.waitMax);
+  if (hiddenN > 0) {
+    const t = `+${hiddenN}`;
+    ctx.font = '14px Jua, system-ui, sans-serif';
+    const tw = ctx.measureText(t).width + 14;
+    ctx.fillStyle = 'rgba(59,50,38,.85)';
+    rr(L.W - 16 - tw, L.qTop + 6, tw, 22, 11); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(t, L.W - 16 - tw / 2, L.qTop + 17);
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, L.W || 0, L.H || 0);
+  if (!S || !L.ring) return;
+
+  drawQueueArea();
+
+  // 정류장 대기 칸 (도로)
+  ctx.fillStyle = '#6e727a';
+  rr(8, L.sTop - 4, L.W - 16, L.sH + 8, 16); ctx.fill();
+  for (let i = 0; i < MAX_SLOTS; i++) {
+    const p = slotPos(i), w = L.sw * 0.86, h = L.sH * 0.94;
+    if (i < S.slotCount) {
+      ctx.fillStyle = '#82868f';
+      rr(p.x - w / 2, p.y - h / 2, w, h, 10); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2;
+      rr(p.x - w / 2, p.y - h / 2, w, h, 10); ctx.stroke();
+    } else {
+      ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
+      rr(p.x - w / 2, p.y - h / 2, w, h, 10); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = S.boost.slot > 0 ? '#8fe07a' : 'rgba(255,255,255,.3)';
+      ctx.font = `${L.sw * 0.5}px Jua, system-ui, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('+', p.x, p.y + 1);
+    }
+  }
+
+  // 주차장
+  const pad = L.cs * 0.2;
+  ctx.fillStyle = S.liftMode ? '#f3d870' : '#b3b8a8';
+  rr(L.bx - pad, L.by - pad, L.cs * S.cols + pad * 2, L.cs * S.rows + pad * 2, 18); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.35)';
+  for (let i = 1; i < S.cols; i++) for (let j = 1; j < S.rows; j++) circle(L.bx + i * L.cs, L.by + j * L.cs, 1.5);
+
+  const order = { parked: 0, slot: 1, departing: 1, exiting: 2, toSlot: 2 };
+  const list = S.vehicles.filter(v => v.state in order).sort((a, b) => order[a.state] - order[b.state]);
+  for (const v of list) {
+    const P = vehiclePose(v);
+    const inSlot = v.state === 'slot' || v.state === 'departing';
+    drawVehicle(P.x, P.y, P.a, P.w, P.l, v.color, v.hidden, {
+      arrow: !inSlot, seats: inSlot ? { filled: v.filled, cap: v.cap } : null, alpha: P.alpha, scale: P.scale,
+    });
+  }
+
+  for (const f of S.flying) {
+    const p = slotPos(f.v.slot), e = easeIn(f.t);
+    drawAnimal(lerp(f.x0, p.x, e), lerp(f.y0, p.y, e) - Math.sin(f.t * Math.PI) * 18, L.pr * (1 - f.t * 0.4), f.color, f.kind);
+  }
+}
+
+// =====================================================================
+//  메인 화면 (단계 지도)
+// =====================================================================
+function showScreen(name) {
+  $('menu').classList.toggle('hidden', name !== 'game' ? false : true);
+  $('game').classList.toggle('hidden', name !== 'game');
+}
+
+function showMenu() {
+  S = null;
+  hideOverlay();
+  showScreen('menu');
+  renderMap();
+}
+
+function renderMap() {
+  const scroll = $('mapScroll'), inner = $('mapInner');
+  const W = scroll.clientWidth;
+  if (!W) return;
+  const N = Math.max(30, unlocked + 10), SP = 104;
+  const H = N * SP + 90;
+  inner.style.height = H + 'px';
+  const amp = Math.min(W * 0.28, 130);
+  const pts = [];
+  for (let i = 0; i < N; i++) pts.push({ x: W / 2 + Math.sin(i * 1.05) * amp, y: H - 60 - i * SP });
+
+  // 구불구불한 시골길 (부드러운 곡선)
+  let d = `M ${pts[0].x} ${H + 20} L ${pts[0].x} ${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    d += ` C ${p1.x + (p2.x - p0.x) / 6} ${p1.y + (p2.y - p0.y) / 6}, ${p2.x - (p3.x - p1.x) / 6} ${p2.y - (p3.y - p1.y) / 6}, ${p2.x} ${p2.y}`;
+  }
+  let deco = '';
+  for (let i = 0; i < N; i += 2) {
+    const tx = pts[i].x > W / 2 ? 36 + (i % 4) * 6 : W - 36 - (i % 4) * 6, ty = pts[i].y - 30;
+    deco += `<g transform="translate(${tx} ${ty})"><rect x="-4" y="6" width="8" height="18" rx="3" fill="#7a5233"/>
+      <circle cx="0" cy="0" r="17" fill="#3f7a3a"/><circle cx="-9" cy="8" r="11" fill="#3f7a3a"/><circle cx="9" cy="7" r="11" fill="#4a8a42"/>
+      <circle cx="-4" cy="-6" r="6" fill="#5d9e50"/></g>`;
+  }
+  const svg = $('mapRoad');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = `${deco}
+    <path d="${d}" fill="none" stroke="#fffaf0" stroke-width="38" stroke-linecap="round" opacity=".9"/>
+    <path d="${d}" fill="none" stroke="#e8d6b0" stroke-width="28" stroke-linecap="round"/>
+    <path d="${d}" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="2 12" stroke-linecap="round" opacity=".9"/>`;
+
+  inner.querySelectorAll('.node').forEach(n => n.remove());
+  pts.forEach((p, i) => {
+    const n = i + 1;
+    const b = document.createElement('button');
+    b.className = 'node ' + (n < unlocked ? 'done' : n === unlocked ? 'current' : 'locked');
+    b.style.left = p.x + 'px';
+    b.style.top = p.y + 'px';
+    b.innerHTML = n > unlocked ? '🔒' : `${n}<small>단계</small>`;
+    if (n === unlocked) b.innerHTML += '<span class="busIcon">🚌</span>';
+    if (n <= unlocked) b.onclick = () => startLevel(n);
+    inner.appendChild(b);
+  });
+
+  $('playBtn').textContent = `▶ ${unlocked}단계 시작`;
+  const cur = pts[Math.min(unlocked, N) - 1];
+  scroll.scrollTop = cur.y - scroll.clientHeight * 0.6;
+}
+
+// =====================================================================
+//  화면 UI
+// =====================================================================
+function updateUI() {
+  $('levelLabel').textContent = `${S.level}단계`;
+  $('leftLabel').textContent = `남은 승객 ${remainingCount()}명`;
+  $('slotCnt').textContent = S.boost.slot;
+  $('liftCnt').textContent = S.boost.lift;
+  $('slotBtn').disabled = S.boost.slot <= 0 || S.slotCount >= MAX_SLOTS;
+  $('liftBtn').disabled = S.boost.lift <= 0;
+  $('liftBtn').classList.toggle('active', S.liftMode);
+}
+
+let toastTimer = 0;
+function toast(msg, ms = 1400) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+function showOverlay(kind) {
+  const card = $('card');
+  if (kind === 'win') {
+    card.innerHTML = `<h2>🎉 ${S.level}단계 완료!</h2><p>승객들이 모두 버스를 타고 출발했어요.</p>
+      <button class="btn" id="ovNext">${S.level + 1}단계로 ▶</button>
+      <button class="btn alt" id="ovMap">지도 보기</button>`;
+    card.querySelector('#ovNext').onclick = () => startLevel(S.level + 1);
+  } else {
+    const canSlot = S.boost.slot > 0 && S.slotCount < MAX_SLOTS;
+    card.innerHTML = `<h2>😵 꽉 막혔어요</h2><p>대기 칸이 가득 차서 더 태울 수 없어요.</p>
+      ${canSlot ? '<button class="btn" id="ovSlot">➕ 자리 하나 늘리고 계속</button>' : ''}
+      <button class="btn ${canSlot ? 'alt' : ''}" id="ovRetry">↻ 다시 하기</button>
+      <button class="btn alt" id="ovMap">지도 보기</button>`;
+    if (canSlot) card.querySelector('#ovSlot').onclick = () => { useSlotBooster(); S.over = false; hideOverlay(); };
+    card.querySelector('#ovRetry').onclick = () => startLevel(S.level);
+  }
+  card.querySelector('#ovMap').onclick = () => showMenu();
+  $('overlay').classList.add('show');
+}
+function hideOverlay() { $('overlay').classList.remove('show'); }
+
+// =====================================================================
+//  효과음
+// =====================================================================
+let AC = null;
+function sfx(kind) {
+  if (!soundOn) return;
+  try {
+    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+    const map = {
+      go: [520, 0.09, 'triangle', 0.06], block: [140, 0.12, 'square', 0.04], board: [900, 0.04, 'sine', 0.025],
+      depart: [600, 0.2, 'triangle', 0.06], win: [700, 0.45, 'triangle', 0.08], lose: [220, 0.45, 'sawtooth', 0.04],
+    };
+    const [f, d, type, vol] = map[kind];
+    const o = AC.createOscillator(), g = AC.createGain(), now = AC.currentTime;
+    o.type = type;
+    o.frequency.setValueAtTime(f, now);
+    if (kind === 'depart' || kind === 'win') o.frequency.exponentialRampToValueAtTime(f * 1.7, now + d);
+    if (kind === 'lose') o.frequency.exponentialRampToValueAtTime(f * 0.5, now + d);
+    g.gain.setValueAtTime(vol, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + d);
+    o.connect(g).connect(AC.destination);
+    o.start(now); o.stop(now + d);
+  } catch (e) {}
+}
+
+// =====================================================================
+//  시작!
+// =====================================================================
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+$('soundBtn').classList.toggle('off', !soundOn);
+// 주소 뒤에 ?level=10 처럼 붙이면 그 단계로 바로 이동 (테스트용)
+const urlLevel = parseInt(new URLSearchParams(location.search).get('level'), 10);
+if (urlLevel > 0) startLevel(urlLevel);
+else showMenu();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

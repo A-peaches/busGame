@@ -228,6 +228,14 @@ const IN_APP = (() => {
     return sessionStorage.getItem('meowApp') === '1' || matchMedia('(display-mode: standalone)').matches;
   } catch (e) { return false; }
 })();
+// 지금 어디서 열렸는지: 인증된 앱이면 주소창이 없고(standalone), 알림 허용 창도 앱 것으로 떠요
+function appMode() {
+  let standalone = false;
+  try { standalone = matchMedia('(display-mode: standalone)').matches; } catch (e) { /* 무시 */ }
+  if (IN_APP && standalone) return '앱 (인증됨)';
+  if (IN_APP) return '앱 (인증 안 됨)';
+  return standalone ? '홈 화면 앱' : '브라우저';
+}
 // 알림이 막혀 있을 때: 어디서 켜는지 알려 드려요 (웹은 폰 설정을 직접 바꿀 수 없어요)
 function showPushBlocked() {
   const card = $('card');

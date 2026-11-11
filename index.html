@@ -37,6 +37,11 @@
 
   /* ---------------- 메인 화면 ---------------- */
   #menu .scene { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+  #menu img.scene { object-fit: cover; object-position: center; }
+  img { pointer-events: none; -webkit-user-drag: none; user-select: none; }
+  /* 꾹 눌러도 복사/저장 메뉴가 뜨지 않게 (닉네임 입력칸만 예외) */
+  * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  input { -webkit-user-select: text; user-select: text; }
   #menu .sky { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
   /* 흘러가는 뭉게구름 */
   .cloud { position: absolute; left: -260px; animation: drift linear infinite; }
@@ -192,10 +197,11 @@
   <!-- ================= 메인 화면 ================= -->
   <section class="screen" id="menu">
     <!-- 계절 풍경 (자바스크립트가 그려요) -->
-    <svg class="scene" id="scene" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+    <svg class="scene" id="skyLayer" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+    <img class="scene" id="land" alt="" draggable="false">
     <div class="sky" id="sky"></div>
     <div class="tint" id="tint"></div>
-    <div id="mapScroll"><div id="mapInner"><svg id="mapRoad"></svg></div></div>
+    <div id="mapScroll"><div id="mapInner"><img id="mapRoad" alt="" draggable="false"></div></div>
     <div class="fx" id="fx"></div>
 
     <div class="seasonBar" id="seasonBar">
@@ -722,6 +728,8 @@ $('liftBtn').onclick = () => {
 $('homeBtn').onclick = () => showMenu();
 $('settingsBtn').onclick = $('settingsBtn2').onclick = () => showSettings();
 document.querySelectorAll('.settingsBtn').forEach(b => b.innerHTML = GEAR_SVG);
+// 꾹 누르기(길게 터치) 메뉴 막기
+document.addEventListener('contextmenu', e => { if (!e.target.closest('input')) e.preventDefault(); });
 // 화면의 모든 버튼에 "톡" 피아노 소리
 document.addEventListener('click', e => { if (e.target.closest('button')) sfx('click'); }, true);
 // 브라우저는 사용자가 한 번 터치해야 소리를 낼 수 있어서, 첫 터치 때 배경음악을 시작해요
@@ -979,16 +987,71 @@ function drawThought(x, headTop, r, kind) {
   }
 }
 
-// 줄이 시작되는 작은 집
+// 줄이 시작되는 작은 집: 하얀 도자기 집 안에 불이 켜진 듯
+// (따뜻하게 빛나는 아치형 창문 + 지붕 아래 하트 구멍과 점무늬)
 function drawHouse(x, y, s) {
-  ctx.lineJoin = 'round';
+  const w = s * 0.86, wallH = s * 0.5, roofH = s * 0.56, dx = s * 0.3, dy = s * 0.17;
+  const L = x - w / 2, Rr = x + w / 2, top = y - wallH, apex = y - wallH - roofH, eave = s * 0.07;
+  const glow = (fn) => { ctx.save(); ctx.shadowColor = 'rgba(255,196,110,.95)'; ctx.shadowBlur = s * 0.22; fn(); ctx.restore(); };
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   ctx.strokeStyle = LINE; ctx.lineWidth = 1;
-  ctx.fillStyle = '#f1e4c9'; ctx.fillRect(x - s * 0.42, y - s * 0.62, s * 0.84, s * 0.62); ctx.strokeRect(x - s * 0.42, y - s * 0.62, s * 0.84, s * 0.62);
-  ctx.beginPath(); ctx.moveTo(x - s * 0.55, y - s * 0.58); ctx.lineTo(x, y - s * 1.02); ctx.lineTo(x + s * 0.55, y - s * 0.58); ctx.closePath();
-  ctx.fillStyle = '#c98a6c'; ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#a07a5c'; rr(x - s * 0.12, y - s * 0.36, s * 0.24, s * 0.36, 2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#a9c8d6'; ctx.fillRect(x + s * 0.18, y - s * 0.46, s * 0.15, s * 0.14); ctx.strokeRect(x + s * 0.18, y - s * 0.46, s * 0.15, s * 0.14);
-  ctx.fillStyle = '#9a8f84'; ctx.fillRect(x + s * 0.22, y - s * 0.98, s * 0.1, s * 0.22); ctx.strokeRect(x + s * 0.22, y - s * 0.98, s * 0.1, s * 0.22);
+
+  // 바닥 그림자 + 바닥에 번지는 불빛
+  ctx.fillStyle = 'rgba(70,55,40,.18)'; ell(x + dx * 0.4, y + s * 0.02, w * 0.75, s * 0.08);
+  ctx.fillStyle = 'rgba(255,205,120,.18)'; ell(x, y + s * 0.03, w * 0.55, s * 0.06);
+
+  // 옆벽 (그늘)
+  ctx.beginPath(); ctx.moveTo(Rr, y); ctx.lineTo(Rr + dx, y - dy); ctx.lineTo(Rr + dx, top - dy); ctx.lineTo(Rr, top); ctx.closePath();
+  ctx.fillStyle = '#ddd7cc'; ctx.fill(); ctx.stroke();
+  // 옆 지붕 (반짝이는 유약)
+  ctx.beginPath();
+  ctx.moveTo(x, apex); ctx.lineTo(x + dx, apex - dy); ctx.lineTo(Rr + dx + eave, top - dy + eave * 0.6); ctx.lineTo(Rr + eave, top + eave * 0.6); ctx.closePath();
+  ctx.fillStyle = '#e9e5dc'; ctx.fill(); ctx.stroke();
+  const R = mulberry32(31);
+  for (let i = 0; i < 14; i++) {
+    const t = R(), u = R();
+    const px = lerp(x, Rr + eave, t) + dx * u, py = lerp(apex, top + eave * 0.6, t) - dy * u;
+    ctx.fillStyle = `rgba(255,255,255,${f1(0.5 + R() * 0.5)})`; circle(px, py, s * 0.01 + R() * s * 0.012);
+  }
+
+  // 앞면 (왼쪽 위에서 빛이 드는 은은한 음영)
+  const g = ctx.createLinearGradient(L, apex, Rr, y);
+  g.addColorStop(0, '#fbf9f4'); g.addColorStop(1, '#ebe6dc');
+  ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(L, top); ctx.lineTo(x, apex); ctx.lineTo(Rr, top); ctx.lineTo(Rr, y); ctx.closePath();
+  ctx.fillStyle = g; ctx.fill(); ctx.stroke();
+  // 지붕 처마 (앞면 테두리를 따라 도톰하게)
+  ctx.beginPath(); ctx.moveTo(L - eave, top + eave * 0.6); ctx.lineTo(x, apex - eave * 0.4); ctx.lineTo(Rr + eave, top + eave * 0.6);
+  ctx.strokeStyle = LINE; ctx.lineWidth = s * 0.06 + 2; ctx.stroke();
+  ctx.strokeStyle = '#f8f6f1'; ctx.lineWidth = s * 0.06; ctx.stroke();
+  ctx.lineWidth = 1;
+
+  // 불 켜진 아치형 창문 두 개 (십자 창살)
+  for (const cx of [x - w * 0.22, x + w * 0.22]) {
+    const ww = w * 0.2, wh = wallH * 0.5, wy = y - wallH * 0.2 - wh;
+    glow(() => {
+      ctx.beginPath(); ctx.moveTo(cx - ww / 2, wy + wh); ctx.lineTo(cx - ww / 2, wy + ww / 2);
+      ctx.arc(cx, wy + ww / 2, ww / 2, Math.PI, 0); ctx.lineTo(cx + ww / 2, wy + wh); ctx.closePath();
+      ctx.fillStyle = '#ffd98c'; ctx.fill();
+    });
+    ctx.strokeStyle = '#f3efe7'; ctx.lineWidth = Math.max(1, ww * 0.14);
+    ctx.beginPath(); ctx.moveTo(cx, wy); ctx.lineTo(cx, wy + wh); ctx.moveTo(cx - ww / 2, wy + wh * 0.5); ctx.lineTo(cx + ww / 2, wy + wh * 0.5); ctx.stroke();
+    ctx.lineWidth = 1;
+  }
+
+  // 지붕 아래 빛나는 하트 + 둘레의 작은 점들
+  const hx = x, hy = top - roofH * 0.32, hs = s * 0.085;
+  glow(() => {
+    ctx.beginPath();
+    ctx.moveTo(hx, hy + hs * 0.9);
+    ctx.bezierCurveTo(hx - hs * 1.3, hy + hs * 0.1, hx - hs * 0.9, hy - hs * 1.0, hx, hy - hs * 0.35);
+    ctx.bezierCurveTo(hx + hs * 0.9, hy - hs * 1.0, hx + hs * 1.3, hy + hs * 0.1, hx, hy + hs * 0.9);
+    ctx.fillStyle = '#ffd98c'; ctx.fill();
+    ctx.fillStyle = '#ffe3a6';
+    for (let i = 0; i < 12; i++) {
+      const a = -Math.PI / 2 + (i / 12) * Math.PI * 2;
+      circle(hx + Math.cos(a) * hs * 2, hy + Math.sin(a) * hs * 1.9, s * 0.014);
+    }
+  });
 }
 
 function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, bag = false) {
@@ -1178,7 +1241,10 @@ function drawQueueArea() {
 
   // 줄이 시작되는 곳의 작은 집 (멍냥이들이 여기서 나와요)
   const [hx0, hy0] = L.wait.pts[L.wait.pts.length - 1];
-  drawHouse(hx0, hy0 + (hy0 < L.qTop + L.qH / 2 ? -2 : L.laneW * 0.6), L.laneW * 1.7);
+  // 길 끝에 걸쳐 앉도록, 패널 밖으로 삐져나가지 않게 위치를 맞춰요
+  const hs = L.laneW * 2.1;
+  const hBase = hy0 < L.qTop + L.qH / 2 ? Math.max(hy0 + L.laneW * 0.5, L.qTop + hs * 1.12) : hy0 + L.laneW * 0.6;
+  drawHouse(Math.min(hx0 - L.laneW * 0.15, L.W - 16 - hs * 0.75), hBase, hs);
 
   // 원 가운데 잔디 섬 + 큰 나무 + 꽃
   const irx = L.rx - L.laneW / 2 - 4, iry = L.ry - L.laneW / 2 - 4;
@@ -1342,16 +1408,18 @@ function renderMap() {
     const tx = pts[i].x > W / 2 ? 36 + (i % 4) * 6 : W - 36 - (i % 4) * 6, ty = pts[i].y - 30;
     deco += `<g transform="translate(${tx} ${ty + 30})">${makeTree(100 + i, 74 + (i % 3) * 10)}</g>`;
   }
-  const svg = $('mapRoad');
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   // 흙길: 얇은 회색 테두리 + 바퀴 자국 (겨울엔 눈길)
+  // 길과 나무는 한 번만 그림(이미지)으로 만들어 두어, 스크롤해도 다시 그리지 않아요
   const road = season === 'winter' ? ['#eef1f4', '#dfe5ea'] : ['#ead6b0', '#d6bf96'];
-  svg.innerHTML = `
+  const img = $('mapRoad');
+  img.style.width = W + 'px'; img.style.height = H + 'px';
+  setSvgImage(img, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+    <defs><filter id="wash" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter></defs>
     <path d="${d}" fill="none" stroke="#a8a097" stroke-width="29.5" stroke-linecap="round"/>
     <path d="${d}" fill="none" stroke="${road[0]}" stroke-width="27.5" stroke-linecap="round"/>
     <path d="${d}" fill="none" stroke="${road[1]}" stroke-width="12" stroke-linecap="round" opacity=".55"/>
     <path d="${d}" fill="none" stroke="${road[0]}" stroke-width="7" stroke-linecap="round"/>
-    ${deco}`;
+    ${deco}</svg>`);
   updateHello();
 
   inner.querySelectorAll('.node').forEach(n => n.remove());
@@ -1479,20 +1547,20 @@ function makeTree(seed, h, ss = season, detail = 1) {
     if (d >= maxD) { tips.push([ex, ey]); return; }
     const n = R() < 0.35 ? 3 : 2;
     for (let i = 0; i < n; i++) {
-      const spread = 0.3 + R() * 0.32;
+      const spread = 0.36 + R() * 0.36;
       const off = n === 2 ? (i ? spread : -spread) : (i - 1) * spread * 1.15;
-      const a = clamp((ang + off + (R() - 0.5) * 0.25) * 0.94, -1.4, 1.4);   // 위쪽으로 살짝 모이게
-      grow(ex, ey, a, len * (0.68 + R() * 0.16), w * 0.64, d + 1);
+      const a = clamp((ang + off + (R() - 0.5) * 0.25) * 0.97, -1.5, 1.5);   // 위쪽으로 살짝 모이게
+      grow(ex, ey, a, len * (0.7 + R() * 0.14), w * 0.64, d + 1);
     }
   }
 
   // 줄기 (아래가 넓은 원뿔꼴) + 큰 가지 2~3개
-  const lean = (R() - 0.5) * 0.14, trunkLen = h * 0.3;
+  const lean = (R() - 0.5) * 0.12, trunkLen = h * 0.21;
   const tx = Math.sin(lean) * trunkLen, ty = -trunkLen;
   const limbs = R() < 0.5 ? 2 : 3;
   for (let i = 0; i < limbs; i++) {
     const off = limbs === 2 ? (i ? 0.38 : -0.42) : (i - 1) * 0.5;
-    grow(tx, ty, lean + off + (R() - 0.5) * 0.2, h * (0.19 + R() * 0.05), tw * 0.72, 1);
+    grow(tx, ty, lean + off * 1.25 + (R() - 0.5) * 0.2, h * (0.16 + R() * 0.04), tw * 0.72, 1);
   }
   let s = detail >= 1 ? `<ellipse cx="0" cy="0" rx="${f1(h * 0.3)}" ry="${f1(h * 0.045)}" fill="rgba(60,50,30,.14)"/>` : '';
   s += `<path d="M${f1(-tw * 0.65)} 0 Q${f1(-tw * 0.4)} ${f1(-trunkLen * 0.5)} ${f1(tx - tw * 0.36)} ${f1(ty)} L${f1(tx + tw * 0.36)} ${f1(ty)}
@@ -1501,12 +1569,12 @@ function makeTree(seed, h, ss = season, detail = 1) {
   let wash = '', leaves = '';
   if (!bare) {
     // 물감 번짐: 가지 끝 근처에 옅은 색이 스며든 듯
-    for (let i = 0; i < tips.length; i += 2) {
+    for (let i = 0; i < tips.length; i++) {
       const [x, y] = tips[i];
-      wash += `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(h * (0.06 + R() * 0.05))}" ry="${f1(h * (0.045 + R() * 0.035))}" fill="${pick(R, cols)}" opacity=".35"/>`;
+      wash += `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(h * (0.08 + R() * 0.05))}" ry="${f1(h * (0.06 + R() * 0.04))}" fill="${pick(R, cols)}" opacity=".42"/>`;
     }
     // 잎사귀: 가지 끝마다 여러 장, 중간 가지에도 조금
-    const perTip = detail >= 1 ? 4 : 3;
+    const perTip = detail >= 1 ? 8 : 6;
     const L0 = h * (detail >= 1 ? 0.04 : 0.075);
     const addLeaf = (x, y, spread) => {
       const lx = x + (R() - 0.5) * spread, ly = y + (R() - 0.5) * spread;
@@ -1516,8 +1584,8 @@ function makeTree(seed, h, ss = season, detail = 1) {
         : `M0 0 Q${f1(L / 2)} ${f1(-W)} ${f1(L)} 0 Q${f1(L / 2)} ${f1(W)} 0 0Z`;
       leaves += `<path d="${shape}" fill="${pick(R, cols)}" opacity="${f1(0.72 + R() * 0.25)}" transform="translate(${f1(lx)} ${f1(ly)}) rotate(${Math.round(R() * 360)})"/>`;
     };
-    for (const [x, y] of tips) for (let k = 0; k < perTip; k++) addLeaf(x, y, h * 0.09);
-    for (const [x, y] of mids) if (R() < 0.35) addLeaf(x, y, h * 0.06);
+    for (const [x, y] of tips) for (let k = 0; k < perTip; k++) addLeaf(x, y, h * 0.13);
+    for (const [x, y] of mids) { addLeaf(x, y, h * 0.08); if (R() < 0.5) addLeaf(x, y, h * 0.08); }
     if (ss === 'spring') for (let k = 0; k < tips.length; k++) if (R() < 0.3) { const [x, y] = tips[k]; leaves += `<circle cx="${f1(x + (R() - 0.5) * h * 0.05)}" cy="${f1(y)}" r="${f1(h * 0.012)}" fill="#a9c98a" opacity=".8"/>`; }
   } else {
     // 겨울: 가지 위에 쌓인 눈
@@ -1553,6 +1621,59 @@ function makeCloud(id, seed, P) {
     </g></svg>`;
 }
 
+// 들판 앞쪽 길가: 왼쪽엔 버스 정류장, 오른쪽엔 서 있는 시내버스 (가는 펜 선 + 수채화 채색)
+function makeBusStopScene() {
+  const INK = 'rgba(80,74,68,.85)', P = SEASONS[season], R = mulberry32(808);
+  const y0 = 372;   // 길 바닥 높이
+  let s = `<g stroke="${INK}" stroke-width=".8" stroke-linejoin="round" stroke-linecap="round">`;
+  // 길: 옅은 회색 물감이 번진 아스팔트 + 연석
+  s += `<path d="M-5 ${y0 - 4} C 120 ${y0 - 7} 260 ${y0 - 3} 405 ${y0 - 6} L405 ${y0 + 12} C 260 ${y0 + 14} 120 ${y0 + 10} -5 ${y0 + 13}Z" fill="#c9c6c0" opacity=".85" stroke="none" filter="url(#wash)"/>`;
+  s += `<path d="M-5 ${y0 - 4} C 120 ${y0 - 7} 260 ${y0 - 3} 405 ${y0 - 6}" fill="none" stroke-width=".7"/>`;
+  s += `<path d="M-5 ${y0 + 1} C 120 ${y0 - 2} 260 ${y0 + 2} 405 ${y0 - 1}" fill="none" stroke="rgba(80,74,68,.35)"/>`;
+  if (season === 'autumn') for (let i = 0; i < 26; i++) s += `<ellipse cx="${f1(R() * 400)}" cy="${f1(y0 - 2 + R() * 13)}" rx="1.4" ry=".8" fill="${pick(R, ['#d9653f', '#e8913f', '#f0b54a'])}" stroke="none"/>`;
+  if (season === 'winter') s += `<path d="M-5 ${y0 - 5} C 120 ${y0 - 8} 260 ${y0 - 4} 405 ${y0 - 7} L405 ${y0 - 2} C 260 ${y0} 120 ${y0 - 3} -5 ${y0}Z" fill="#fbfcfd" stroke="none"/>`;
+
+  // ---- 왼쪽: 버스 정류장 (표지판 기둥 + 작은 대기소) ----
+  s += `<rect x="16" y="${y0 - 64}" width="2.6" height="62" fill="#b9b6b0"/>`;                       // 기둥
+  s += `<path d="M17 ${y0 - 60} L48 ${y0 - 60}" stroke-width="1.4" stroke="#8f8b85"/>`;              // 팔
+  s += `<rect x="30" y="${y0 - 59}" width="20" height="7" rx="1" fill="#a87c5c"/>`;                  // 정류장 이름판
+  s += `<circle cx="17.3" cy="${y0 - 68}" r="6" fill="#f6f3ec"/><rect x="13.5" y="${y0 - 70.5}" width="7.6" height="5" rx="1" fill="#7fb4d6"/>`;
+  // 대기소: 지붕 + 투명 벽 + 의자
+  s += `<path d="M30 ${y0 - 36} L78 ${y0 - 36} L74 ${y0 - 42} L34 ${y0 - 42}Z" fill="#9fb9b0"/>`;
+  s += `<rect x="34" y="${y0 - 36}" width="2" height="34" fill="#b9b6b0"/><rect x="72" y="${y0 - 36}" width="2" height="34" fill="#b9b6b0"/>`;
+  s += `<rect x="36" y="${y0 - 35}" width="36" height="22" fill="#d7e6ea" opacity=".55"/>`;
+  s += `<rect x="40" y="${y0 - 14}" width="28" height="3" rx="1" fill="#a87c5c"/><path d="M43 ${y0 - 11} L43 ${y0 - 3} M65 ${y0 - 11} L65 ${y0 - 3}"/>`;
+  s += `<rect x="38" y="${y0 - 33}" width="10" height="14" fill="#f2e6c9" opacity=".9"/>`;            // 노선도
+
+  // ---- 오른쪽: 서 있는 시내버스 (하얀 차체 + 하늘색 띠, 왼쪽을 보고 서 있어요) ----
+  const bx = 248, bw = 120, bh = 44, by = y0 - 6 - bh;
+  // 가로등
+  s += `<path d="M238 ${y0 - 2} L238 ${y0 - 84} Q238 ${y0 - 92} 248 ${y0 - 92} L256 ${y0 - 92}" fill="none" stroke="#9c9891" stroke-width="2"/>`;
+  s += `<path d="M252 ${y0 - 94} L262 ${y0 - 94} L260 ${y0 - 90} L254 ${y0 - 90}Z" fill="#cfcbc4"/>`;
+  // 그림자
+  s += `<ellipse cx="${bx + bw / 2}" cy="${y0 - 3}" rx="${bw * 0.52}" ry="4" fill="rgba(70,65,60,.25)" stroke="none" filter="url(#wash)"/>`;
+  // 차체
+  s += `<path d="M${bx + 6} ${by} L${bx + bw - 4} ${by} Q${bx + bw} ${by} ${bx + bw} ${by + 5} L${bx + bw} ${by + bh - 4} L${bx} ${by + bh - 4} L${bx} ${by + 9} Q${bx} ${by} ${bx + 6} ${by}Z" fill="#f6f5f1"/>`;
+  // 하늘색 물감 띠 (지붕 쪽 앞부분 + 옆 아래)
+  s += `<path d="M${bx + 1} ${by + 6} Q${bx + 2} ${by + 1} ${bx + 8} ${by + 1} L${bx + 54} ${by + 1} L${bx + 40} ${by + 9} L${bx + 1} ${by + 9}Z" fill="#8cbfdd" opacity=".85" stroke="none"/>`;
+  s += `<path d="M${bx + 30} ${by + bh - 12} L${bx + bw} ${by + bh - 16} L${bx + bw} ${by + bh - 10} L${bx + 26} ${by + bh - 6}Z" fill="#8cbfdd" opacity=".7" stroke="none"/>`;
+  // 앞유리 + 행선판
+  s += `<path d="M${bx + 2} ${by + 11} L${bx + 14} ${by + 11} L${bx + 14} ${by + 30} L${bx + 2} ${by + 32}Z" fill="#6f7c86"/>`;
+  s += `<rect x="${bx + 3}" y="${by + 3}" width="18" height="4" rx=".8" fill="#e8c56a"/>`;
+  // 옆 창문 줄
+  for (let i = 0; i < 6; i++) s += `<rect x="${f1(bx + 30 + i * 15)}" y="${by + 11}" width="13.5" height="15" rx="1" fill="#5f6b74"/>`;
+  // 앞문
+  s += `<rect x="${bx + 17}" y="${by + 11}" width="10" height="${bh - 16}" fill="#7d8992"/><path d="M${bx + 22} ${by + 11} L${bx + 22} ${by + bh - 5}"/>`;
+  // 범퍼, 전조등, 바퀴
+  s += `<rect x="${bx - 1}" y="${by + bh - 7}" width="${bw + 2}" height="4" rx="1.5" fill="#d9d6cf"/>`;
+  s += `<circle cx="${bx + 4}" cy="${by + bh - 11}" r="1.8" fill="#fff3c4"/>`;
+  for (const wx of [bx + 30, bx + bw - 24]) {
+    s += `<circle cx="${wx}" cy="${y0 - 6}" r="8" fill="#4b4642"/><circle cx="${wx}" cy="${y0 - 6}" r="3.6" fill="#cfcbc4"/>`;
+    s += `<path d="M${wx - 10} ${y0 - 14} Q${wx} ${y0 - 22} ${wx + 10} ${y0 - 14}" fill="none"/>`;
+  }
+  return s + '</g>';
+}
+
 function makeSnowman() {
   return `<g transform="translate(318 470)" stroke="rgba(112,104,96,.6)" stroke-width="1">
     <ellipse cx="0" cy="2" rx="28" ry="5" fill="rgba(120,130,145,.25)" stroke="none"/>
@@ -1567,19 +1688,28 @@ function makeSnowman() {
 }
 
 // 배경 그림 전체 (하늘 → 먼 산 → 숲 → 들판과 풀)
+// SVG 글자를 이미지로 바꿔 <img>에 넣어요 (브라우저가 한 번만 그리고 재사용)
+function setSvgImage(img, svg) {
+  if (img._url) URL.revokeObjectURL(img._url);
+  img._url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+  img.src = img._url;
+}
+
 function renderScene() {
   const P = SEASONS[season], R = mulberry32(2024);
-  let s = `<defs>
+  // 하늘(시간에 따라 바뀌는 부분)은 살아 있는 SVG로, 땅 풍경은 한 번만 그린 이미지로
+  $('skyLayer').innerHTML = `<defs>
     <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1"><stop id="sk0" offset="0" stop-color="${P.sky[0]}"/><stop id="sk1" offset=".25" stop-color="${P.sky[1]}"/><stop id="sk2" offset=".4" stop-color="${P.sky[2]}"/></linearGradient>
     <radialGradient id="glowG"><stop offset="0" stop-color="#fff6dc" stop-opacity=".9"/><stop offset=".35" stop-color="#fff0c8" stop-opacity=".35"/><stop offset="1" stop-color="#fff0c8" stop-opacity="0"/></radialGradient>
+  </defs><rect width="400" height="800" fill="url(#skyG)"/><g id="celestial"></g>`;
+  let s = `<defs>
     <linearGradient id="mtG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${P.mt[0]}"/><stop offset="1" stop-color="${P.mt[1]}"/></linearGradient>
     <linearGradient id="mdG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${P.meadow[0]}"/><stop offset=".45" stop-color="${P.meadow[1]}"/><stop offset="1" stop-color="${P.meadow[2]}"/></linearGradient>
     <filter id="paper"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="3" seed="4"/>
       <feColorMatrix type="matrix" values="0 0 0 0 .45  0 0 0 0 .38  0 0 0 0 .3  0 0 0 .07 0"/></filter>
     <filter id="haze"><feGaussianBlur stdDeviation=".6"/></filter>
     <filter id="wash" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter>
-  </defs>
-  <rect width="400" height="800" fill="url(#skyG)"/><g id="celestial"></g>`;
+  </defs>`;
   // 먼 산 (겨울엔 눈 덮인 봉우리)
   s += `<path d="M0 238 C 40 210 70 196 110 206 C 150 178 190 172 232 196 C 270 178 318 166 360 190 C 380 186 395 188 400 190 L400 320 L0 320Z" fill="url(#mtG)" stroke="rgba(112,104,96,.3)" stroke-width="1"/>`;
   if (season === 'winter') s += `<path d="M150 186 C 170 176 195 174 214 186 C 200 184 190 190 178 188 C 168 192 160 188 150 186Z M300 176 C 320 168 340 170 354 184 C 340 182 330 186 320 184 C 312 188 306 182 300 176Z" fill="#fbfcfd" opacity=".9"/>`;
@@ -1611,9 +1741,10 @@ function renderScene() {
     const y = 300 + R() * 490, k = (y - 280) / 520;
     s += `<circle cx="${f1(R() * 400)}" cy="${f1(y)}" r="${f1(0.8 + k * 2)}" fill="${pick(R, P.flowers)}"/>`;
   }
+  s += makeBusStopScene();
   if (season === 'winter') s += makeSnowman();
   s += `<rect width="400" height="800" filter="url(#paper)"/>`;
-  $('scene').innerHTML = s;
+  setSvgImage($('land'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 800" width="400" height="800">${s}</svg>`);
 
   // 구름 (흐리거나 비/눈이 오면 더 많고 잿빛)
   const sky = $('sky');
@@ -1626,7 +1757,11 @@ function renderScene() {
     const c = document.createElement('div');
     c.className = 'cloud';
     c.style.cssText = `top:${top}%;width:${w}px;animation-duration:${dur}s;animation-delay:${delay}s;opacity:${i === 3 ? 0.75 : 0.95}`;
-    c.innerHTML = makeCloud('cf' + i, 11 + i * 7, CP);
+    const img = document.createElement('img');
+    img.alt = ''; img.draggable = false; img.style.width = '100%'; img.style.display = 'block';
+    setSvgImage(img, makeCloud('cf' + i, 11 + i * 7, CP)
+      .replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ').replace('width="100%"', 'width="260" height="120"'));
+    c.appendChild(img);
     sky.appendChild(c);
   });
 

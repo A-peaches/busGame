@@ -125,7 +125,7 @@ function showOverlay(kind) {
   card.querySelector('#ovMap').onclick = () => showMenu();
   $('overlay').classList.add('show');
 }
-function hideOverlay() { $('overlay').classList.remove('show'); stopCelebration(); }
+function hideOverlay() { $('overlay').classList.remove('show'); $('card').classList.remove('help'); stopCelebration(); }
 
 // =====================================================================
 //  클리어 축하: 핑크·파랑·노랑·연두 폭죽 + 나팔 부는 강아지와 고양이
@@ -238,3 +238,69 @@ function drawTrumpeters(c, T) {
   } finally { ctx = saved; LW_SCALE = savedLW; }
 }
 
+
+// =====================================================================
+//  설명서 (메인 화면 왼쪽 아래 책 버튼)
+// =====================================================================
+const BOOK_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g fill="none" stroke="#4a3b2c" stroke-width="1.6" stroke-linejoin="round">
+  <path d="M12 6.5 C9.5 4.8 6.5 4.6 3.5 5.2 V18.6 C6.5 18 9.5 18.2 12 19.9 C14.5 18.2 17.5 18 20.5 18.6 V5.2 C17.5 4.6 14.5 4.8 12 6.5Z" fill="#f6dd92"/>
+  <path d="M12 6.5 V19.9"/></g></svg>`;
+function showHelp() {
+  const card = $('card');
+  card.classList.add('help');
+  card.innerHTML = `<h2>멍냥이의 버스여행 설명서</h2>
+    <h3>🚌 버스 꺼내기</h3>
+    <ul>
+      <li>주차장의 버스를 누르면 <b>화살표 방향</b>으로 나가요.</li>
+      <li>앞이 막혀 있으면 부딪히고 제자리로 돌아와요. <b>앞이 뚫린 버스</b>부터 꺼내요.</li>
+      <li>버스는 위·아래·양옆·대각선 <b>8방향</b>이 있어요. 숫자는 탈 수 있는 자리 수(8·16·24·32석)예요.</li>
+      <li><b>❓ 버스</b>는 색이 숨겨져 있다가 앞길이 열리면 색이 보여요.</li>
+    </ul>
+    <h3>🐱🐶 멍냥이 태우기</h3>
+    <ul>
+      <li>꺼낸 버스는 가운데 <b>대기 칸</b>에 서요. 처음엔 4칸이에요.</li>
+      <li><b>하트 길</b> 위의 멍냥이는 <b>같은 색 버스</b>가 오면 걸어가서 타요.</li>
+      <li>버스가 다 차면 신나게 출발하고, 대기 칸이 비어요.</li>
+      <li>가운데 <b>나무를 누르면</b> 3초 동안 빨리감기! 줄과 탑승이 빨라져요.</li>
+    </ul>
+    <h3>😵 실패</h3>
+    <ul>
+      <li>대기 칸이 꽉 찼는데 하트 길의 누구도 탈 수 없으면 <b>꽉 막혀요</b>.</li>
+      <li>멍냥이를 모두 태워 보내면 클리어!</li>
+    </ul>
+    <h3>🧰 아이템</h3>
+    <ul>
+      <li><b>자리 추가</b>: 대기 칸이 한 칸 늘어나요. 단계마다 1개 (별 5개 단계는 2개).</li>
+      <li><b>크레인</b>: 막혀 있는 버스도 아무거나 하나 바로 꺼내요. 단계마다 1개.</li>
+      <li>꽉 막혔을 때 [아이템 사용]으로 자리를 늘려 이어서 할 수도 있어요.</li>
+    </ul>
+    <h3>❤️ 하트</h3>
+    <ul>
+      <li>하트는 최대 5개, <b>10분마다 1개</b>씩 충전돼요.</li>
+      <li>실패한 뒤 다시 하거나 지도로 나가면 1개 줄어요. 게임 도중 나가도 1개 줄어요.</li>
+      <li>클리어하면 하트는 줄지 않아요. 하트가 0개면 단계를 시작할 수 없어요.</li>
+    </ul>
+    <h3>⭐ 단계와 난이도</h3>
+    <ul>
+      <li>모두 <b>100단계</b>예요. 한 단계를 깨면 다음 단계가 열려요.</li>
+      <li>10단계마다 <b>쉬움 → 어려움 → 매우 어려움</b>이 반복되고, 갈수록 조금씩 어려워져요.</li>
+      <li><b>별 5개(최고 난이도)</b>는 30단계마다 나와요.</li>
+    </ul>
+    <h3>🚃 이벤트: 레일 버스 (31단계부터)</h3>
+    <ul>
+      <li>주차장 아래 레일 위에 버스가 있어요.</li>
+      <li>버스를 <b>누를 때마다 레일이 한 칸씩</b> 움직여요.</li>
+      <li><b>노란 출구 칸</b>에 온 버스만 출발할 수 있어요.</li>
+    </ul>
+    <h3>⚙ 설정</h3>
+    <ul>
+      <li>배경음악·효과음 켜기와 크기, <b>계절 테마</b>(지금 계절/봄/여름/가을/겨울), 닉네임을 바꿀 수 있어요.</li>
+      <li>메인 화면의 하늘은 실제 시간과 날씨를 따라가요.</li>
+    </ul>
+    <button class="btn" id="ovClose" style="margin-top:14px">알겠어요</button>`;
+  card.querySelector('#ovClose').onclick = () => hideOverlay();
+  card.scrollTop = 0;
+  $('overlay').classList.add('show');
+}
+$('helpBtn').innerHTML = BOOK_SVG;
+$('helpBtn').onclick = () => showHelp();

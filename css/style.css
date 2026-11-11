@@ -199,3 +199,12 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 }
 .btn:active { transform: translateY(1px); box-shadow: none; }
 .btn.alt { background: #f1e5cf; color: var(--ink); }
+
+/* 설명서 버튼 (메인 화면 왼쪽 아래) + 설명서 팝업 */
+#menu > #helpBtn { position: absolute; left: 12px; bottom: 16px; z-index: 4; }
+.card.help { max-height: 78vh; overflow-y: auto; text-align: left; }
+.card.help h2 { text-align: center; }
+.card.help h3 { font-size: 14px; margin: 12px 0 4px; color: var(--ink); }
+.card.help ul { padding-left: 18px; margin: 0; }
+.card.help li { font-size: 13px; line-height: 1.5; color: var(--muted); margin-bottom: 2px; }
+.card.help li b { color: var(--ink); }

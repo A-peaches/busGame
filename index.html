@@ -41,7 +41,10 @@
   img { pointer-events: none; -webkit-user-drag: none; user-select: none; }
   /* 꾹 눌러도 복사/저장 메뉴가 뜨지 않게 (닉네임 입력칸만 예외) */
   * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
-  input { -webkit-user-select: text; user-select: text; }
+  input { -webkit-user-select: text; user-select: text; font-size: 16px; }
+  /* 두 번 톡톡 눌러도 화면이 확대되지 않게 */
+  html, body, button, canvas, #app { touch-action: manipulation; }
+  ::selection { background: transparent; }
   #menu .sky { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
   /* 흘러가는 뭉게구름 */
   .cloud { position: absolute; left: -260px; animation: drift linear infinite; }
@@ -271,11 +274,16 @@ const GEAR_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="t
 const LOCK_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g stroke="#4a3b2c" stroke-width="1.5" stroke-linejoin="round">
   <path d="M8 11V8.2a4 4 0 0 1 8 0V11" fill="none"/><rect x="5.5" y="11" width="13" height="9" rx="2" fill="#f1e5cf"/>
   <circle cx="12" cy="15.3" r="1.2" fill="#4a3b2c" stroke="none"/></g></svg>`;
-const BUS_SVG = `<svg class="busIcon" viewBox="0 0 42 28" aria-hidden="true"><g stroke="#4a3b2c" stroke-width="1.2" stroke-linejoin="round">
-  <path d="M3 8 Q3 3 9 3 H33 Q39 3 39 9 V21 H3 Z" fill="#efd9a0"/><path d="M3 14 H39 V21 H3 Z" fill="#d9906a"/>
-  <rect x="7" y="6" width="6" height="5" rx="1" fill="#b9d0d6"/><rect x="15" y="6" width="6" height="5" rx="1" fill="#b9d0d6"/>
-  <rect x="23" y="6" width="6" height="5" rx="1" fill="#b9d0d6"/><rect x="31" y="6" width="5" height="7" rx="1" fill="#b9d0d6"/>
-  <circle cx="11" cy="22" r="3.4" fill="#5a4a3a"/><circle cx="31" cy="22" r="3.4" fill="#5a4a3a"/></g></svg>`;
+// 현재 단계 위에 떠 있는 버스: 메인 화면 길가의 시내버스와 같은 그림체 (회색 1px 선)
+const BUS_SVG = `<svg class="busIcon" viewBox="0 0 42 28" aria-hidden="true"><g stroke="#a8a097" stroke-width="1" stroke-linejoin="round">
+  <path d="M3 8 Q3 3 9 3 H34 Q39 3 39 8 V21 H3 Z" fill="#f6f5f1"/>
+  <path d="M3.5 7 Q4 3.5 9 3.5 H22 L17 8 H3.5Z" fill="#8cbfdd" stroke="none" opacity=".85"/>
+  <path d="M12 18 L39 16.5 L39 19 L11 20Z" fill="#8cbfdd" stroke="none" opacity=".7"/>
+  <path d="M3.5 9 H8 V17 L3.5 17.5Z" fill="#6f7c86"/>
+  <rect x="11" y="8.5" width="6" height="6" rx=".8" fill="#5f6b74"/><rect x="18.5" y="8.5" width="6" height="6" rx=".8" fill="#5f6b74"/>
+  <rect x="26" y="8.5" width="6" height="6" rx=".8" fill="#5f6b74"/><rect x="33.5" y="8.5" width="4.5" height="6" rx=".8" fill="#5f6b74"/>
+  <circle cx="11" cy="22" r="3.4" fill="#4b4642"/><circle cx="32" cy="22" r="3.4" fill="#4b4642"/>
+  <circle cx="11" cy="22" r="1.4" fill="#cfcbc4" stroke="none"/><circle cx="32" cy="22" r="1.4" fill="#cfcbc4" stroke="none"/></g></svg>`;
 
 // 저장 (브라우저에 진행 상황 기억)
 const store = {
@@ -379,7 +387,7 @@ function levelParams(n) {
     colorCount: Math.min(3 + Math.floor((e - 1) / 2), COLORS.length),
     diagChance: Math.min(0.1 + e * 0.025, 0.35),
     hiddenChance: e >= 4 ? Math.min(0.08 + e * 0.02, 0.3) : 0,
-    mix: Math.min(10 + e * 3, 70),   // 승객 순서가 섞이는 정도
+    mix: Math.min(30 + e * 9, 200),  // 승객 순서가 섞이는 정도 (좌석이 많아진 만큼 크게)
     target: e,
   };
 }
@@ -393,9 +401,12 @@ function genLevel(n) {
   // 1) 빽빽하게 배치
   const placed = [];
   for (let tries = 0; tries < 25000 && placed.length < target; tries++) {
-    const len = rng() < 0.38 ? 3 : 2;
+    // 버스 4종류: 2칸(8석) / 3칸(16석) / 4칸(24석) / 5칸(32석)
+    const rl = rng();
+    let len = rl < 0.4 ? 2 : rl < 0.74 ? 3 : rl < 0.92 ? 4 : 5;
+    if (len > Math.min(cols, rows) - 1) len = 3;
     let base, cx, cy;
-    if (rng() < P.diagChance) {
+    if (rng() < P.diagChance && len <= 3) {
       base = rng() < 0.5 ? Math.PI / 4 : Math.PI * 3 / 4;
       cx = Math.round(rng() * cols * 2) / 2;
       cy = Math.round(rng() * rows * 2) / 2;
@@ -443,7 +454,7 @@ function genLevel(n) {
   const palette = idx.slice(0, P.colorCount);
   order.forEach((v, i) => {
     v.color = palette[i < P.colorCount ? i : Math.floor(rng() * P.colorCount)];
-    v.cap = v.len === 3 ? 6 : 4;
+    v.cap = (v.len - 1) * 8;          // 8 / 16 / 24 / 32석
     v.hidden = rng() < P.hiddenChance;
   });
 
@@ -456,7 +467,10 @@ function genLevel(n) {
 
   return {
     cols, rows, vehicles: order,
-    queue: q.map((p, i) => ({ id: i, color: p.color, kind: rng() < 0.5 ? 'cat' : 'dog', bag: rng() < 0.18 })),
+    queue: q.map((p, i) => ({
+      id: i, color: p.color, kind: rng() < 0.5 ? 'cat' : 'dog', bag: rng() < 0.16,
+      ribbon: rng() < 0.15 ? ['#e8768e', '#7fb4d6', '#f2c35a', '#b9a2d8'][Math.floor(rng() * 4)] : null,
+    })),
   };
 }
 
@@ -536,14 +550,23 @@ function layout() {
   const tr = mulberry32(7);
   for (let i = 0; i < 26; i++) L.tufts.push([14 + tr() * (W - 28), L.qTop + 8 + tr() * (L.qH - 16), tr()]);
 
-  // 정류장 대기 칸
+  // 원 왼쪽 아래에서 정류장으로 내려가는 길 (멍냥이들이 걸어서 버스를 타러 가요)
+  L.exitA = 0.78 * Math.PI;                                   // 원에서 나가는 지점 (왼쪽 아래)
+  L.exitX = L.rcx + Math.cos(L.exitA) * L.rx;
+  L.exitY = L.rcy + Math.sin(L.exitA) * L.ry;
+
+  // 정류장: 위쪽 보도(걸어가는 길) + 대기 칸 + 아래쪽 찻길(버스가 떠나는 길)
   L.sTop = L.qTop + L.qH + 8;
-  L.sH = clamp(H * 0.12, 60, 110);
+  L.swH = L.pr * 2.2;                                         // 보도 높이
+  L.walkY = L.sTop + L.swH * 0.55;
+  L.sH = clamp(H * 0.11, 56, 100);
+  L.roadH = L.pr * 2.8;
   L.sw = Math.min((W - 2 * pad) / MAX_SLOTS, L.sH * 0.62);
   L.sx0 = (W - L.sw * MAX_SLOTS) / 2;
+  L.roadY = L.sTop + L.swH + L.sH + L.roadH / 2;
 
   // 주차장
-  const bTop = L.sTop + L.sH + 12, bH = H - bTop - pad;
+  const bTop = L.sTop + L.swH + L.sH + L.roadH + 12, bH = H - bTop - pad;
   L.cs = Math.floor(Math.min((W - 2 * pad) / (S.cols + 0.4), bH / (S.rows + 0.4)));
   L.bx = (W - L.cs * S.cols) / 2;
   L.by = bTop + (bH - L.cs * S.rows) / 2;
@@ -589,7 +612,8 @@ function buildWaitPath() {
   const yB = L.qTop + L.qH - 6 - L.laneW / 2 - g / 2;
   const pts = [[ex, ey]];
   for (let c = 0; c < C; c++) {
-    const x = xa + g / 2 + c * g, down = c % 2 === 0;
+    // 마지막 줄이 위로 올라가서, 줄의 시작(집)이 오른쪽 위에 오도록
+    const x = xa + g / 2 + c * g, down = (C - 1 - c) % 2 === 1;
     const ys = c === 0 ? ey : (down ? yT : yB), ye = down ? yB : yT;
     const steps = Math.max(2, Math.ceil(Math.abs(ye - ys) / 6));
     for (let i = 0; i <= steps; i++) pts.push([x, lerp(ys, ye, i / steps)]);
@@ -625,8 +649,23 @@ function bestVehicleFor(color) {
   return best;
 }
 
-const slotPos = i => ({ x: L.sx0 + L.sw * (i + 0.5), y: L.sTop + L.sH / 2 });
-const slotSize = v => { const w = L.sw * 0.72; return { w, l: Math.min(L.sH * 0.9, w * (v.len === 3 ? 2.4 : 1.8)) }; };
+const slotPos = i => ({ x: L.sx0 + L.sw * (i + 0.5), y: L.sTop + L.swH + L.sH / 2 });
+
+// 원 위의 자리 → 원 출구 → 정류장 보도 → 내 버스 문 앞까지 걸어가는 길
+//   (잔디 섬을 가로지르지 않고 원형 길을 따라 출구까지 가요)
+function walkRoute(p, v, s0) {
+  const sp = slotPos(v.slot), top = sp.y - slotSize(v).l / 2;
+  const qb = L.qTop + L.qH, T = L.ring.total;
+  const sExit = L.ring.cum[Math.round(L.exitA / (Math.PI * 2) * 160)];
+  let d = ((sExit - s0) % T + T) % T;            // 앞으로 돌아가는 거리
+  const dir = d <= T / 2 ? 1 : -1;               // 더 가까운 쪽으로
+  if (dir < 0) d = T - d;
+  const pts = [[p.x, p.y]];
+  for (let u = 8; u < d; u += 8) { const q = pathPoint(L.ring, ((s0 + dir * u) % T + T) % T); pts.push([q.x, q.y]); }
+  pts.push([L.exitX, L.exitY], [L.exitX, qb - 4], [L.exitX, L.walkY], [sp.x, L.walkY], [sp.x, top + 2]);
+  return makePath(pts, false);
+}
+const slotSize = v => { const w = L.sw * 0.72; return { w, l: Math.min(L.sH * 0.9, w * (1.3 + v.len * 0.32)) }; };
 
 // =====================================================================
 //  입력
@@ -728,8 +767,16 @@ $('liftBtn').onclick = () => {
 $('homeBtn').onclick = () => showMenu();
 $('settingsBtn').onclick = $('settingsBtn2').onclick = () => showSettings();
 document.querySelectorAll('.settingsBtn').forEach(b => b.innerHTML = GEAR_SVG);
-// 꾹 누르기(길게 터치) 메뉴 막기
+// 꾹 누르기(길게 터치) 메뉴, 페이지 전체가 선택되는 현상, 두 번 탭 확대 막기
 document.addEventListener('contextmenu', e => { if (!e.target.closest('input')) e.preventDefault(); });
+document.addEventListener('selectstart', e => { if (!e.target.closest || !e.target.closest('input')) e.preventDefault(); });
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - lastTouchEnd < 300 && !e.target.closest('input')) e.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
+document.addEventListener('gesturestart', e => e.preventDefault());
 // 화면의 모든 버튼에 "톡" 피아노 소리
 document.addEventListener('click', e => { if (e.target.closest('button')) sfx('click'); }, true);
 // 브라우저는 사용자가 한 번 터치해야 소리를 낼 수 있어서, 첫 터치 때 배경음악을 시작해요
@@ -770,10 +817,16 @@ function update(dt) {
       v.t += dt / (v.lifted ? 0.55 : 0.32);
       if (v.t >= 1) { v.t = 1; v.state = 'slot'; }
     } else if (v.state === 'slot') {
-      if (v.filled >= v.cap && v.incoming === 0) { v.state = 'departing'; v.t = 0; sfx('depart'); }
+      if (v.filled >= v.cap && v.incoming === 0) {
+        v.state = 'departing'; v.t = 0; v.left = false;
+        const p = slotPos(v.slot); v.depX = p.x; v.depY = p.y;
+        sfx('depart');
+      }
     } else if (v.state === 'departing') {
-      v.t += dt / 0.5;
-      if (v.t >= 1) { S.slots[v.slot] = null; v.state = 'gone'; checkWin(); }
+      // 칸에서 아래 찻길로 빠져나와 오른쪽으로 신나게 떠나요
+      v.t += dt / 1.9;
+      if (!v.left && v.t >= 0.22) { v.left = true; S.slots[v.slot] = null; }   // 칸은 먼저 비워 줘요
+      if (v.t >= 1) { v.state = 'gone'; checkWin(); }
     }
   }
 
@@ -786,18 +839,20 @@ function update(dt) {
   // 승객 태우기: 원 위에 있는 승객은 누구든 같은 색 버스에 탈 수 있어요
   S.boardTimer -= dt;
   if (S.boardTimer <= 0) {
-    let pick = null;
+    let pick = null, best = Infinity;
     S.ring.forEach((p, k) => {
       if (!p || p.x === undefined) return;
       const v = bestVehicleFor(p.color);
-      if (v && (!pick || p.y > pick.p.y)) pick = { k, p, v };  // 버스에 가까운(아래쪽) 승객부터
+      const d = (p.x - L.exitX) ** 2 + (p.y - L.exitY) ** 2;   // 출구에 가까운 친구부터
+      if (v && d < best) { best = d; pick = { k, p, v }; }
     });
     if (pick) {
       const { k, p, v } = pick;
       S.ring[k] = null;
       v.incoming++;
-      S.flying.push({ color: p.color, kind: p.kind, bag: p.bag, x0: p.x, y0: p.y, t: 0, v });
-      S.boardTimer = 0.08;
+      // 버스까지 걸어가는 친구 (눈이 반짝반짝!)
+      S.flying.push({ color: p.color, kind: p.kind, bag: p.bag, ribbon: p.ribbon, id: p.id, path: walkRoute(p, v, ringS(k)), s: 0, v });
+      S.boardTimer = 0.06;
       sfx('board', v.filled + v.incoming);
       updateUI();
     }
@@ -805,10 +860,10 @@ function update(dt) {
 
   let landed = false;
   for (const f of S.flying) {
-    f.t += dt / 0.24;
-    if (f.t >= 1) { f.v.filled++; f.v.incoming--; landed = true; }
+    f.s += dt * L.pr * 14;
+    if (f.s >= f.path.total) { f.v.filled++; f.v.incoming--; landed = true; f.done = true; }
   }
-  S.flying = S.flying.filter(f => f.t < 1);
+  S.flying = S.flying.filter(f => !f.done);
   if (landed) updateUI();
 
   // 승객들이 자기 자리로 걸어가기
@@ -930,17 +985,28 @@ function drawVehicle(x, y, a, w, l, colorIdx, hidden, o = {}) {
     ctx.lineTo(-sw, s); ctx.lineTo(-sw, hb); ctx.lineTo(-hw, hb); ctx.closePath();
     ctx.fillStyle = '#fbf3e2'; ctx.fill();
     ctx.strokeStyle = LINE; ctx.lineWidth = lw * 0.8; ctx.stroke();
-  } else if (o.seats) {
-    const { filled, cap } = o.seats;
-    const rowsN = cap / 2;
-    const top = -l / 2 + w * 0.55, bottom = l / 2 - w * 0.45;
-    const gap = (bottom - top) / Math.max(1, rowsN - 1);
-    const r = Math.min(w * 0.13, gap * 0.38);
-    for (let i = 0; i < cap; i++) {
-      ctx.beginPath(); ctx.arc((i % 2 === 0 ? -1 : 1) * w * 0.2, top + Math.floor(i / 2) * gap, r, 0, Math.PI * 2);
-      if (i < filled) { ctx.fillStyle = '#fbf3e2'; ctx.fill(); ctx.strokeStyle = LINE; ctx.lineWidth = lw * 0.6; ctx.stroke(); }
-      else { ctx.fillStyle = 'rgba(112,104,96,.2)'; ctx.fill(); }
-    }
+  } else if (o.seats !== undefined && o.seats !== null) {
+    // 남은 좌석 수를 지붕에 크게
+    ctx.rotate(-a);
+    const tw = w * 0.82, th = w * 0.62;
+    rr(-tw / 2, -th / 2, tw, th, th * 0.35);
+    ctx.fillStyle = 'rgba(251,246,234,.95)'; ctx.fill();
+    ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = '#5a4a3a';
+    ctx.font = `700 ${w * (o.seats >= 10 ? 0.4 : 0.48)}px MaruBuri, serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(o.seats), 0, 1);
+  }
+  if (o.capLabel && !hidden) {
+    // 주차된 버스: 꼬리 쪽에 작은 숫자로 정원 표시
+    ctx.save();
+    ctx.translate(0, l / 2 - w * 0.48);
+    ctx.rotate(-a);
+    ctx.font = `700 ${w * 0.3}px MaruBuri, serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'rgba(90,80,70,.7)'; ctx.lineWidth = 2; ctx.strokeText(String(o.capLabel), 0, 0.5);
+    ctx.fillStyle = '#fbf3e2'; ctx.fillText(String(o.capLabel), 0, 0.5);
+    ctx.restore();
   }
   ctx.restore();
 }
@@ -1054,7 +1120,9 @@ function drawHouse(x, y, s) {
   });
 }
 
-function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, bag = false) {
+// 고양이 / 강아지 승객 (발 위치 기준)
+//   opts: bag(분홍 보따리) ribbon(리본 색) sleep(쿨쿨) excited(버스 타러 가는 중: 눈이 초롱초롱)
+function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, opts = {}) {
   const C = COLORS[colorIdx], LT = lightOf(C), SH = shadeOf(C);
   const lw = 0.9;
   const line = (w = lw) => { ctx.strokeStyle = LINE; ctx.lineWidth = w; ctx.stroke(); };
@@ -1069,8 +1137,7 @@ function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, bag = false) {
   // 꼬리 (몸 뒤에 그려요)
   const tt = performance.now() / 1000 + phase;
   if (kind === 'cat') {
-    // 고양이: 길고 살랑살랑 흔들리는 꼬리 (테두리 → 털색 순서로 두 번 그어요)
-    const sw = Math.sin(tt * 2.6);
+    const sw = Math.sin(tt * (opts.sleep ? 0.8 : 2.6));
     const tx = x + r * (1.25 + sw * 0.15), ty = y - r * (0.85 + sw * 0.1);
     ctx.beginPath();
     ctx.moveTo(x + r * 0.35, y - r * 0.05);
@@ -1078,8 +1145,7 @@ function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, bag = false) {
     ctx.strokeStyle = LINE; ctx.lineWidth = r * 0.3 + lw * 2; ctx.stroke();
     ctx.strokeStyle = C.c; ctx.lineWidth = r * 0.3; ctx.stroke();
   } else {
-    // 강아지: 짧고 복슬복슬, 신나서 붕붕 흔드는 꼬리
-    const wag = Math.sin(tt * 14) * 0.35;
+    const wag = Math.sin(tt * (opts.sleep ? 2 : opts.excited ? 22 : 14)) * 0.35;
     ctx.save();
     ctx.translate(x + r * 0.42, y - r * 0.15);
     ctx.rotate(-0.55 + wag);
@@ -1087,59 +1153,65 @@ function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, bag = false) {
     ctx.fillStyle = C.c; ctx.fill(); line();
     ctx.restore();
   }
-
-  // 작고 통통한 몸 (위는 밝고 아래는 살짝 어둡게) + 크림색 배 + 발
-  const bg = ctx.createLinearGradient(0, y - r * 0.55, 0, y + r * 0.45);
-  bg.addColorStop(0, LT); bg.addColorStop(0.5, C.c); bg.addColorStop(1, SH);
-  rr(x - r * 0.52, y - r * 0.55, r * 1.04, r * 1.0, r * 0.48);
-  ctx.fillStyle = bg; ctx.fill(); line();
-  ctx.fillStyle = 'rgba(253,245,230,.75)'; ell(x, y - r * 0.02, r * 0.22, r * 0.25);
+  // 발 (몸 아래)
   for (const s of [-1, 1]) {
     ctx.beginPath(); ctx.ellipse(x + s * r * 0.25, y + r * 0.42, r * 0.17, r * 0.11, 0, 0, Math.PI * 2);
     ctx.fillStyle = C.c; ctx.fill(); line(lw * 0.8);
   }
 
-  // 분홍 보따리 (몇몇 친구만): 막대에 매달아 어깨에 메고 있어요
-  if (bag) {
-    ctx.beginPath(); ctx.moveTo(x + r * 0.05, y - r * 0.25); ctx.lineTo(x - r * 0.78, y - r * 1.05);
-    ctx.strokeStyle = '#8f6a4d'; ctx.lineWidth = r * 0.13; ctx.stroke();
-    const bx = x - r * 0.92, by = y - r * 0.82;
-    ctx.beginPath(); ctx.arc(bx, by, r * 0.42, 0, Math.PI * 2);
-    ctx.fillStyle = '#f2abbe'; ctx.fill(); line();
-    ctx.fillStyle = 'rgba(255,250,245,.85)';
-    circle(bx - r * 0.15, by + r * 0.05, r * 0.06); circle(bx + r * 0.14, by + r * 0.16, r * 0.06); circle(bx + r * 0.05, by - r * 0.17, r * 0.05);
-    // 묶은 매듭
-    ctx.beginPath(); ctx.ellipse(bx + r * 0.1, by - r * 0.42, r * 0.13, r * 0.08, -0.6, 0, Math.PI * 2);
-    ctx.fillStyle = '#e897ad'; ctx.fill(); line(lw * 0.8);
-  }
-
-  // 큰 머리
   const hx = x, hy = y - r * 1.2, hr = r * 1.02;
-  const earPath = s => {
+  const bodyPath = () => rr(x - r * 0.52, y - r * 0.55, r * 1.04, r * 1.0, r * 0.48);
+  const headPath = () => { ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2); };
+  const catEar = s => {
     ctx.beginPath();
     ctx.moveTo(hx + s * hr * 0.95, hy - hr * 0.1); ctx.lineTo(hx + s * hr * 0.75, hy - hr * 1.22); ctx.lineTo(hx + s * hr * 0.12, hy - hr * 0.75);
     ctx.closePath();
   };
-  const headPath = () => { ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2); };
-  if (kind === 'cat') {
-    // 고양이: 귀와 얼굴을 하나의 실루엣으로 — 바깥 테두리를 먼저 그리고 안쪽을 채워서
-    // 귀와 얼굴이 만나는 곳에는 선이 없어요
-    ctx.strokeStyle = LINE; ctx.lineWidth = lw * 2;
-    earPath(-1); ctx.stroke(); earPath(1); ctx.stroke(); headPath(); ctx.stroke();
-    for (const s of [-1, 1]) {
-      earPath(s); ctx.fillStyle = C.c; ctx.fill();
+  const dogEar = s => { ctx.beginPath(); ctx.ellipse(hx + s * hr * 0.86, hy + hr * 0.08, hr * 0.3, hr * 0.6, -s * 0.35, 0, Math.PI * 2); };
+  const ear = kind === 'cat' ? catEar : dogEar;
+
+  // 한 덩어리 실루엣: 몸·귀·머리의 바깥 테두리를 먼저 굵게 긋고, 그 위를 색으로 채워요.
+  // → 겉 테두리만 남고, 몸과 얼굴 / 귀와 얼굴이 이어지는 안쪽에는 선이 없어요.
+  ctx.strokeStyle = LINE; ctx.lineWidth = lw * 2;
+  bodyPath(); ctx.stroke(); ear(-1); ctx.stroke(); ear(1); ctx.stroke(); headPath(); ctx.stroke();
+
+  // 몸 (위는 밝고 아래는 살짝 어둡게) + 크림색 배
+  const bg = ctx.createLinearGradient(0, y - r * 0.55, 0, y + r * 0.45);
+  bg.addColorStop(0, LT); bg.addColorStop(0.5, C.c); bg.addColorStop(1, SH);
+  bodyPath(); ctx.fillStyle = bg; ctx.fill();
+  ctx.fillStyle = 'rgba(253,245,230,.75)'; ell(x, y - r * 0.02, r * 0.22, r * 0.25);
+
+  // 귀
+  for (const s of [-1, 1]) {
+    ear(s); ctx.fillStyle = kind === 'cat' ? C.c : SH; ctx.fill();
+    if (kind === 'cat') {
       ctx.fillStyle = '#efb5bf';
       ctx.beginPath();
       ctx.moveTo(hx + s * hr * 0.78, hy - hr * 0.38); ctx.lineTo(hx + s * hr * 0.7, hy - hr * 0.95); ctx.lineTo(hx + s * hr * 0.38, hy - hr * 0.72);
       ctx.closePath(); ctx.fill();
     }
   }
+
   // 머리: 왼쪽 위에서 햇빛이 드는 듯 부드러운 음영
   const hg = ctx.createRadialGradient(hx - hr * 0.35, hy - hr * 0.42, hr * 0.1, hx, hy, hr * 1.05);
   hg.addColorStop(0, LT); hg.addColorStop(0.65, C.c); hg.addColorStop(1, SH);
-  headPath();
-  ctx.fillStyle = hg; ctx.fill();
-  if (kind !== 'cat') line();
+  headPath(); ctx.fillStyle = hg; ctx.fill();
+  // 강아지 귀는 얼굴 위로 늘어지게: 귀를 한 번 더 칠하면 바깥 테두리는 남고 얼굴 쪽 이음새엔 선이 없어요
+  if (kind === 'dog') for (const s of [-1, 1]) { dogEar(s); ctx.fillStyle = SH; ctx.fill(); }
+
+  // 분홍 보따리 (몇몇 친구만): 막대에 매달아 어깨에 메고 있어요
+  if (opts.bag) {
+    ctx.beginPath(); ctx.moveTo(x + r * 0.05, y - r * 0.25); ctx.lineTo(x - r * 0.78, y - r * 1.05);
+    ctx.strokeStyle = '#8f6a4d'; ctx.lineWidth = r * 0.13; ctx.stroke();
+    const bx = x - r * 0.98, by = y - r * 0.78;
+    ctx.beginPath(); ctx.arc(bx, by, r * 0.42, 0, Math.PI * 2);
+    ctx.fillStyle = '#f2abbe'; ctx.fill(); line();
+    ctx.fillStyle = 'rgba(255,250,245,.85)';
+    circle(bx - r * 0.15, by + r * 0.05, r * 0.06); circle(bx + r * 0.14, by + r * 0.16, r * 0.06); circle(bx + r * 0.05, by - r * 0.17, r * 0.05);
+    ctx.beginPath(); ctx.ellipse(bx + r * 0.1, by - r * 0.42, r * 0.13, r * 0.08, -0.6, 0, Math.PI * 2);
+    ctx.fillStyle = '#e897ad'; ctx.fill(); line(lw * 0.8);
+  }
+
   // 정수리 털 한 가닥
   ctx.beginPath();
   ctx.moveTo(hx - hr * 0.08, hy - hr * 0.97);
@@ -1147,16 +1219,10 @@ function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, bag = false) {
   line(lw * 0.85);
 
   if (kind === 'dog') {
-    // 강아지: 얼굴에서 이어져 늘어진 귀 (테두리 없이) + 크림색 주둥이 + 코
-    for (const s of [-1, 1]) {
-      ctx.beginPath(); ctx.ellipse(hx + s * hr * 0.82, hy + hr * 0.1, hr * 0.3, hr * 0.58, -s * 0.35, 0, Math.PI * 2);
-      ctx.fillStyle = SH; ctx.fill();
-    }
     ctx.beginPath(); ctx.ellipse(hx, hy + hr * 0.36, hr * 0.42, hr * 0.28, 0, 0, Math.PI * 2);
     ctx.fillStyle = '#fbf1de'; ctx.fill(); line(lw * 0.6);
     ctx.fillStyle = '#3a2c20'; ell(hx, hy + hr * 0.22, hr * 0.16, hr * 0.11);
   } else {
-    // 고양이: 분홍 코 + 수염
     ctx.fillStyle = 'rgba(253,245,230,.85)'; ell(hx, hy + hr * 0.32, hr * 0.36, hr * 0.22);
     ctx.fillStyle = '#d98490'; ell(hx, hy + hr * 0.2, hr * 0.12, hr * 0.08);
     if (r >= 7) {
@@ -1169,10 +1235,10 @@ function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, bag = false) {
       ctx.stroke();
     }
   }
-  // 발그레한 볼 (부드러운 분홍 + 진한 가운데 + 작은 빗금)
+  // 발그레한 볼
   for (const s of [-1, 1]) {
     const bx = hx + s * hr * 0.56, by = hy + hr * 0.2;
-    ctx.fillStyle = 'rgba(255,130,160,.35)'; ell(bx, by, hr * 0.24, hr * 0.16);
+    ctx.fillStyle = `rgba(255,130,160,${opts.excited ? 0.5 : 0.35})`; ell(bx, by, hr * 0.24, hr * 0.16);
     ctx.fillStyle = 'rgba(255,95,135,.6)'; ell(bx, by, hr * 0.15, hr * 0.1);
     if (r >= 7) {
       ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 0.7;
@@ -1182,12 +1248,49 @@ function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, bag = false) {
       ctx.stroke();
     }
   }
-  // 동글동글한 눈 + 작은 빛
-  ctx.fillStyle = '#2e231a';
-  ell(hx - hr * 0.34, hy - hr * 0.05, hr * 0.14, hr * 0.17); ell(hx + hr * 0.34, hy - hr * 0.05, hr * 0.14, hr * 0.17);
-  ctx.fillStyle = 'rgba(255,250,240,.9)';
-  circle(hx - hr * 0.38, hy - hr * 0.11, hr * 0.05); circle(hx + hr * 0.3, hy - hr * 0.11, hr * 0.05);
+  // 눈
+  if (opts.sleep) {
+    // 쿨쿨: 감은 눈 (아래로 둥근 선)
+    ctx.strokeStyle = '#2e231a'; ctx.lineWidth = Math.max(1, hr * 0.08);
+    for (const s of [-1, 1]) { ctx.beginPath(); ctx.arc(hx + s * hr * 0.34, hy - hr * 0.1, hr * 0.13, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke(); }
+  } else if (opts.excited) {
+    // 초롱초롱: 크고 반짝이는 눈 + 별빛
+    ctx.fillStyle = '#2e231a';
+    ell(hx - hr * 0.34, hy - hr * 0.06, hr * 0.18, hr * 0.21); ell(hx + hr * 0.34, hy - hr * 0.06, hr * 0.18, hr * 0.21);
+    ctx.fillStyle = '#fffaf0';
+    for (const s of [-1, 1]) {
+      circle(hx + s * hr * 0.34 - hr * 0.06, hy - hr * 0.14, hr * 0.075);
+      circle(hx + s * hr * 0.34 + hr * 0.06, hy - hr * 0.0, hr * 0.035);
+    }
+    const tw = 0.6 + Math.sin(tt * 10) * 0.4;
+    ctx.fillStyle = `rgba(255,214,110,${f1(tw)})`;
+    star(hx + hr * 1.05, hy - hr * 0.85, hr * 0.22);
+  } else {
+    ctx.fillStyle = '#2e231a';
+    ell(hx - hr * 0.34, hy - hr * 0.05, hr * 0.14, hr * 0.17); ell(hx + hr * 0.34, hy - hr * 0.05, hr * 0.14, hr * 0.17);
+    ctx.fillStyle = 'rgba(255,250,240,.9)';
+    circle(hx - hr * 0.38, hy - hr * 0.11, hr * 0.05); circle(hx + hr * 0.3, hy - hr * 0.11, hr * 0.05);
+  }
+  // 리본 (몇몇 친구만): 머리 위 오른쪽에 나비 모양
+  if (opts.ribbon) {
+    const rx = hx + hr * 0.42, ry = hy - hr * 0.92, k = hr * 0.32;
+    ctx.fillStyle = opts.ribbon; ctx.strokeStyle = LINE; ctx.lineWidth = lw;
+    for (const s of [-1, 1]) {
+      ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx + s * k * 1.25, ry - k * 0.7); ctx.lineTo(rx + s * k * 1.25, ry + k * 0.7); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(rx, ry, k * 0.32, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
   ctx.restore();
+}
+// 작은 반짝이 별
+function star(x, y, r) {
+  ctx.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const a = i * Math.PI / 4, k = i % 2 ? r * 0.35 : r;
+    ctx.lineTo(x + Math.cos(a) * k, y + Math.sin(a) * k);
+  }
+  ctx.closePath(); ctx.fill();
 }
 
 function vehiclePose(v) {
@@ -1209,23 +1312,32 @@ function vehiclePose(v) {
       w: lerp(f.w, s.w, e), l: lerp(f.l, s.l, e), scale: lift,
     };
   }
-  if (v.state === 'departing') return { x: p.x, y: p.y - easeIn(v.t) * L.sH * 1.3, a: 0, w: s.w, l: s.l, alpha: 1 - v.t };
+  if (v.state === 'departing') {
+    if (v.t < 0.22) {   // 칸에서 아래 찻길로 빠져나오며 오른쪽으로 방향을 틀어요
+      const u = easeInOut(v.t / 0.22);
+      return { x: v.depX + u * s.w * 0.3, y: lerp(v.depY, L.roadY, u), a: u * Math.PI / 2, w: s.w, l: s.l };
+    }
+    const u = easeIn((v.t - 0.22) / 0.78);
+    return { x: lerp(v.depX + s.w * 0.3, L.W + s.l, u), y: L.roadY, a: Math.PI / 2, w: s.w, l: s.l };
+  }
   return { x: p.x, y: p.y, a: 0, w: s.w, l: s.l };
 }
 
 function drawQueueArea() {
   // 풀밭
+  // 풀밭 색도 메인 화면의 계절을 따라가요
+  const SP = SEASONS[season];
   const g = ctx.createLinearGradient(0, L.qTop, 0, L.qTop + L.qH);
-  g.addColorStop(0, '#d3e7b3'); g.addColorStop(1, '#b4d593');
+  g.addColorStop(0, SP.meadow[0]); g.addColorStop(1, SP.meadow[1]);
   ctx.fillStyle = g;
   rr(8, L.qTop, L.W - 16, L.qH, 18); ctx.fill();
   ctx.strokeStyle = 'rgba(112,104,96,.55)'; ctx.lineWidth = 1; ctx.stroke();
   for (const [x, y, k] of L.tufts) {
-    if (k < 0.75) {
-      ctx.strokeStyle = '#93bb77'; ctx.lineWidth = 1.5;
+    if (k < 0.75 || !SP.flowers.length) {
+      ctx.strokeStyle = SP.grass[Math.floor(k * 7) % SP.grass.length]; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(x - 3, y + 3); ctx.lineTo(x - 1, y - 3); ctx.moveTo(x, y + 3); ctx.lineTo(x + 2, y - 4); ctx.moveTo(x + 3, y + 3); ctx.lineTo(x + 5, y - 2); ctx.stroke();
     } else {
-      ctx.fillStyle = k < 0.88 ? '#fff6c8' : '#ffc4d6'; circle(x, y, 2.4);
+      ctx.fillStyle = SP.flowers[Math.floor(k * 13) % SP.flowers.length]; circle(x, y, 2.2);
     }
   }
 
@@ -1234,10 +1346,12 @@ function drawQueueArea() {
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   const waitPath = () => { ctx.beginPath(); L.wait.pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); };
   const ringPath = () => { ctx.beginPath(); ctx.ellipse(L.rcx, L.rcy, L.rx, L.ry, 0, 0, Math.PI * 2); };
+  const exitPath = () => { ctx.beginPath(); ctx.moveTo(L.exitX, L.exitY); ctx.lineTo(L.exitX, L.qTop + L.qH + 2); };
+  const dirt = season === 'winter' ? '#eef1f4' : '#ebd8b2';
   ctx.strokeStyle = 'rgba(112,104,96,.6)'; ctx.lineWidth = L.laneW + 2;
-  waitPath(); ctx.stroke(); ringPath(); ctx.stroke();
-  ctx.strokeStyle = '#ebd8b2'; ctx.lineWidth = L.laneW;
-  waitPath(); ctx.stroke(); ringPath(); ctx.stroke();
+  waitPath(); ctx.stroke(); ringPath(); ctx.stroke(); exitPath(); ctx.stroke();
+  ctx.strokeStyle = dirt; ctx.lineWidth = L.laneW;
+  waitPath(); ctx.stroke(); ringPath(); ctx.stroke(); exitPath(); ctx.stroke();
 
   // 줄이 시작되는 곳의 작은 집 (멍냥이들이 여기서 나와요)
   const [hx0, hy0] = L.wait.pts[L.wait.pts.length - 1];
@@ -1248,11 +1362,11 @@ function drawQueueArea() {
 
   // 원 가운데 잔디 섬 + 큰 나무 + 꽃
   const irx = L.rx - L.laneW / 2 - 4, iry = L.ry - L.laneW / 2 - 4;
-  ctx.fillStyle = '#c2dea0'; ell(L.rcx, L.rcy, irx, iry);
+  ctx.fillStyle = SP.meadow[0]; ell(L.rcx, L.rcy, irx, iry);
   ctx.strokeStyle = 'rgba(112,104,96,.35)'; ctx.lineWidth = 1; ctx.stroke();
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 10 && SP.flowers.length; i++) {
     const a = i / 10 * Math.PI * 2 + 0.3;
-    ctx.fillStyle = i % 3 === 0 ? '#ffc4d6' : i % 3 === 1 ? '#fff6c8' : '#ffffff';
+    ctx.fillStyle = SP.flowers[i % SP.flowers.length];
     circle(L.rcx + Math.cos(a) * irx * 0.78, L.rcy + Math.sin(a) * iry * 0.7, 2.4);
   }
   // 가운데 큰 나무 (메인 화면과 같은 계절의 잎사귀 나무)
@@ -1275,17 +1389,21 @@ function drawQueueArea() {
   const vis = [];
   const add = (p, i, waitIdx = -1) => {
     if (!p || p.x === undefined) return;
-    // 줄 뒤쪽에서 오래 기다리는 몇몇 친구는 간식 생각 중 (번갈아 가며)
-    const think = waitIdx >= 8 && p.id % 5 === 0 && (S.time + p.id * 1.7) % 9 < 4.5;
-    vis.push({ x: p.x, y: p.y, c: p.color, kind: p.kind, bag: p.bag, think, ph: i * 0.73,
+    // 줄 뒤쪽에서 오래 기다리는 몇몇 친구: 간식 생각 중이거나, 지쳐서 쿨쿨 자는 중
+    const back = waitIdx >= 8 && !p.walking;
+    const sleep = back && waitIdx >= 10 && p.id % 6 === 2;
+    const think = !sleep && back && p.id % 5 === 0 && (S.time + p.id * 1.7) % 9 < 4.5;
+    vis.push({ x: p.x, y: p.y, c: p.color, kind: p.kind, think, sleep, ph: i * 0.73,
+      opts: { bag: p.bag, ribbon: p.ribbon, sleep },
       bob: p.walking ? Math.abs(Math.sin(S.time * 14 + i)) * 2 : 0 });
   };
   S.ring.forEach((p, i) => add(p, i));
   S.waiting.forEach((p, i) => add(p, i + 100, i));
   vis.sort((a, b) => a.y - b.y);
-  for (const p of vis) drawAnimal(p.x, p.y + L.pr * 0.3, L.pr, p.c, p.kind, p.bob, p.ph, p.bag);
+  for (const p of vis) drawAnimal(p.x, p.y + L.pr * 0.3, L.pr, p.c, p.kind, p.bob, p.ph, p.opts);
   let bubbles = 0;
   for (const p of vis) {
+    if (p.sleep) { drawZzz(p.x, p.y + L.pr * 0.3 - L.pr * 2.0, L.pr, p.ph); continue; }
     if (!p.think || bubbles >= 6) continue;
     bubbles++;
     drawThought(p.x, p.y + L.pr * 0.3 - L.pr * 2.05 - p.bob, L.pr, p.kind);
@@ -1309,11 +1427,38 @@ function draw() {
 
   drawQueueArea();
 
-  // 정류장 대기 칸: 아스팔트 위에 하얗게 칠한 주차 칸 + 바퀴 멈춤턱
+  // 정류장: 위쪽 보도 + 하얗게 칠한 주차 칸 + 아래쪽 찻길
+  const panelH = L.swH + L.sH + L.roadH + 8;
   ctx.fillStyle = '#8f8a83';
-  rr(8, L.sTop - 4, L.W - 16, L.sH + 8, 14); ctx.fill();
+  rr(8, L.sTop - 4, L.W - 16, panelH, 14); ctx.fill();
   ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
-  drawSpeckles(8, L.sTop - 4, L.W - 16, L.sH + 8, 40);
+  drawSpeckles(8, L.sTop - 4, L.W - 16, panelH, 50);
+  // 보도 (멍냥이들이 걸어가는 길)
+  ctx.fillStyle = '#e4dccb';
+  rr(8.5, L.sTop - 3.5, L.W - 17, L.swH + 3.5, 13); ctx.fill();
+  ctx.fillRect(8.5, L.sTop + 6, L.W - 17, L.swH - 6);
+  ctx.strokeStyle = 'rgba(112,104,96,.25)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 22; x < L.W - 14; x += Math.max(8, L.swH * 1.1)) { ctx.moveTo(x, L.sTop - 2); ctx.lineTo(x, L.sTop + L.swH); }
+  ctx.stroke();
+  ctx.strokeStyle = LINE; ctx.beginPath(); ctx.moveTo(8, L.sTop + L.swH); ctx.lineTo(L.W - 8, L.sTop + L.swH); ctx.stroke();
+  // 찻길 (다 탄 버스가 떠나는 길) + 가운데 점선
+  const ry0 = L.sTop + L.swH + L.sH;
+  ctx.fillStyle = '#7c7771';
+  ctx.fillRect(8.5, ry0, L.W - 17, L.roadH - 8);
+  rr(8.5, ry0, L.W - 17, L.roadH + 3.5, 13); ctx.fill();
+  ctx.strokeStyle = 'rgba(246,232,190,.75)'; ctx.lineWidth = 1.4; ctx.setLineDash([8, 7]);
+  ctx.beginPath(); ctx.moveTo(18, L.roadY); ctx.lineTo(L.W - 18, L.roadY); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(8, ry0); ctx.lineTo(L.W - 8, ry0); ctx.stroke();
+  // 원에서 내려오는 길을 보도까지 이어 주기
+  const bw2 = L.laneW;
+  ctx.fillStyle = '#ebd8b2';
+  ctx.fillRect(L.exitX - bw2 / 2, L.qTop + L.qH - 3, bw2, L.sTop - (L.qTop + L.qH) + 4);
+  ctx.strokeStyle = LINE; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(L.exitX - bw2 / 2, L.qTop + L.qH); ctx.lineTo(L.exitX - bw2 / 2, L.sTop - 4);
+  ctx.moveTo(L.exitX + bw2 / 2, L.qTop + L.qH); ctx.lineTo(L.exitX + bw2 / 2, L.sTop - 4);
+  ctx.stroke();
   for (let i = 0; i < MAX_SLOTS; i++) {
     const p = slotPos(i), w = L.sw * 0.9, h = L.sH * 0.92;
     const x0 = p.x - w / 2, x1 = p.x + w / 2, y0 = p.y - h / 2, y1 = p.y + h / 2;
@@ -1354,20 +1499,60 @@ function draw() {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('P', L.bx + S.cols * L.cs / 2, L.by + S.rows * L.cs / 2);
 
+  // 버스를 타러 걸어가는 친구들 (눈이 초롱초롱, 신나서 통통 뛰며)
+  const walkers = S.flying.map(f => ({ f, p: pathPoint(f.path, f.s) })).sort((a, b) => a.p.y - b.p.y);
+  for (const { f, p } of walkers) {
+    const bob = Math.abs(Math.sin(S.time * 16 + f.id)) * 2.5;
+    drawAnimal(p.x, p.y + L.pr * 0.3, L.pr * 0.92, f.color, f.kind, bob, f.id * 0.7,
+      { bag: f.bag, ribbon: f.ribbon, excited: true });
+  }
+
   const order = { parked: 0, slot: 1, departing: 1, exiting: 2, toSlot: 2 };
   const list = S.vehicles.filter(v => v.state in order).sort((a, b) => order[a.state] - order[b.state]);
   for (const v of list) {
     const P = vehiclePose(v);
     const inSlot = v.state === 'slot' || v.state === 'departing';
     drawVehicle(P.x, P.y, P.a, P.w, P.l, v.color, v.hidden, {
-      arrow: !inSlot, seats: inSlot ? { filled: v.filled, cap: v.cap } : null, alpha: P.alpha, scale: P.scale,
+      arrow: !inSlot, seats: inSlot ? v.cap - v.filled : null, capLabel: v.state === 'parked' ? v.cap : null,
+      alpha: P.alpha, scale: P.scale,
     });
   }
-
-  for (const f of S.flying) {
-    const p = slotPos(f.v.slot), e = easeIn(f.t);
-    drawAnimal(lerp(f.x0, p.x, e), lerp(f.y0, p.y, e) - Math.sin(f.t * Math.PI) * 18, L.pr * (1 - f.t * 0.4), f.color, f.kind, 0, 0, f.bag);
+  // 떠나는 버스: 신나는 음표 말풍선
+  for (const v of S.vehicles) {
+    if (v.state !== 'departing' || v.t < 0.12) continue;
+    const P = vehiclePose(v);
+    drawNoteBubble(P.x, P.y - P.w * 0.55, L.pr, v.t);
   }
+}
+
+// 음표 말풍선 (♪ 신난다!)
+function drawNoteBubble(x, y, r, t) {
+  const bx = x + r * 0.6, by = y - r * 1.9 - Math.sin(t * 20) * 1.2;
+  const w = r * 3.2, h = r * 2;
+  ctx.beginPath();
+  rr(bx - w / 2, by - h / 2, w, h, h * 0.45);
+  ctx.moveTo(bx - r * 0.5, by + h / 2 - 0.5); ctx.lineTo(bx - r * 0.9, by + h / 2 + r * 0.7); ctx.lineTo(bx - r * 0.05, by + h / 2 - 0.5);
+  ctx.fillStyle = '#fffdf8'; ctx.fill();
+  ctx.strokeStyle = LINE; ctx.lineWidth = 1;
+  rr(bx - w / 2, by - h / 2, w, h, h * 0.45); ctx.stroke();
+  ctx.font = `700 ${r * 1.35}px serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#d9906a'; ctx.fillText('♪', bx - r * 0.65, by + 1 + Math.sin(t * 25) * 1.5);
+  ctx.fillStyle = '#7fb4d6'; ctx.fillText('♫', bx + r * 0.65, by + 1 - Math.sin(t * 25) * 1.5);
+}
+
+// 쿨쿨 자는 친구 머리 위의 Z
+function drawZzz(x, headTop, r, ph) {
+  const t = (performance.now() / 1000 + ph) % 2.4 / 2.4;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let i = 0; i < 3; i++) {
+    const k = (t + i / 3) % 1;
+    ctx.globalAlpha = Math.sin(k * Math.PI) * 0.9;
+    ctx.font = `700 ${r * (0.6 + k * 0.6)}px MaruBuri, serif`;
+    ctx.fillStyle = '#8f9bb3';
+    ctx.fillText('z', x + r * (0.7 + k * 0.9), headTop - r * k * 1.4);
+  }
+  ctx.globalAlpha = 1;
 }
 
 // =====================================================================
@@ -1562,8 +1747,10 @@ function makeTree(seed, h, ss = season, detail = 1) {
     const off = limbs === 2 ? (i ? 0.38 : -0.42) : (i - 1) * 0.5;
     grow(tx, ty, lean + off * 1.25 + (R() - 0.5) * 0.2, h * (0.16 + R() * 0.04), tw * 0.72, 1);
   }
+  // 먼 숲(detail<1)은 줄기·가지 없이 잎만 빽빽하게 → 가지가 안 보이는 울창한 숲
+  const foliageOnly = detail < 1 && !bare;
   let s = detail >= 1 ? `<ellipse cx="0" cy="0" rx="${f1(h * 0.3)}" ry="${f1(h * 0.045)}" fill="rgba(60,50,30,.14)"/>` : '';
-  s += `<path d="M${f1(-tw * 0.65)} 0 Q${f1(-tw * 0.4)} ${f1(-trunkLen * 0.5)} ${f1(tx - tw * 0.36)} ${f1(ty)} L${f1(tx + tw * 0.36)} ${f1(ty)}
+  if (!foliageOnly) s += `<path d="M${f1(-tw * 0.65)} 0 Q${f1(-tw * 0.4)} ${f1(-trunkLen * 0.5)} ${f1(tx - tw * 0.36)} ${f1(ty)} L${f1(tx + tw * 0.36)} ${f1(ty)}
     Q${f1(tw * 0.4)} ${f1(-trunkLen * 0.5)} ${f1(tw * 0.65)} 0Z" fill="${P.trunk}" stroke="rgba(112,104,96,.45)" stroke-width=".6"/>`;
 
   let wash = '', leaves = '';
@@ -1571,10 +1758,10 @@ function makeTree(seed, h, ss = season, detail = 1) {
     // 물감 번짐: 가지 끝 근처에 옅은 색이 스며든 듯
     for (let i = 0; i < tips.length; i++) {
       const [x, y] = tips[i];
-      wash += `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(h * (0.08 + R() * 0.05))}" ry="${f1(h * (0.06 + R() * 0.04))}" fill="${pick(R, cols)}" opacity=".42"/>`;
+      wash += `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(h * (0.08 + R() * 0.05))}" ry="${f1(h * (0.06 + R() * 0.04))}" fill="${pick(R, cols)}" opacity="${foliageOnly ? '.7' : '.42'}"/>`;
     }
     // 잎사귀: 가지 끝마다 여러 장, 중간 가지에도 조금
-    const perTip = detail >= 1 ? 8 : 6;
+    const perTip = detail >= 1 ? 8 : 7;
     const L0 = h * (detail >= 1 ? 0.04 : 0.075);
     const addLeaf = (x, y, spread) => {
       const lx = x + (R() - 0.5) * spread, ly = y + (R() - 0.5) * spread;
@@ -1593,7 +1780,7 @@ function makeTree(seed, h, ss = season, detail = 1) {
     for (const [x, y] of mids) if (R() < 0.3) leaves += `<ellipse cx="${f1(x)}" cy="${f1(y - 0.5)}" rx="${f1(h * 0.02)}" ry="${f1(h * 0.008)}" fill="#fbfcfd"/>`;
   }
   s += `<g filter="url(#wash)">${wash}</g>`;
-  s += `<g stroke="${P.trunk}" fill="none" stroke-linecap="round">${branches}</g>`;
+  if (!foliageOnly) s += `<g stroke="${P.trunk}" fill="none" stroke-linecap="round">${branches}</g>`;
   s += leaves;
   return s;
 }
@@ -1716,7 +1903,7 @@ function renderScene() {
   // 지평선 숲: 먼 줄은 흐릿하고 작게, 앞 줄은 크고 진하게
   const ridge = x => 262 + Math.sin(x / 37) * 6 + Math.sin(x / 13) * 3;
   // 지평선 숲: 앞쪽 나무와 똑같은 수채화 나무를 작게 촘촘히 (먼 줄은 흐릿하게)
-  for (const [row, hmin, hmax, step, dy, op] of [[0, 20, 28, 8, 6, 0.6], [1, 26, 38, 11, 18, 0.95]]) {
+  for (const [row, hmin, hmax, step, dy, op] of [[0, 22, 30, 7, 16, 0.65], [1, 28, 40, 9, 28, 0.95]]) {
     let g = `<g opacity="${op}">`;
     for (let x = -12; x < 414; x += step * (0.7 + R() * 0.6)) {
       const th = hmin + R() * (hmax - hmin), y = ridge(x) + dy + R() * 4;
@@ -1725,7 +1912,7 @@ function renderScene() {
     s += g + '</g>';
   }
   // 들판
-  s += `<path d="M0 282 C 80 270 160 290 240 278 C 300 270 360 282 400 276 L400 800 L0 800Z" fill="url(#mdG)" stroke="rgba(112,104,96,.35)" stroke-width="1"/>`;
+  s += `<path d="M0 282 C 80 270 160 290 240 278 C 300 270 360 282 400 276 L400 800 L0 800Z" fill="url(#mdG)"/>`;
   // 들판 끝자락의 작은 나무들과 양옆의 큰 나무 (모두 땅 위에)
   for (const [x, y, h, sd] of [[34, 300, 46, 1], [372, 296, 52, 2], [120, 292, 30, 3], [262, 290, 28, 4]])
     s += `<g transform="translate(${x} ${y})">${makeTree(sd, h)}</g>`;

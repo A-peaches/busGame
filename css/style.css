@@ -224,9 +224,25 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .card.help li b { color: var(--ink); }
 /* 친구 버튼 (설명서 버튼 옆) + 선물 도착 빨간 점 */
 #menu > #friendsBtn { position: absolute; left: 62px; bottom: 16px; z-index: 4; }
-#friendsBtn { position: relative; }
-#friendsBtn .dot { display: none; position: absolute; top: 2px; right: 2px; width: 10px; height: 10px; border-radius: 50%; background: #e8768e; border: 1px solid #fff8ec; }
-#friendsBtn.hasDot .dot { display: block; }
+#menu > #mailBtn { position: absolute; left: 112px; bottom: 16px; z-index: 4; }
+#friendsBtn, #mailBtn { position: relative; }
+#friendsBtn .dot, #mailBtn .dot { display: none; position: absolute; top: 2px; right: 2px; width: 10px; height: 10px; border-radius: 50%; background: #e8768e; border: 1px solid #fff8ec; }
+#friendsBtn.hasDot .dot, #mailBtn.hasDot .dot { display: block; }
+/* 친구 순위 */
+.friendRow.me { background: #fbf1d3; border-radius: 8px; }
+.rank { display: inline-flex; width: 22px; justify-content: center; align-items: center; margin-right: 4px; font-size: 12px; color: var(--muted); vertical-align: middle; }
+.friendBtns { display: flex; gap: 4px; flex: none; }
+/* 우편함 */
+.mailList { max-height: 46vh; overflow-y: auto; margin: 6px 0; text-align: left; }
+.mailRow { display: flex; gap: 8px; padding: 8px 4px; border-bottom: 1px dashed #e2d6bf; font-size: 13.5px; line-height: 1.45; }
+.mailRow.unread { background: #fdf3dc; border-radius: 8px; }
+.mailRow .mi { flex: none; width: 24px; text-align: center; padding-top: 1px; }
+.mailRow .mb { flex: 1; min-width: 0; color: var(--ink); }
+.mailRow .mb small { color: var(--muted); font-size: 11px; }
+.mailRow .letter { display: block; margin-top: 3px; padding: 6px 8px; background: #fffaf0; border: 1px solid #e8dcc4; border-radius: 8px; word-break: break-all; }
+.mailRow .btn.mini { align-self: center; }
+.letterBox { width: 100%; box-sizing: border-box; min-height: 84px; resize: none; font: inherit; font-size: 16px; padding: 10px; border: 1px solid #c9b99c; border-radius: 10px; background: #fffaf0; color: var(--ink); }
+.letterCount { text-align: right; font-size: 11px; color: var(--muted); margin: 2px 2px 8px; }
 /* 친구 창 */
 .codeRow { display: flex; gap: 6px; align-items: center; justify-content: center; margin: 4px 0 8px; }
 .codeRow .nickInput { margin: 0; padding: 8px 10px; font-size: 16px; }

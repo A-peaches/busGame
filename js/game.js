@@ -176,16 +176,24 @@ const slotSize = v => { const w = L.sw * 0.72; return { w, l: Math.min(L.sH * 0.
 // =====================================================================
 //  입력
 // =====================================================================
+// 화면을 꾹 누르고 있으면 빨리감기! (손을 떼면 원래 속도로)
+let holdTimer = 0, holdXY = null;
+function holdEnd() { clearTimeout(holdTimer); holdXY = null; if (S) S.holding = false; }
+canvas.addEventListener('pointerdown', e => {
+  holdXY = [e.clientX, e.clientY];
+  clearTimeout(holdTimer);
+  holdTimer = setTimeout(() => { if (S && !S.over && holdXY) { S.holding = true; S.treeShake = 0.6; } }, 350);
+});
+canvas.addEventListener('pointermove', e => {
+  if (holdXY && Math.hypot(e.clientX - holdXY[0], e.clientY - holdXY[1]) > 14) holdEnd();
+});
+['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => canvas.addEventListener(ev, holdEnd));
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
 canvas.addEventListener('pointerdown', e => {
   if (!S || S.over) return;
   const r = canvas.getBoundingClientRect();
   const px = e.clientX - r.left, py = e.clientY - r.top;
-
-  // 가운데 나무를 누르면 빨리감기!
-  const iry = L.ry - L.laneW / 2 - 4;
-  if (Math.hypot((px - L.rcx) / (iry * 0.9), (py - (L.rcy - iry * 0.1)) / (iry * 0.9)) < 1) {
-    S.rush = 3; S.treeShake = 0.6; sfx('click'); return;
-  }
 
   if (py > L.sTop + L.swH && py < L.sTop + L.swH + L.sH) {
     const i = Math.floor((px - L.sx0) / L.sw);
@@ -383,7 +391,8 @@ function update(dt) {
   }
 
   // 원이 빙글빙글 돌고, 빈자리가 입구를 지나가면 기다리던 승객이 들어갑니다
-  // 가운데 나무를 누르면 잠깐 빨리감기 (줄이 빠르게 하트 길로 들어와요)
+  // 화면을 꾹 누르면 빨리감기 (줄이 빠르게 하트 길로 들어와요)
+  if (S.holding && !S.over) S.rush = Math.max(S.rush, 0.15);   // 꾹 누르는 동안 계속 빨리
   if (S.rush > 0) S.rush -= dt;
   if (S.treeShake > 0) S.treeShake -= dt;
   if (S.rail && S.rail.anim > 0) S.rail.anim = Math.max(0, S.rail.anim - dt / 0.25);
@@ -409,7 +418,7 @@ function update(dt) {
       v.incoming++;
       // 버스까지 걸어가는 친구 (눈이 반짝반짝!)
       S.flying.push({ color: p.color, kind: p.kind, bag: p.bag, ribbon: p.ribbon, id: p.id, path: walkRoute(p, v, ringS(k)), s: 0, v });
-      S.boardTimer = S.rush > 0 ? 0.02 : 0.06;   // 나무를 누른 동안엔 더 빨리 차례차례 출발
+      S.boardTimer = S.rush > 0 ? 0.02 : 0.06;   // 꾹 누르는 동안엔 더 빨리 차례차례 출발
       sfx('board', v.filled + v.incoming);
       updateUI();
     }
@@ -417,7 +426,7 @@ function update(dt) {
 
   let landed = false;
   for (const f of S.flying) {
-    f.s += dt * L.pr * 14 * (S.rush > 0 ? 2.5 : 1);   // 나무를 누른 동안엔 버스까지 더 빨리 걸어가요
+    f.s += dt * L.pr * 14 * (S.rush > 0 ? 2.5 : 1);   // 꾹 누르는 동안엔 버스까지 더 빨리 걸어가요
     if (f.s >= f.path.total) { f.v.filled++; f.v.incoming--; landed = true; f.done = true; }
   }
   S.flying = S.flying.filter(f => !f.done);

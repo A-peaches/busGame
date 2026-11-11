@@ -49,6 +49,9 @@ export default {
       if (path === '/push' && req.method === 'POST') return savePush(env, user, body);
       if (path === '/inbox') return inbox(env, user);
       if (path === '/backup' && req.method === 'POST') return makeBackup(env, user);
+      if (path === '/letter' && req.method === 'POST') return sendLetter(env, ctx, user, body);
+      if (path === '/mail' && req.method === 'GET') return listMail(env, user);
+      if (path === '/mail/read' && req.method === 'POST') return readMail(env, user);
       return json({ error: 'not found' }, 404);
     } catch (e) {
       return json({ error: String((e && e.message) || e) }, 500);
@@ -113,12 +116,52 @@ async function sync(env, user, body) {
   await env.DB.prepare('UPDATE users SET nickname = ?, unlocked = ?, hearts = ?, hearts_t = ?, full_at = ?, full_notified = ? WHERE id = ?')
     .bind(nickname, unlocked, hearts, hearts_t, full_at, full_notified, user.id).run();
   const g = await env.DB.prepare('SELECT COUNT(*) AS c FROM gifts WHERE to_id = ? AND claimed = 0').bind(user.id).first();
-  return json({ unlocked, gifts: g ? g.c : 0, code: user.code });
+  const l = await env.DB.prepare('SELECT COUNT(*) AS c FROM letters WHERE to_id = ? AND read = 0').bind(user.id).first();
+  return json({ unlocked, gifts: g ? g.c : 0, letters: l ? l.c : 0, code: user.code });
+}
+
+// ---- 우편함: 하트를 주고받은 기록 + 친구 쪽지 ----
+const LETTER_MAX = 80;            // 쪽지 글자 수
+const LETTER_PER_DAY = 30;        // 하루에 보낼 수 있는 쪽지 수 (장난 방지)
+async function sendLetter(env, ctx, user, body) {
+  const to = String(body.to || '');
+  const text = String(body.text || '').replace(/\s+/g, ' ').trim().slice(0, LETTER_MAX);
+  if (!text) return json({ error: '쪽지 내용을 적어 주세요' }, 400);
+  const f = await env.DB.prepare('SELECT 1 FROM friends WHERE a = ? AND b = ?').bind(user.id, to).first();
+  if (!f) return json({ error: '친구가 아니에요' }, 400);
+  const day = await env.DB.prepare('SELECT COUNT(*) AS c FROM letters WHERE from_id = ? AND at > ?').bind(user.id, now() - 86400000).first();
+  if (day && day.c >= LETTER_PER_DAY) return json({ error: '오늘은 쪽지를 너무 많이 보냈어요' }, 429);
+  await env.DB.prepare('INSERT INTO letters (from_id, to_id, body, at) VALUES (?, ?, ?, ?)').bind(user.id, to, text, now()).run();
+  const other = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(to).first();
+  if (other) ctx.waitUntil(notify(env, other, `✉️ ${user.nickname || '친구'}님의 쪽지`, text));
+  return json({ ok: true });
+}
+async function listMail(env, user) {
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM (
+       SELECT 'heart' AS kind, g.from_id, g.to_id, '' AS body, g.at, 1 AS read FROM gifts g WHERE g.to_id = ?1 OR g.from_id = ?1
+       UNION ALL
+       SELECT 'letter' AS kind, l.from_id, l.to_id, l.body, l.at, l.read FROM letters l WHERE l.to_id = ?1 OR l.from_id = ?1
+     ) m ORDER BY m.at DESC LIMIT 80`).bind(user.id).all();
+  const ids = [...new Set(results.flatMap(r => [r.from_id, r.to_id]))];
+  const names = {};
+  if (ids.length) {
+    const q = await env.DB.prepare(`SELECT id, nickname FROM users WHERE id IN (${ids.map(() => '?').join(',')})`).bind(...ids).all();
+    for (const u of q.results) names[u.id] = u.nickname;
+  }
+  return json({ mail: results.map(r => {
+    const mine = r.from_id === user.id, other = mine ? r.to_id : r.from_id;
+    return { kind: r.kind, dir: mine ? 'out' : 'in', friendId: other, nickname: names[other] || '친구', body: r.body, at: r.at, unread: !mine && !r.read };
+  }), now: now() });
+}
+async function readMail(env, user) {
+  await env.DB.prepare('UPDATE letters SET read = 1 WHERE to_id = ? AND read = 0').bind(user.id).run();
+  return json({ ok: true });
 }
 
 async function listFriends(env, user) {
   const { results } = await env.DB.prepare(
-    `SELECT u.id, u.nickname, u.unlocked, f.last_gift FROM friends f JOIN users u ON u.id = f.b WHERE f.a = ? ORDER BY u.nickname`)
+    `SELECT u.id, u.nickname, u.unlocked, f.last_gift FROM friends f JOIN users u ON u.id = f.b WHERE f.a = ? ORDER BY u.unlocked DESC, u.nickname`)
     .bind(user.id).all();
   return json({ friends: results.map(r => ({ id: r.id, nickname: r.nickname, unlocked: r.unlocked, nextGiftAt: r.last_gift ? r.last_gift + GIFT_MS : 0 })), now: now() });
 }

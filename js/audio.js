@@ -71,8 +71,10 @@ function blip(t, f0 = 520, f1v = 880, vol = 0.07, len = 0.13, cut = 2200) {
 
 // 효과음: "뿅뿅" 느낌을 피아노로
 const PENTA = [72, 74, 76, 79, 81, 84, 86, 88];   // 탈 때마다 한 음씩 올라가요
+// 효과음은 버스가 다 차서 출발할 때만 (나머지는 조용히)
+const SFX_ON = new Set(['depart']);
 function sfx(kind, arg = 0) {
-  if (!settings.sfxOn || !audio()) return;
+  if (!SFX_ON.has(kind) || !settings.sfxOn || !audio()) return;
   if (AC.state === 'suspended') AC.resume();
   const t = AC.currentTime + 0.01, B = sfxBus;
   switch (kind) {

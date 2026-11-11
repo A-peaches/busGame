@@ -47,3 +47,16 @@ CREATE TABLE IF NOT EXISTS notes (
   seen     INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS notes_user ON notes(user_id, seen);
+
+-- 친구에게 보내는 쪽지 (대화가 아니라 우편함에 쌓이는 짧은 글)
+CREATE TABLE IF NOT EXISTS letters (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  from_id  TEXT NOT NULL,
+  to_id    TEXT NOT NULL,
+  body     TEXT NOT NULL,
+  at       INTEGER NOT NULL,
+  read     INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS letters_to ON letters(to_id, read);
+CREATE INDEX IF NOT EXISTS letters_from ON letters(from_id, at);
+CREATE INDEX IF NOT EXISTS gifts_from ON gifts(from_id, at);

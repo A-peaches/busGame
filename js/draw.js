@@ -614,6 +614,18 @@ function draw() {
   if (!S || !L.ring) return;
 
   drawQueueArea();
+  // 꾹 누르는 동안: 빨리감기 표시
+  if (S.holding) {
+    const tx = '▶▶ 빨리감기', fs = 13;
+    ctx.font = `700 ${fs}px MaruBuri, serif`;
+    const tw = ctx.measureText(tx).width + 22, bx = L.W / 2 - tw / 2, by = L.qTop + 10;
+    ctx.globalAlpha = 0.6 + Math.sin(S.time * 8) * 0.25;
+    ctx.fillStyle = '#f6dd92'; rr(bx, by, tw, fs + 12, (fs + 12) / 2); ctx.fill();
+    ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#5a4a3a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(tx, L.W / 2, by + (fs + 12) / 2 + 1);
+  }
 
   // 정류장: 위쪽 보도 + 하얗게 칠한 주차 칸 + 아래쪽 찻길
   const panelH = L.swH + L.sH + L.roadH + 8;

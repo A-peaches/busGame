@@ -91,8 +91,8 @@ function askLocation() {
     <p>지금 계신 곳의 실제 날씨와 해·달을 메인 화면에 보여 드려요.<br>위치는 날씨를 불러올 때만 쓰고 저장하지 않아요.</p>
     <button class="btn" id="geoYes">위치 사용하기</button>
     <button class="btn alt" id="geoNo">서울 날씨로 볼게요</button>`;
-  card.querySelector('#geoYes').onclick = () => { store.set('busGame.geo', 'yes'); hideOverlay(); startWeather(); };
-  card.querySelector('#geoNo').onclick = () => { store.set('busGame.geo', 'no'); hideOverlay(); startWeather(); };
+  card.querySelector('#geoYes').onclick = () => { store.set('busGame.geo', 'yes'); hideOverlay(); startWeather(); askPushIfNeeded(); };
+  card.querySelector('#geoNo').onclick = () => { store.set('busGame.geo', 'no'); hideOverlay(); startWeather(); askPushIfNeeded(); };
   $('overlay').classList.add('show');
 }
 
@@ -196,7 +196,7 @@ function showNickname(first) {
     <input class="nickInput" id="nickInput" maxlength="10" placeholder="닉네임 (최대 10자)" value="${first ? '' : nickname.replace(/"/g, '&quot;')}">
     ${first ? `<div class="consent">
       <div class="setRow"><span>📍 내 위치 날씨 보기<br><small>날씨를 불러올 때만 쓰고 저장하지 않아요</small></span><label class="switch"><input type="checkbox" id="geoOk" checked><span></span></label></div>
-      ${typeof pushSupported === 'function' && pushSupported() ? `<div class="setRow"><span>🔔 폰 알림 받기<br><small>하트 도착 · 하트 가득</small></span><label class="switch"><input type="checkbox" id="pushOk" checked><span></span></label></div>` : ''}
+      ${typeof pushSupported === 'function' && pushSupported() ? `<p class="pushNote"><small>🔔 하트 도착·하트 가득·쪽지 알림을 받으려면<br>다음 화면에서 <b>알림 허용</b>을 눌러 주세요</small></p>` : ''}
     </div>` : ''}
     <button class="btn" id="nickOk">${first ? '여행 시작' : '저장'}</button>
     ${first ? '<button class="linkBtn" id="restoreBtn">🔑 백업 코드로 불러오기</button>' : '<button class="btn alt" id="ovClose">취소</button>'}`;
@@ -206,8 +206,8 @@ function showNickname(first) {
     if (!v) { toast('닉네임을 적어 주세요'); inp.focus(); return; }
     // 권한 요청은 버튼을 누른 그 순간에 해야 크롬이 물어봐요
     const geoC = first && card.querySelector('#geoOk');
-    const pushC = first && card.querySelector('#pushOk');
-    const permP = pushC && pushC.checked ? Notification.requestPermission() : null;
+    // 알림은 꼭 물어봐요 (권한 창은 버튼을 누른 그 순간에만 띄울 수 있어요)
+    const permP = first && pushSupported() && Notification.permission === 'default' ? Notification.requestPermission() : null;
     nickname = v;
     store.set('busGame.nickname', v);
     updateHello();
@@ -215,7 +215,7 @@ function showNickname(first) {
     if (first) {
       store.set('busGame.geo', geoC && geoC.checked ? 'yes' : 'no');
       startWeather();
-      if (permP) enablePush(permP); else if (typeof syncSoon === 'function') syncSoon();
+      if (permP || (pushSupported() && Notification.permission === 'granted')) enablePush(permP || undefined); else if (typeof syncSoon === 'function') syncSoon();
     } else if (typeof syncSoon === 'function') syncSoon();
   };
   card.querySelector('#nickOk').onclick = ok;
@@ -260,7 +260,7 @@ function showSettings() {
   q('#sfxOn').onchange = e => { settings.sfxOn = e.target.checked; saveSettings(); audio(); applyVolumes(); };
   q('#bgmVol').oninput = e => { settings.bgmVol = e.target.value / 100; saveSettings(); audio(); applyVolumes(); };
   q('#sfxVol').oninput = e => { settings.sfxVol = e.target.value / 100; saveSettings(); audio(); applyVolumes(); };
-  q('#sfxVol').onchange = () => sfx('go');   // 크기 미리 듣기
+  q('#sfxVol').onchange = () => sfx('depart');   // 크기 미리 듣기
   // 폰 알림 켜기/끄기 (처음 켤 때 크롬이 알림 권한을 물어봐요)
   q('#pushOn').checked = typeof pushOn === 'function' && pushOn();
   q('#pushOn').onchange = async e => {

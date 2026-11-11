@@ -59,7 +59,24 @@
     position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 4; white-space: nowrap;
     padding: 6px 14px; border-radius: 16px; font-size: 13px; background: rgba(255, 250, 240, .85); border: 1px solid var(--line);
   }
-  .hello:empty { display: none; }
+  .hello:empty, .weather:empty { display: none; }
+  .weather {
+    position: absolute; top: 92px; left: 50%; transform: translateX(-50%); z-index: 4; white-space: nowrap;
+    padding: 4px 12px; border-radius: 14px; font-size: 12px; color: var(--muted);
+    background: rgba(255, 250, 240, .75); border: 1px solid var(--line);
+  }
+  .hearts {
+    position: absolute; top: 14px; right: 62px; z-index: 4; display: flex; align-items: center; gap: 5px; white-space: nowrap;
+    height: 32px; padding: 0 11px 0 8px; border-radius: 16px; font-size: 13px;
+    background: rgba(255, 250, 240, .9); border: 1px solid var(--line);
+  }
+  .hearts small { color: var(--muted); font-size: 11px; }
+  /* 날씨: 비 */
+  .rain { width: 1.2px; height: 16px; background: linear-gradient(rgba(170, 190, 210, 0), rgba(150, 175, 200, .85)); }
+  .particle.rainy { animation-timing-function: linear; }
+  .particle.rainy > * { animation: none; transform: rotate(12deg); }
+  /* 시간대에 따라 들판을 살짝 물들이는 막 (밤엔 푸르스름, 노을엔 주황빛) */
+  .tint { position: absolute; inset: 0; z-index: 1; pointer-events: none; transition: background 2s; }
   /* 단계 지도는 지평선 아래 들판에서만 보여요 */
   #menu > #mapScroll {
     position: absolute; left: 0; right: 0; top: 33%; bottom: 0; overflow-y: auto; scrollbar-width: none; z-index: 2;
@@ -177,6 +194,7 @@
     <!-- 계절 풍경 (자바스크립트가 그려요) -->
     <svg class="scene" id="scene" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
     <div class="sky" id="sky"></div>
+    <div class="tint" id="tint"></div>
     <div id="mapScroll"><div id="mapInner"><svg id="mapRoad"></svg></div></div>
     <div class="fx" id="fx"></div>
 
@@ -184,6 +202,8 @@
       <button data-s="spring">봄</button><button data-s="summer">여름</button><button data-s="autumn">가을</button><button data-s="winter">겨울</button>
     </div>
     <div class="hello" id="hello"></div>
+    <div class="weather" id="weather"></div>
+    <div class="hearts" id="hearts"></div>
     <button class="round settingsBtn" id="settingsBtn" title="설정"></button>
   </section>
 
@@ -196,7 +216,6 @@
         <div id="leftLabel">남은 승객 0명</div>
       </div>
       <div class="hbtns">
-        <button class="round" id="restartBtn" title="다시 하기">↻</button>
         <button class="round settingsBtn" id="settingsBtn2" title="설정"></button>
       </div>
     </header>
@@ -429,7 +448,10 @@ function genLevel(n) {
   q.forEach(p => p.key += rng() * P.mix);
   q.sort((a, b) => a.key - b.key);
 
-  return { cols, rows, vehicles: order, queue: q.map(p => ({ color: p.color, kind: rng() < 0.5 ? 'cat' : 'dog' })) };
+  return {
+    cols, rows, vehicles: order,
+    queue: q.map((p, i) => ({ id: i, color: p.color, kind: rng() < 0.5 ? 'cat' : 'dog', bag: rng() < 0.18 })),
+  };
 }
 
 // =====================================================================
@@ -458,7 +480,6 @@ function startLevel(n) {
   for (let k = 0; k < S.ring.length; k++) if (S.waiting.length) S.ring[k] = S.waiting.shift();
   hideOverlay();
   updateUI();
-  if (n === 1) toast('화살표 앞이 뚫린 버스를 눌러 보세요!', 2600);
 }
 
 const parkedBlockers = v => {
@@ -698,7 +719,6 @@ $('liftBtn').onclick = () => {
   if (S.liftMode) toast('꺼낼 버스를 아무거나 눌러 주세요', 2000);
   updateUI();
 };
-$('restartBtn').onclick = () => startLevel(S.level);
 $('homeBtn').onclick = () => showMenu();
 $('settingsBtn').onclick = $('settingsBtn2').onclick = () => showSettings();
 document.querySelectorAll('.settingsBtn').forEach(b => b.innerHTML = GEAR_SVG);
@@ -768,7 +788,7 @@ function update(dt) {
       const { k, p, v } = pick;
       S.ring[k] = null;
       v.incoming++;
-      S.flying.push({ color: p.color, kind: p.kind, x0: p.x, y0: p.y, t: 0, v });
+      S.flying.push({ color: p.color, kind: p.kind, bag: p.bag, x0: p.x, y0: p.y, t: 0, v });
       S.boardTimer = 0.08;
       sfx('board', v.filled + v.incoming);
       updateUI();
@@ -929,7 +949,49 @@ const lightOf = C => C.l || (C.l = mixHex(C.c, '#fff8ec', 0.4));
 const shadeOf = C => C.s || (C.s = mixHex(C.c, C.d, 0.55));
 
 // 고양이 / 강아지 승객 (발 위치 기준)
-function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0) {
+// 생각 말풍선: 고양이는 생선, 강아지는 뼈다귀
+function drawThought(x, headTop, r, kind) {
+  const bx = x + r * 1.05, by = headTop - r * 1.5;
+  const puffs = [[0, 0, 1], [-0.85, 0.15, 0.7], [0.85, 0.15, 0.7], [-0.4, -0.45, 0.72], [0.4, -0.45, 0.72], [0, 0.45, 0.7]];
+  const drawPuffs = () => puffs.forEach(([dx, dy, k]) => { ctx.beginPath(); ctx.arc(bx + dx * r, by + dy * r, r * 0.62 * k, 0, Math.PI * 2); ctx[mode](); });
+  let mode = 'stroke';
+  ctx.strokeStyle = LINE; ctx.lineWidth = 2;
+  drawPuffs();
+  for (const [dx, dy, k] of [[0.3, 1.25, 0.16], [0.6, 0.95, 0.24]]) { ctx.beginPath(); ctx.arc(x + dx * r, headTop + (dy - 1.5) * r + r * 0.05, r * k, 0, Math.PI * 2); ctx.lineWidth = 1; ctx.stroke(); ctx.fillStyle = '#fffdf8'; ctx.fill(); }
+  ctx.lineWidth = 2;
+  mode = 'fill'; ctx.fillStyle = '#fffdf8';
+  drawPuffs();
+  ctx.lineWidth = 0.9;
+  if (kind === 'cat') {
+    // 생선
+    ctx.beginPath(); ctx.ellipse(bx - r * 0.12, by, r * 0.62, r * 0.3, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#9dbbd3'; ctx.fill(); ctx.strokeStyle = LINE; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx + r * 0.42, by); ctx.lineTo(bx + r * 0.82, by - r * 0.28); ctx.lineTo(bx + r * 0.82, by + r * 0.28); ctx.closePath();
+    ctx.fillStyle = '#9dbbd3'; ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#2e231a'; circle(bx - r * 0.5, by - r * 0.06, r * 0.07);
+  } else {
+    // 뼈다귀
+    ctx.fillStyle = '#f6eedc'; ctx.strokeStyle = LINE;
+    ctx.beginPath();
+    for (const s of [-1, 1]) for (const t of [-1, 1]) { ctx.moveTo(bx + s * r * 0.55 + r * 0.17, by + t * r * 0.15); ctx.arc(bx + s * r * 0.55, by + t * r * 0.15, r * 0.17, 0, Math.PI * 2); }
+    ctx.rect(bx - r * 0.55, by - r * 0.12, r * 1.1, r * 0.24);
+    ctx.stroke(); ctx.fill();
+  }
+}
+
+// 줄이 시작되는 작은 집
+function drawHouse(x, y, s) {
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = LINE; ctx.lineWidth = 1;
+  ctx.fillStyle = '#f1e4c9'; ctx.fillRect(x - s * 0.42, y - s * 0.62, s * 0.84, s * 0.62); ctx.strokeRect(x - s * 0.42, y - s * 0.62, s * 0.84, s * 0.62);
+  ctx.beginPath(); ctx.moveTo(x - s * 0.55, y - s * 0.58); ctx.lineTo(x, y - s * 1.02); ctx.lineTo(x + s * 0.55, y - s * 0.58); ctx.closePath();
+  ctx.fillStyle = '#c98a6c'; ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#a07a5c'; rr(x - s * 0.12, y - s * 0.36, s * 0.24, s * 0.36, 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#a9c8d6'; ctx.fillRect(x + s * 0.18, y - s * 0.46, s * 0.15, s * 0.14); ctx.strokeRect(x + s * 0.18, y - s * 0.46, s * 0.15, s * 0.14);
+  ctx.fillStyle = '#9a8f84'; ctx.fillRect(x + s * 0.22, y - s * 0.98, s * 0.1, s * 0.22); ctx.strokeRect(x + s * 0.22, y - s * 0.98, s * 0.1, s * 0.22);
+}
+
+function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, bag = false) {
   const C = COLORS[colorIdx], LT = lightOf(C), SH = shadeOf(C);
   const lw = 0.9;
   const line = (w = lw) => { ctx.strokeStyle = LINE; ctx.lineWidth = w; ctx.stroke(); };
@@ -974,14 +1036,35 @@ function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0) {
     ctx.fillStyle = C.c; ctx.fill(); line(lw * 0.8);
   }
 
+  // 분홍 보따리 (몇몇 친구만): 막대에 매달아 어깨에 메고 있어요
+  if (bag) {
+    ctx.beginPath(); ctx.moveTo(x + r * 0.05, y - r * 0.25); ctx.lineTo(x - r * 0.78, y - r * 1.05);
+    ctx.strokeStyle = '#8f6a4d'; ctx.lineWidth = r * 0.13; ctx.stroke();
+    const bx = x - r * 0.92, by = y - r * 0.82;
+    ctx.beginPath(); ctx.arc(bx, by, r * 0.42, 0, Math.PI * 2);
+    ctx.fillStyle = '#f2abbe'; ctx.fill(); line();
+    ctx.fillStyle = 'rgba(255,250,245,.85)';
+    circle(bx - r * 0.15, by + r * 0.05, r * 0.06); circle(bx + r * 0.14, by + r * 0.16, r * 0.06); circle(bx + r * 0.05, by - r * 0.17, r * 0.05);
+    // 묶은 매듭
+    ctx.beginPath(); ctx.ellipse(bx + r * 0.1, by - r * 0.42, r * 0.13, r * 0.08, -0.6, 0, Math.PI * 2);
+    ctx.fillStyle = '#e897ad'; ctx.fill(); line(lw * 0.8);
+  }
+
   // 큰 머리
   const hx = x, hy = y - r * 1.2, hr = r * 1.02;
-  // 고양이: 뾰족한 귀 (머리 뒤에)
+  const earPath = s => {
+    ctx.beginPath();
+    ctx.moveTo(hx + s * hr * 0.95, hy - hr * 0.1); ctx.lineTo(hx + s * hr * 0.75, hy - hr * 1.22); ctx.lineTo(hx + s * hr * 0.12, hy - hr * 0.75);
+    ctx.closePath();
+  };
+  const headPath = () => { ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2); };
   if (kind === 'cat') {
+    // 고양이: 귀와 얼굴을 하나의 실루엣으로 — 바깥 테두리를 먼저 그리고 안쪽을 채워서
+    // 귀와 얼굴이 만나는 곳에는 선이 없어요
+    ctx.strokeStyle = LINE; ctx.lineWidth = lw * 2;
+    earPath(-1); ctx.stroke(); earPath(1); ctx.stroke(); headPath(); ctx.stroke();
     for (const s of [-1, 1]) {
-      ctx.beginPath();
-      ctx.moveTo(hx + s * hr * 0.95, hy - hr * 0.1); ctx.lineTo(hx + s * hr * 0.75, hy - hr * 1.22); ctx.lineTo(hx + s * hr * 0.12, hy - hr * 0.75);
-      ctx.closePath(); ctx.fillStyle = C.c; ctx.fill(); line();
+      earPath(s); ctx.fillStyle = C.c; ctx.fill();
       ctx.fillStyle = '#efb5bf';
       ctx.beginPath();
       ctx.moveTo(hx + s * hr * 0.78, hy - hr * 0.38); ctx.lineTo(hx + s * hr * 0.7, hy - hr * 0.95); ctx.lineTo(hx + s * hr * 0.38, hy - hr * 0.72);
@@ -991,8 +1074,9 @@ function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0) {
   // 머리: 왼쪽 위에서 햇빛이 드는 듯 부드러운 음영
   const hg = ctx.createRadialGradient(hx - hr * 0.35, hy - hr * 0.42, hr * 0.1, hx, hy, hr * 1.05);
   hg.addColorStop(0, LT); hg.addColorStop(0.65, C.c); hg.addColorStop(1, SH);
-  ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2);
-  ctx.fillStyle = hg; ctx.fill(); line();
+  headPath();
+  ctx.fillStyle = hg; ctx.fill();
+  if (kind !== 'cat') line();
   // 정수리 털 한 가닥
   ctx.beginPath();
   ctx.moveTo(hx - hr * 0.08, hy - hr * 0.97);
@@ -1082,15 +1166,19 @@ function drawQueueArea() {
     }
   }
 
-  // 대기 줄 길 + 원형 길 (흙길 + 하얀 울타리)
+  // 대기 줄 길 + 원형 길: 테두리를 먼저 둘 다 그리고 흙길을 위에 덮어서
+  // 두 길이 만나는 곳에는 경계선 없이 하나로 이어져 보여요
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  ctx.beginPath();
-  L.wait.pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
-  ctx.strokeStyle = 'rgba(112,104,96,.6)'; ctx.lineWidth = L.laneW + 2.4; ctx.stroke();
-  ctx.strokeStyle = '#ead6b0'; ctx.lineWidth = L.laneW; ctx.stroke();
-  ctx.beginPath(); ctx.ellipse(L.rcx, L.rcy, L.rx, L.ry, 0, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(112,104,96,.6)'; ctx.lineWidth = L.laneW + 2.4; ctx.stroke();
-  ctx.strokeStyle = '#ecd9b4'; ctx.lineWidth = L.laneW; ctx.stroke();
+  const waitPath = () => { ctx.beginPath(); L.wait.pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); };
+  const ringPath = () => { ctx.beginPath(); ctx.ellipse(L.rcx, L.rcy, L.rx, L.ry, 0, 0, Math.PI * 2); };
+  ctx.strokeStyle = 'rgba(112,104,96,.6)'; ctx.lineWidth = L.laneW + 2;
+  waitPath(); ctx.stroke(); ringPath(); ctx.stroke();
+  ctx.strokeStyle = '#ebd8b2'; ctx.lineWidth = L.laneW;
+  waitPath(); ctx.stroke(); ringPath(); ctx.stroke();
+
+  // 줄이 시작되는 곳의 작은 집 (멍냥이들이 여기서 나와요)
+  const [hx0, hy0] = L.wait.pts[L.wait.pts.length - 1];
+  drawHouse(hx0, hy0 + (hy0 < L.qTop + L.qH / 2 ? -2 : L.laneW * 0.6), L.laneW * 1.7);
 
   // 원 가운데 잔디 섬 + 큰 나무 + 꽃
   const irx = L.rx - L.laneW / 2 - 4, iry = L.ry - L.laneW / 2 - 4;
@@ -1107,13 +1195,6 @@ function drawQueueArea() {
     ctx.drawImage(islandTree, L.rcx - imgH / 2, baseY - imgH * (110 / 120), imgH, imgH);
   }
 
-  // 정류장 표지판
-  const sx = L.rcx + irx * 0.62, sy = L.rcy + iry * 0.55;
-  ctx.fillStyle = '#9a8f84'; ctx.fillRect(sx - 1.5, sy - 26, 3, 26);
-  ctx.fillStyle = '#fff'; ctx.strokeStyle = '#df8a78'; ctx.lineWidth = 2.5;
-  ctx.beginPath(); ctx.arc(sx, sy - 30, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#8dbbe0'; rr(sx - 5, sy - 33.5, 10, 7, 2); ctx.fill();
-
   // 도는 방향 화살표
   ctx.fillStyle = 'rgba(255,255,255,.85)';
   for (const a of [0.8, 2.4, 3.95, 5.5]) {
@@ -1126,14 +1207,23 @@ function drawQueueArea() {
 
   // 고양이 / 강아지들 (위쪽부터 그려서 아래쪽 친구가 앞에 보이도록)
   const vis = [];
-  const add = (p, i) => {
+  const add = (p, i, waitIdx = -1) => {
     if (!p || p.x === undefined) return;
-    vis.push({ x: p.x, y: p.y, c: p.color, kind: p.kind, ph: i * 0.73, bob: p.walking ? Math.abs(Math.sin(S.time * 14 + i)) * 2 : 0 });
+    // 줄 뒤쪽에서 오래 기다리는 몇몇 친구는 간식 생각 중 (번갈아 가며)
+    const think = waitIdx >= 8 && p.id % 5 === 0 && (S.time + p.id * 1.7) % 9 < 4.5;
+    vis.push({ x: p.x, y: p.y, c: p.color, kind: p.kind, bag: p.bag, think, ph: i * 0.73,
+      bob: p.walking ? Math.abs(Math.sin(S.time * 14 + i)) * 2 : 0 });
   };
-  S.ring.forEach(add);
-  S.waiting.forEach((p, i) => add(p, i + 100));
+  S.ring.forEach((p, i) => add(p, i));
+  S.waiting.forEach((p, i) => add(p, i + 100, i));
   vis.sort((a, b) => a.y - b.y);
-  for (const p of vis) drawAnimal(p.x, p.y + L.pr * 0.3, L.pr, p.c, p.kind, p.bob, p.ph);
+  for (const p of vis) drawAnimal(p.x, p.y + L.pr * 0.3, L.pr, p.c, p.kind, p.bob, p.ph, p.bag);
+  let bubbles = 0;
+  for (const p of vis) {
+    if (!p.think || bubbles >= 6) continue;
+    bubbles++;
+    drawThought(p.x, p.y + L.pr * 0.3 - L.pr * 2.05 - p.bob, L.pr, p.kind);
+  }
 
   const hiddenN = S.waiting.length - Math.min(S.waiting.length, L.waitMax);
   if (hiddenN > 0) {
@@ -1210,7 +1300,7 @@ function draw() {
 
   for (const f of S.flying) {
     const p = slotPos(f.v.slot), e = easeIn(f.t);
-    drawAnimal(lerp(f.x0, p.x, e), lerp(f.y0, p.y, e) - Math.sin(f.t * Math.PI) * 18, L.pr * (1 - f.t * 0.4), f.color, f.kind);
+    drawAnimal(lerp(f.x0, p.x, e), lerp(f.y0, p.y, e) - Math.sin(f.t * Math.PI) * 18, L.pr * (1 - f.t * 0.4), f.color, f.kind, 0, 0, f.bag);
   }
 }
 
@@ -1227,6 +1317,7 @@ function showMenu() {
   hideOverlay();
   showScreen('menu');
   renderMap();
+  if (typeof updateSky === 'function' && document.getElementById('celestial')) updateSky();
 }
 
 function renderMap() {
@@ -1247,7 +1338,7 @@ function renderMap() {
     d += ` C ${p1.x + (p2.x - p0.x) / 6} ${p1.y + (p2.y - p0.y) / 6}, ${p2.x - (p3.x - p1.x) / 6} ${p2.y - (p3.y - p1.y) / 6}, ${p2.x} ${p2.y}`;
   }
   let deco = '';
-  for (let i = 0; i < N; i += 2) {
+  for (let i = 1; i < N; i += 3) {
     const tx = pts[i].x > W / 2 ? 36 + (i % 4) * 6 : W - 36 - (i % 4) * 6, ty = pts[i].y - 30;
     deco += `<g transform="translate(${tx} ${ty + 30})">${makeTree(100 + i, 74 + (i % 3) * 10)}</g>`;
   }
@@ -1308,15 +1399,23 @@ function showOverlay(kind) {
     card.innerHTML = `<h2>${S.level}단계 완료</h2><p>멍냥이들이 모두 버스를 타고 출발했어요.</p>
       <button class="btn" id="ovNext">${S.level + 1}단계로</button>
       <button class="btn alt" id="ovMap">지도 보기</button>`;
-    card.querySelector('#ovNext').onclick = () => startLevel(S.level + 1);
+    card.querySelector('#ovNext').onclick = () => tryStart(S.level + 1);
   } else {
     const canSlot = S.boost.slot > 0 && S.slotCount < MAX_SLOTS;
-    card.innerHTML = `<h2>꽉 막혔어요</h2><p>대기 칸이 가득 차서 더 태울 수 없어요.</p>
+    refreshHearts();
+    card.innerHTML = `<h2>꽉 막혔어요</h2><p>대기 칸이 가득 차서 더 태울 수 없어요.<br>
+      다시 하거나 그만두면 하트가 1개 줄어요 · 지금 하트 ${hearts.n}개</p>
       ${canSlot ? '<button class="btn" id="ovSlot">자리 하나 늘리고 계속</button>' : ''}
-      <button class="btn ${canSlot ? 'alt' : ''}" id="ovRetry">다시 하기</button>
+      <button class="btn ${canSlot ? 'alt' : ''}" id="ovRetry">다시 하기 (하트 1개)</button>
       <button class="btn alt" id="ovMap">지도 보기</button>`;
     if (canSlot) card.querySelector('#ovSlot').onclick = () => { useSlotBooster(); S.over = false; hideOverlay(); };
-    card.querySelector('#ovRetry').onclick = () => startLevel(S.level);
+    card.querySelector('#ovRetry').onclick = () => {
+      if (!useHeart()) { toast(`하트가 없어요 · ${heartLeft()} 뒤에 1개 충전`, 2200); return; }
+      startLevel(S.level);
+    };
+    card.querySelector('#ovMap').onclick = () => { useHeart(); showMenu(); };
+    $('overlay').classList.add('show');
+    return;
   }
   card.querySelector('#ovMap').onclick = () => showMenu();
   $('overlay').classList.add('show');
@@ -1337,7 +1436,7 @@ const SEASONS = {
     sky: ['#86c0e6', '#cbe6f0', '#f1f0dc'], sun: '#fff7d6', mt: ['#9fb8cc', '#d3e0e2'],
     forest: ['#6f9f58', '#7fae63', '#5f8f4c', '#8ab86c', '#4f7f3f'], meadow: ['#b7da8e', '#95c56e', '#7cb35a'],
     grass: ['#5f9a45', '#78ae55', '#4f8a3a', '#8cc064'], flowers: ['#fffdf6', '#f9e6a0', '#c9d9f5'],
-    leaves: ['#5d9a48', '#6faa52', '#4e8a3e', '#86b862', '#7aae58'], leafBase: '#3f7232', trunk: '#6f5240', cloudShade: '#d8e2ec',
+    leaves: ['#a6d17a', '#8cc463', '#c4e39b', '#72ab50', '#b4dc88', '#5f9a45'], leafBase: '#3f7232', trunk: '#6f5240', cloudShade: '#d8e2ec',
   },
   autumn: {
     sky: ['#a4c2d4', '#e8dcc8', '#f6dfb8'], sun: '#ffeccc', mt: ['#b1b9c4', '#dfd9cf'],
@@ -1357,54 +1456,77 @@ let season = store.get('busGame.season', SEASON_KEYS[Math.floor(((new Date().get
 const f1 = n => n.toFixed(1);
 const pick = (R, arr) => arr[Math.floor(R() * arr.length)];
 
-// 진짜 나무: 휘어진 줄기 + 가지 + 잎사귀 하나하나 (겨울엔 앙상한 가지에 눈)
-function makeTree(seed, h, ss = season) {
+// 수채화 나무: 줄기에서 가지가 여러 번 갈라지며 풍성하게 뻗고,
+// 가지 끝마다 작은 잎이 여러 장 + 옅은 물감 번짐 (동그란 덩어리 없음)
+//   봄: 벚꽃 / 여름: 싱그러운 초록 / 가을: 단풍나무와 은행나무 / 겨울: 앙상한 가지 + 눈
+const GINKGO = ['#f2c94c', '#f6d769', '#e8b72f', '#f9e49a', '#dcae2a'];
+function makeTree(seed, h, ss = season, detail = 1) {
   const R = mulberry32(seed), P = SEASONS[ss];
-  const OUT = 'rgba(112,104,96,.55)';
-  let s = `<ellipse cx="0" cy="0" rx="${f1(h * 0.34)}" ry="${f1(h * 0.05)}" fill="rgba(60,50,30,.16)"/>`;
-  const tw = h * 0.075, lean = (R() - 0.5) * h * 0.1, topY = -h * 0.6;
-  s += `<path d="M${f1(-tw / 2)} 0 C${f1(-tw * 0.45)} ${f1(-h * 0.25)} ${f1(lean - tw * 0.35)} ${f1(-h * 0.42)} ${f1(lean - tw * 0.18)} ${f1(topY)}
-    L${f1(lean + tw * 0.18)} ${f1(topY)} C${f1(lean + tw * 0.35)} ${f1(-h * 0.42)} ${f1(tw * 0.45)} ${f1(-h * 0.25)} ${f1(tw / 2)} 0Z"
-    fill="${P.trunk}" stroke="${OUT}" stroke-width=".8"/>`;
-  // 가지
-  const tips = [[lean, topY - h * 0.08]];
-  const nb = 4 + Math.floor(R() * 3);
-  for (let i = 0; i < nb; i++) {
-    const side = i % 2 ? 1 : -1, t = 0.35 + R() * 0.3;
-    const sx = lean * t, sy = -h * t;
-    const ang = side * (0.5 + R() * 0.6), len = h * (0.18 + R() * 0.14);
-    const ex = sx + Math.sin(ang) * len, ey = sy - Math.cos(ang) * len;
-    const mx = sx + Math.sin(ang * 0.6) * len * 0.5, my = sy - Math.cos(ang * 0.6) * len * 0.55;
-    s += `<path d="M${f1(sx)} ${f1(sy)} Q${f1(mx)} ${f1(my)} ${f1(ex)} ${f1(ey)}" stroke="${P.trunk}" stroke-width="${f1(tw * 0.42)}" stroke-linecap="round" fill="none"/>`;
-    // 잔가지
-    const ang2 = ang + side * (0.3 + R() * 0.4), len2 = len * 0.45;
-    const fx = ex + Math.sin(ang2) * len2, fy = ey - Math.cos(ang2) * len2;
-    s += `<path d="M${f1(ex)} ${f1(ey)} L${f1(fx)} ${f1(fy)}" stroke="${P.trunk}" stroke-width="${f1(tw * 0.2)}" stroke-linecap="round"/>`;
-    tips.push([ex, ey], [fx, fy]);
-  }
-  if (P.leaves) {
-    // 잎 덩어리: 어두운 바탕 덩어리 위에 잎사귀를 겹겹이
-    const clusters = tips.slice();
-    for (let i = 0; i < 5; i++) clusters.push([lean + (R() - 0.5) * h * 0.55, -h * (0.58 + R() * 0.25)]);
-    const L = h * 0.08, W = L * 0.42;
-    let base = '', leaves = '';
-    for (const [cx, cy] of clusters) {
-      const cr = h * (0.1 + R() * 0.06);
-      base += `<circle cx="${f1(cx)}" cy="${f1(cy)}" r="${f1(cr)}" fill="${P.leafBase}" opacity=".9"/>`;
-      for (let k = 0; k < 13; k++) {
-        const a = R() * Math.PI * 2, d = Math.sqrt(R()) * cr;
-        const lx = cx + Math.cos(a) * d, ly = cy + Math.sin(a) * d;
-        // 햇빛 받는 왼쪽 위는 밝은 잎, 아래쪽은 짙은 잎
-        const lit = (cx - lx) + (cy - ly) > 0;
-        const col = lit ? P.leaves[Math.floor(R() * 2) + 3] || P.leaves[0] : P.leaves[Math.floor(R() * 3)];
-        leaves += `<path d="M0 0 Q${f1(L / 2)} ${f1(-W)} ${f1(L)} 0 Q${f1(L / 2)} ${f1(W)} 0 0Z" fill="${col}" transform="translate(${f1(lx)} ${f1(ly)}) rotate(${Math.round(R() * 360)})"/>`;
-      }
+  const bare = !P.leaves;
+  const ginkgo = ss === 'autumn' && seed % 2 === 0;
+  const cols = ginkgo ? GINKGO : P.leaves;
+  const maxD = (detail < 1 ? 3 : h < 100 ? 5 : 6) + (bare ? 1 : 0);
+  const tw = h * 0.055;
+  let branches = '';
+  const tips = [], mids = [];
+
+  function grow(x, y, ang, len, w, d) {
+    const ex = x + Math.sin(ang) * len, ey = y - Math.cos(ang) * len;
+    const bend = (R() - 0.5) * len * 0.3;
+    const mx = (x + ex) / 2 + Math.cos(ang) * bend, my = (y + ey) / 2 + Math.sin(ang) * bend;
+    branches += `<path d="M${f1(x)} ${f1(y)} Q${f1(mx)} ${f1(my)} ${f1(ex)} ${f1(ey)}" stroke-width="${f1(Math.max(w, 0.35))}"/>`;
+    if (d >= 3) mids.push([mx, my]);
+    if (d >= maxD) { tips.push([ex, ey]); return; }
+    const n = R() < 0.35 ? 3 : 2;
+    for (let i = 0; i < n; i++) {
+      const spread = 0.3 + R() * 0.32;
+      const off = n === 2 ? (i ? spread : -spread) : (i - 1) * spread * 1.15;
+      const a = clamp((ang + off + (R() - 0.5) * 0.25) * 0.94, -1.4, 1.4);   // 위쪽으로 살짝 모이게
+      grow(ex, ey, a, len * (0.68 + R() * 0.16), w * 0.64, d + 1);
     }
-    s += base + leaves;
-  } else {
-    // 겨울: 가지 끝마다 소복한 눈
-    for (const [x, y] of tips) s += `<ellipse cx="${f1(x)}" cy="${f1(y - 1)}" rx="${f1(h * 0.035)}" ry="${f1(h * 0.016)}" fill="#fbfcfd" stroke="${OUT}" stroke-width=".5"/>`;
   }
+
+  // 줄기 (아래가 넓은 원뿔꼴) + 큰 가지 2~3개
+  const lean = (R() - 0.5) * 0.14, trunkLen = h * 0.3;
+  const tx = Math.sin(lean) * trunkLen, ty = -trunkLen;
+  const limbs = R() < 0.5 ? 2 : 3;
+  for (let i = 0; i < limbs; i++) {
+    const off = limbs === 2 ? (i ? 0.38 : -0.42) : (i - 1) * 0.5;
+    grow(tx, ty, lean + off + (R() - 0.5) * 0.2, h * (0.19 + R() * 0.05), tw * 0.72, 1);
+  }
+  let s = detail >= 1 ? `<ellipse cx="0" cy="0" rx="${f1(h * 0.3)}" ry="${f1(h * 0.045)}" fill="rgba(60,50,30,.14)"/>` : '';
+  s += `<path d="M${f1(-tw * 0.65)} 0 Q${f1(-tw * 0.4)} ${f1(-trunkLen * 0.5)} ${f1(tx - tw * 0.36)} ${f1(ty)} L${f1(tx + tw * 0.36)} ${f1(ty)}
+    Q${f1(tw * 0.4)} ${f1(-trunkLen * 0.5)} ${f1(tw * 0.65)} 0Z" fill="${P.trunk}" stroke="rgba(112,104,96,.45)" stroke-width=".6"/>`;
+
+  let wash = '', leaves = '';
+  if (!bare) {
+    // 물감 번짐: 가지 끝 근처에 옅은 색이 스며든 듯
+    for (let i = 0; i < tips.length; i += 2) {
+      const [x, y] = tips[i];
+      wash += `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(h * (0.06 + R() * 0.05))}" ry="${f1(h * (0.045 + R() * 0.035))}" fill="${pick(R, cols)}" opacity=".35"/>`;
+    }
+    // 잎사귀: 가지 끝마다 여러 장, 중간 가지에도 조금
+    const perTip = detail >= 1 ? 4 : 3;
+    const L0 = h * (detail >= 1 ? 0.04 : 0.075);
+    const addLeaf = (x, y, spread) => {
+      const lx = x + (R() - 0.5) * spread, ly = y + (R() - 0.5) * spread;
+      const L = L0 * (0.75 + R() * 0.55), W = L * (ginkgo ? 0.7 : 0.45);
+      const shape = ginkgo
+        ? `M0 0 L${f1(L * 0.85)} ${f1(-W)} Q${f1(L * 1.1)} 0 ${f1(L * 0.85)} ${f1(W)}Z`
+        : `M0 0 Q${f1(L / 2)} ${f1(-W)} ${f1(L)} 0 Q${f1(L / 2)} ${f1(W)} 0 0Z`;
+      leaves += `<path d="${shape}" fill="${pick(R, cols)}" opacity="${f1(0.72 + R() * 0.25)}" transform="translate(${f1(lx)} ${f1(ly)}) rotate(${Math.round(R() * 360)})"/>`;
+    };
+    for (const [x, y] of tips) for (let k = 0; k < perTip; k++) addLeaf(x, y, h * 0.09);
+    for (const [x, y] of mids) if (R() < 0.35) addLeaf(x, y, h * 0.06);
+    if (ss === 'spring') for (let k = 0; k < tips.length; k++) if (R() < 0.3) { const [x, y] = tips[k]; leaves += `<circle cx="${f1(x + (R() - 0.5) * h * 0.05)}" cy="${f1(y)}" r="${f1(h * 0.012)}" fill="#a9c98a" opacity=".8"/>`; }
+  } else {
+    // 겨울: 가지 위에 쌓인 눈
+    for (const [x, y] of tips) if (R() < 0.45) leaves += `<ellipse cx="${f1(x)}" cy="${f1(y - 0.5)}" rx="${f1(h * 0.022)}" ry="${f1(h * 0.009)}" fill="#fbfcfd"/>`;
+    for (const [x, y] of mids) if (R() < 0.3) leaves += `<ellipse cx="${f1(x)}" cy="${f1(y - 0.5)}" rx="${f1(h * 0.02)}" ry="${f1(h * 0.008)}" fill="#fbfcfd"/>`;
+  }
+  s += `<g filter="url(#wash)">${wash}</g>`;
+  s += `<g stroke="${P.trunk}" fill="none" stroke-linecap="round">${branches}</g>`;
+  s += leaves;
   return s;
 }
 
@@ -1448,28 +1570,27 @@ function makeSnowman() {
 function renderScene() {
   const P = SEASONS[season], R = mulberry32(2024);
   let s = `<defs>
-    <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${P.sky[0]}"/><stop offset=".25" stop-color="${P.sky[1]}"/><stop offset=".4" stop-color="${P.sky[2]}"/></linearGradient>
-    <radialGradient id="sunG" cx=".82" cy=".06" r=".45"><stop offset="0" stop-color="${P.sun}" stop-opacity="1"/><stop offset=".5" stop-color="${P.sun}" stop-opacity=".35"/><stop offset="1" stop-color="${P.sun}" stop-opacity="0"/></radialGradient>
+    <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1"><stop id="sk0" offset="0" stop-color="${P.sky[0]}"/><stop id="sk1" offset=".25" stop-color="${P.sky[1]}"/><stop id="sk2" offset=".4" stop-color="${P.sky[2]}"/></linearGradient>
+    <radialGradient id="glowG"><stop offset="0" stop-color="#fff6dc" stop-opacity=".9"/><stop offset=".35" stop-color="#fff0c8" stop-opacity=".35"/><stop offset="1" stop-color="#fff0c8" stop-opacity="0"/></radialGradient>
     <linearGradient id="mtG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${P.mt[0]}"/><stop offset="1" stop-color="${P.mt[1]}"/></linearGradient>
     <linearGradient id="mdG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${P.meadow[0]}"/><stop offset=".45" stop-color="${P.meadow[1]}"/><stop offset="1" stop-color="${P.meadow[2]}"/></linearGradient>
     <filter id="paper"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="3" seed="4"/>
       <feColorMatrix type="matrix" values="0 0 0 0 .45  0 0 0 0 .38  0 0 0 0 .3  0 0 0 .07 0"/></filter>
     <filter id="haze"><feGaussianBlur stdDeviation=".6"/></filter>
+    <filter id="wash" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter>
   </defs>
-  <rect width="400" height="800" fill="url(#skyG)"/><rect width="400" height="800" fill="url(#sunG)"/>`;
+  <rect width="400" height="800" fill="url(#skyG)"/><g id="celestial"></g>`;
   // 먼 산 (겨울엔 눈 덮인 봉우리)
   s += `<path d="M0 238 C 40 210 70 196 110 206 C 150 178 190 172 232 196 C 270 178 318 166 360 190 C 380 186 395 188 400 190 L400 320 L0 320Z" fill="url(#mtG)" stroke="rgba(112,104,96,.3)" stroke-width="1"/>`;
   if (season === 'winter') s += `<path d="M150 186 C 170 176 195 174 214 186 C 200 184 190 190 178 188 C 168 192 160 188 150 186Z M300 176 C 320 168 340 170 354 184 C 340 182 330 186 320 184 C 312 188 306 182 300 176Z" fill="#fbfcfd" opacity=".9"/>`;
   // 지평선 숲: 먼 줄은 흐릿하고 작게, 앞 줄은 크고 진하게
   const ridge = x => 262 + Math.sin(x / 37) * 6 + Math.sin(x / 13) * 3;
-  for (const [row, rmin, rmax, dy, op] of [[0, 6, 10, -10, 0.75], [1, 9, 15, 0, 1]]) {
-    let g = `<g opacity="${op}" ${row === 0 ? 'filter="url(#haze)"' : ''}>`;
-    for (let x = -10; x < 412; x += rmin * 1.1) {
-      const r = rmin + R() * (rmax - rmin), y = ridge(x) + dy + R() * 4;
-      const c = pick(R, P.forest);
-      g += `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(r)}" fill="${c}" stroke="rgba(112,104,96,.35)" stroke-width=".7"/>`;
-      if (season === 'winter') g += `<ellipse cx="${f1(x - r * 0.2)}" cy="${f1(y - r * 0.6)}" rx="${f1(r * 0.6)}" ry="${f1(r * 0.3)}" fill="#fbfcfd"/>`;
-      else g += `<circle cx="${f1(x - r * 0.3)}" cy="${f1(y - r * 0.35)}" r="${f1(r * 0.4)}" fill="#fff" opacity=".12"/>`;
+  // 지평선 숲: 앞쪽 나무와 똑같은 수채화 나무를 작게 촘촘히 (먼 줄은 흐릿하게)
+  for (const [row, hmin, hmax, step, dy, op] of [[0, 20, 28, 8, 6, 0.6], [1, 26, 38, 11, 18, 0.95]]) {
+    let g = `<g opacity="${op}">`;
+    for (let x = -12; x < 414; x += step * (0.7 + R() * 0.6)) {
+      const th = hmin + R() * (hmax - hmin), y = ridge(x) + dy + R() * 4;
+      g += `<g transform="translate(${f1(x)} ${f1(y)})">${makeTree(500 + row * 100 + Math.round(x), th, season, 0.5)}</g>`;
     }
     s += g + '</g>';
   }
@@ -1494,49 +1615,199 @@ function renderScene() {
   s += `<rect width="400" height="800" filter="url(#paper)"/>`;
   $('scene').innerHTML = s;
 
-  // 구름
+  // 구름 (흐리거나 비/눈이 오면 더 많고 잿빛)
   const sky = $('sky');
   sky.innerHTML = '';
-  [[3, 230, 80, -20], [12, 160, 110, -70], [21, 260, 140, -15], [7, 130, 95, -40]].forEach(([top, w, dur, delay], i) => {
+  const gloomy = ['cloudy', 'rain', 'snow'].includes(weather.kind);
+  const CP = gloomy ? { cloudShade: '#bfc5cd' } : P;
+  const cl = [[3, 230, 80, -20], [12, 160, 110, -70], [21, 260, 140, -15], [7, 130, 95, -40]];
+  if (gloomy) cl.push([1, 300, 90, -55], [16, 280, 120, -95], [9, 240, 100, -5]);
+  cl.forEach(([top, w, dur, delay], i) => {
     const c = document.createElement('div');
     c.className = 'cloud';
     c.style.cssText = `top:${top}%;width:${w}px;animation-duration:${dur}s;animation-delay:${delay}s;opacity:${i === 3 ? 0.75 : 0.95}`;
-    c.innerHTML = makeCloud('cf' + i, 11 + i * 7, P);
+    c.innerHTML = makeCloud('cf' + i, 11 + i * 7, CP);
     sky.appendChild(c);
   });
 
   makeParticles();
+  updateSky();
   document.querySelectorAll('#seasonBar button').forEach(b => b.classList.toggle('on', b.dataset.s === season));
   islandTree.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-60 -110 120 120" width="240" height="240">${makeTree(77, 100)}</svg>`);
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-60 -110 120 120" width="240" height="240">
+      <defs><filter id="wash" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter></defs>
+      ${makeTree(77, 100)}</svg>`);
 }
 const islandTree = new Image();
 
-// 날리는 계절 입자
+// =====================================================================
+//  실시간 하늘: 일출 / 낮 / 일몰 / 밤 (해와 달이 실제 시각에 맞춰 움직여요)
+// =====================================================================
+const hhmm = d => d.getHours() + d.getMinutes() / 60;
+function nowHours() {
+  const h = parseFloat(params.get('hour'));       // 테스트용: ?hour=19.5
+  return isNaN(h) ? hhmm(new Date()) : h;
+}
+// 날씨 API에서 일출/일몰 시각을 못 받았을 때 쓰는 서울 기준 근사값
+function fallbackSun() {
+  const d = new Date(), doy = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 864e5);
+  const c = Math.cos(2 * Math.PI * (doy + 10) / 365);
+  return { rise: 6.45 + 1.27 * c, set: 18.62 - 1.33 * c };
+}
+// 달의 위상 (0 = 그믐/삭, 0.5 = 보름)
+function moonPhase() {
+  const days = (Date.now() - Date.UTC(2000, 0, 6, 18, 14)) / 864e5;
+  return ((days % 29.530588) + 29.530588) % 29.530588 / 29.530588;
+}
+function updateSky() {
+  const sun = weather.sun || fallbackSun();
+  const t = nowHours(), P = SEASONS[season];
+  const dawn = Math.abs(t - sun.rise) < 0.6, dusk = Math.abs(t - sun.set) < 0.6;
+  const day = t > sun.rise && t < sun.set;
+  let skyCols, tint = 'transparent', cel = '';
+  // 해/달이 지나가는 큰 호: 왼쪽 지평선에서 떠서 오른쪽 지평선으로 져요
+  const arc = f => ({ x: 30 + f * 340, y: 250 - Math.sin(Math.PI * f) * 200 });
+  if (day || dawn || dusk) {
+    const f = clamp((t - sun.rise) / (sun.set - sun.rise), -0.03, 1.03), p = arc(f);
+    skyCols = dawn ? ['#8a97bf', '#f0b9a0', '#fbe2c2'] : dusk ? ['#7684b2', '#ee9f86', '#f8cfa2'] : P.sky;
+    if (dawn || dusk) tint = 'rgba(240,140,90,.13)';
+    const sc = dawn || dusk ? '#ffcf9a' : '#fff4d6';
+    cel = `<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="70" fill="url(#glowG)"/>
+      <circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="15" fill="${sc}" stroke="rgba(112,104,96,.35)" stroke-width="1"/>`;
+  } else {
+    // 밤: 별 + 위상에 맞는 달
+    const nightLen = 24 - (sun.set - sun.rise);
+    const f = ((t - sun.set + 24) % 24) / nightLen, p = arc(clamp(f, 0, 1));
+    skyCols = ['#1f2b4a', '#36446d', '#58648e'];
+    tint = 'rgba(25,35,80,.42)';
+    const R = mulberry32(99);
+    for (let i = 0; i < 70; i++) cel += `<circle cx="${f1(R() * 400)}" cy="${f1(R() * 230)}" r="${f1(0.4 + R() * 1.1)}" fill="#fffbe8" opacity="${f1(0.4 + R() * 0.6)}"/>`;
+    const ph = moonPhase(), r = 13;
+    const dx = ph <= 0.5 ? 4 * r * ph : -4 * r * (1 - ph);
+    cel += `<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="50" fill="url(#glowG)" opacity=".5"/>
+      <circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="${r}" fill="#f6f1dc"/>
+      <circle cx="${f1(p.x + dx)}" cy="${f1(p.y)}" r="${r + 0.5}" fill="#2a3758" opacity=".92"/>`;
+  }
+  ['sk0', 'sk1', 'sk2'].forEach((id, i) => { const el = document.getElementById(id); if (el) el.setAttribute('stop-color', skyCols[i]); });
+  const ce = document.getElementById('celestial'); if (ce) ce.innerHTML = cel;
+  if (weather.kind === 'rain' || weather.kind === 'cloudy') tint = tint === 'transparent' ? 'rgba(90,100,115,.16)' : tint;
+  $('tint').style.background = tint;
+}
+setInterval(() => { if (!S) updateSky(); }, 60000);
+
+// =====================================================================
+//  실제 날씨 (Open-Meteo, API 키 없음). 위치 동의를 안 하면 서울 기준.
+// =====================================================================
+const SEOUL = { lat: 37.57, lon: 126.98, name: '서울' };
+const weather = { kind: 'clear', label: '', temp: null, sun: null, place: '서울' };
+const WMO = c => c >= 71 && c <= 77 || c === 85 || c === 86 ? ['snow', '눈']
+  : c >= 51 && c <= 67 || c >= 80 && c <= 82 || c >= 95 ? ['rain', '비']
+  : c === 45 || c === 48 ? ['cloudy', '안개'] : c === 3 ? ['cloudy', '흐림'] : c === 2 ? ['clear', '구름 조금'] : ['clear', '맑음'];
+async function loadWeather(loc) {
+  try {
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat.toFixed(2)}&longitude=${loc.lon.toFixed(2)}` +
+      `&current=temperature_2m,weather_code&daily=sunrise,sunset&timezone=auto&forecast_days=1`;
+    const j = await (await fetch(u)).json();
+    const [kind, label] = WMO(j.current.weather_code);
+    Object.assign(weather, { kind, label, temp: Math.round(j.current.temperature_2m), place: loc.name });
+    const sr = new Date(j.daily.sunrise[0]), ss = new Date(j.daily.sunset[0]);
+    if (!isNaN(sr) && !isNaN(ss)) weather.sun = { rise: hhmm(sr), set: hhmm(ss) };
+  } catch (e) { /* 인터넷이 안 되면 맑은 날 + 서울 근사 일출·일몰로 */ }
+  const forced = params.get('weather');            // 테스트용: ?weather=snow / rain / cloudy / clear
+  if (['snow', 'rain', 'cloudy', 'clear'].includes(forced)) Object.assign(weather, { kind: forced, label: { snow: '눈', rain: '비', cloudy: '흐림', clear: '맑음' }[forced] });
+  $('weather').textContent = weather.label ? `${weather.place} · ${weather.label}${weather.temp !== null ? ' ' + weather.temp + '°' : ''}` : '';
+  renderScene();
+}
+function startWeather() {
+  const consent = store.get('busGame.geo', null);
+  if (consent === 'yes' && navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      p => loadWeather({ lat: p.coords.latitude, lon: p.coords.longitude, name: '내 위치' }),
+      () => loadWeather(SEOUL), { timeout: 8000, maximumAge: 30 * 60000 });
+  } else loadWeather(SEOUL);
+}
+function askLocation() {
+  const card = $('card');
+  card.innerHTML = `<h2>날씨를 함께 볼까요?</h2>
+    <p>지금 계신 곳의 실제 날씨와 해·달을 메인 화면에 보여 드려요.<br>위치는 날씨를 불러올 때만 쓰고 저장하지 않아요.</p>
+    <button class="btn" id="geoYes">위치 사용하기</button>
+    <button class="btn alt" id="geoNo">서울 날씨로 볼게요</button>`;
+  card.querySelector('#geoYes').onclick = () => { store.set('busGame.geo', 'yes'); hideOverlay(); startWeather(); };
+  card.querySelector('#geoNo').onclick = () => { store.set('busGame.geo', 'no'); hideOverlay(); startWeather(); };
+  $('overlay').classList.add('show');
+}
+
+// =====================================================================
+//  하트: 최대 5개, 10분마다 1개씩 충전. 실패한 단계를 다시 하거나 그만둘 때 1개 사용.
+// =====================================================================
+const HEART_MAX = 5, HEART_MS = 10 * 60 * 1000;
+const hearts = Object.assign({ n: HEART_MAX, t: Date.now() }, store.get('busGame.hearts', {}));
+function refreshHearts() {
+  if (hearts.n >= HEART_MAX) { hearts.t = Date.now(); return; }
+  const k = Math.floor((Date.now() - hearts.t) / HEART_MS);
+  if (k > 0) {
+    hearts.n = Math.min(HEART_MAX, hearts.n + k);
+    hearts.t = hearts.n >= HEART_MAX ? Date.now() : hearts.t + k * HEART_MS;
+    store.set('busGame.hearts', hearts);
+  }
+}
+const heartLeft = () => {
+  const ms = Math.max(0, HEART_MS - (Date.now() - hearts.t));
+  return `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
+};
+function useHeart() {
+  refreshHearts();
+  if (hearts.n <= 0) return false;
+  if (hearts.n >= HEART_MAX) hearts.t = Date.now();
+  hearts.n--;
+  store.set('busGame.hearts', hearts);
+  renderHearts();
+  return true;
+}
+const HEART_SVG = `<svg width="18" height="16" viewBox="0 0 20 18" aria-hidden="true"><path d="M10 17 C4 12.5 1 9.5 1 5.8 C1 3 3.2 1 5.7 1 C7.5 1 9 2 10 3.6 C11 2 12.5 1 14.3 1 C16.8 1 19 3 19 5.8 C19 9.5 16 12.5 10 17Z" fill="#e9899b" stroke="#a8a097" stroke-width="1"/></svg>`;
+function renderHearts() {
+  refreshHearts();
+  $('hearts').innerHTML = `${HEART_SVG}${hearts.n}/${HEART_MAX}<small>${hearts.n < HEART_MAX ? heartLeft() : '가득'}</small>`;
+}
+setInterval(renderHearts, 1000);
+// 하트가 있어야 단계를 시작할 수 있어요
+function tryStart(n) {
+  refreshHearts();
+  if (hearts.n <= 0) { toast(`하트가 없어요 · ${heartLeft()} 뒤에 1개 충전`, 2200); return; }
+  startLevel(n);
+}
+
+// 날리는 것: 날씨가 눈/비면 진짜 눈/비, 아니면 계절 (벚꽃잎·나뭇잎·단풍). 겨울엔 실제로 눈이 올 때만 눈.
 function makeParticles() {
   const fx = $('fx');
   fx.innerHTML = '';
   const R = Math.random;
-  const n = season === 'winter' ? 42 : 20;
+  const kind = weather.kind === 'snow' ? 'snow' : weather.kind === 'rain' ? 'rain' : season === 'winter' ? null : season;
+  if (!kind) return;
+  const n = kind === 'snow' ? 45 : kind === 'rain' ? 70 : 20;
   for (let i = 0; i < n; i++) {
     const p = document.createElement('div');
-    p.className = 'particle';
-    p.style.left = (R() * 100) + '%';
-    p.style.animationDuration = (season === 'winter' ? 9 + R() * 8 : 11 + R() * 9) + 's';
+    p.className = 'particle' + (kind === 'rain' ? ' rainy' : '');
+    p.style.left = (R() * 104 - 2) + '%';
+    p.style.animationDuration = (kind === 'rain' ? 0.7 + R() * 0.5 : kind === 'snow' ? 9 + R() * 8 : 11 + R() * 9) + 's';
     p.style.animationDelay = (-R() * 20) + 's';
     let inner;
-    if (season === 'winter') {
+    if (kind === 'snow') {
       const sz = 2 + R() * 4;
       inner = `<span class="snow" style="width:${sz}px;height:${sz}px"></span>`;
-    } else if (season === 'spring') {
+    } else if (kind === 'rain') {
+      inner = `<span class="rain"></span>`;
+    } else if (kind === 'spring') {
       inner = `<svg width="11" height="10" viewBox="0 0 10 9"><path d="M5 9 C1 6 0 2 3 .5 C4 0 4.6 .8 5 1.6 C5.4 .8 6 0 7 .5 C10 2 9 6 5 9Z" fill="${pick(R, ['#f6c4d2', '#f9d6e0', '#f2b6c7'])}" stroke="#dba2b2" stroke-width=".4"/></svg>`;
-    } else if (season === 'summer') {
-      inner = `<svg width="14" height="8" viewBox="0 0 12 7"><path d="M0 3.5 Q6 -2 12 3.5 Q6 9 0 3.5Z" fill="${pick(R, ['#79ad5a', '#8cc064', '#5f9a45'])}"/><path d="M.5 3.5 L11 3.5" stroke="#4f7f3a" stroke-width=".5"/></svg>`;
+    } else if (kind === 'summer') {
+      inner = `<svg width="14" height="8" viewBox="0 0 12 7"><path d="M0 3.5 Q6 -2 12 3.5 Q6 9 0 3.5Z" fill="${pick(R, ['#8cc463', '#a6d17a', '#72ab50'])}"/><path d="M.5 3.5 L11 3.5" stroke="#4f7f3a" stroke-width=".5"/></svg>`;
     } else {
-      inner = `<svg width="16" height="16" viewBox="0 0 20 20"><path d="M10 1 L12 6 L17 4 L15 9 L19 11 L14 12 L15 17 L10 14 L5 17 L6 12 L1 11 L5 9 L3 4 L8 6Z" fill="${pick(R, ['#d9653f', '#e8913f', '#f0b54a', '#c9472f'])}" stroke="rgba(112,80,60,.5)" stroke-width=".5"/><path d="M10 14 L10 19" stroke="#8a5a3a" stroke-width=".8"/></svg>`;
+      inner = R() < 0.5
+        ? `<svg width="16" height="16" viewBox="0 0 20 20"><path d="M10 1 L12 6 L17 4 L15 9 L19 11 L14 12 L15 17 L10 14 L5 17 L6 12 L1 11 L5 9 L3 4 L8 6Z" fill="${pick(R, ['#d9653f', '#e8913f', '#c9472f'])}" stroke="rgba(112,80,60,.5)" stroke-width=".5"/><path d="M10 14 L10 19" stroke="#8a5a3a" stroke-width=".8"/></svg>`
+        : `<svg width="14" height="14" viewBox="0 0 20 20"><path d="M10 18 L3 6 Q10 0 17 6Z" fill="${pick(R, GINKGO)}" stroke="rgba(150,110,40,.5)" stroke-width=".5"/><path d="M10 18 L10 20" stroke="#8a6a3a"/></svg>`;
     }
     p.innerHTML = inner;
-    p.firstElementChild.style.animationDuration = (2 + R() * 2.5) + 's';
+    if (kind !== 'rain') p.firstElementChild.style.animationDuration = (2 + R() * 2.5) + 's';
     fx.appendChild(p);
   }
 }
@@ -1571,6 +1842,7 @@ function showNickname(first) {
     store.set('busGame.nickname', v);
     updateHello();
     hideOverlay();
+    if (first && store.get('busGame.geo', null) === null) askLocation();   // 다음으로 위치 동의 묻기
   };
   card.querySelector('#nickOk').onclick = ok;
   inp.onkeydown = e => { if (e.key === 'Enter') ok(); };
@@ -1615,7 +1887,7 @@ function showLevelPopup(n) {
     <p>난이도 · ${tier.name}${n < unlocked ? '<br>이미 깬 단계예요' : ''}</p>
     <button class="btn" id="ovStart">시작하기</button>
     <button class="btn alt" id="ovClose">닫기</button>`;
-  card.querySelector('#ovStart').onclick = () => startLevel(n);
+  card.querySelector('#ovStart').onclick = () => tryStart(n);
   card.querySelector('#ovClose').onclick = () => hideOverlay();
   $('overlay').classList.add('show');
 }
@@ -1761,10 +2033,15 @@ const params = new URLSearchParams(location.search);
 if (SEASONS[params.get('season')]) season = params.get('season');
 renderScene();
 const urlLevel = parseInt(params.get('level'), 10);
+renderHearts();
+startWeather();
 if (urlLevel > 0) startLevel(urlLevel);
 else {
   showMenu();
-  if (!nickname && !params.has('test')) showNickname(true);   // 처음 온 사람에게 닉네임 받기
+  if (!params.has('test')) {
+    if (!nickname) showNickname(true);                                  // 처음 온 사람에게 닉네임 받기
+    else if (store.get('busGame.geo', null) === null) askLocation();    // 그다음 위치 동의
+  }
 }
 requestAnimationFrame(loop);
 </script>

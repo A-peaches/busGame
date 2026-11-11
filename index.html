@@ -567,7 +567,8 @@ function layout() {
 
   // 주차장
   const bTop = L.sTop + L.swH + L.sH + L.roadH + 12, bH = H - bTop - pad;
-  L.cs = Math.floor(Math.min((W - 2 * pad) / (S.cols + 0.4), bH / (S.rows + 0.4)));
+  L.bTop = bTop; L.bH = bH;    // 주차장 바탕은 위 패널들과 같은 가로 폭 (8 ~ W-8)
+  L.cs = Math.floor(Math.min((W - 2 * pad - 16) / (S.cols + 0.4), (bH - 16) / (S.rows + 0.4)));
   L.bx = (W - L.cs * S.cols) / 2;
   L.by = bTop + (bH - L.cs * S.rows) / 2;
 
@@ -1500,14 +1501,14 @@ function draw() {
   }
 
   // 주차장: 연석 + 따뜻한 회색 아스팔트 + 바랜 주차선 + P 표시
-  const pad = L.cs * 0.2, bw = L.cs * S.cols + pad * 2, bh = L.cs * S.rows + pad * 2;
-  const bx0 = L.bx - pad, by0 = L.by - pad;
+  //   위쪽 대기 구역·정류장과 똑같은 가로 폭으로 깔고, 버스들은 그 가운데에 놓여요
+  const bx0 = 13, by0 = L.bTop - 4 + 5, bw = L.W - 26, bh = L.bH + 4 - 10;
   ctx.fillStyle = '#e2dacb';
-  rr(bx0 - 5, by0 - 5, bw + 10, bh + 10, 20); ctx.fill();
+  rr(8, L.bTop - 4, L.W - 16, L.bH + 4, 16); ctx.fill();
   ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
   ctx.fillStyle = S.liftMode ? '#cdbb86' : '#a7a199';
-  rr(bx0, by0, bw, bh, 16); ctx.fill(); ctx.stroke();
-  drawSpeckles(bx0, by0, bw, bh, 140);
+  rr(bx0, by0, bw, bh, 12); ctx.fill(); ctx.stroke();
+  drawSpeckles(bx0, by0, bw, bh, 160);
   ctx.strokeStyle = 'rgba(246,240,226,.32)'; ctx.lineWidth = 1.4;
   ctx.setLineDash([L.cs * 0.55, L.cs * 0.45]);
   for (let i = 1; i < S.cols; i++) {
@@ -2413,6 +2414,20 @@ function piano(m, t, dur, vel, bus) {
   }
 }
 
+// 버튼 소리 "뿅": 날카로운 배음 없이 둥근 사인파가 살짝 올라가며 작게 사라져요
+function blip(t) {
+  const o = AC.createOscillator(), g = AC.createGain(), lp = AC.createBiquadFilter();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(520, t);
+  o.frequency.exponentialRampToValueAtTime(880, t + 0.07);
+  lp.type = 'lowpass'; lp.frequency.value = 1800;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.07, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+  o.connect(lp).connect(g).connect(sfxBus);
+  o.start(t); o.stop(t + 0.15);
+}
+
 // 효과음: "뿅뿅" 느낌을 피아노로
 const PENTA = [72, 74, 76, 79, 81, 84, 86, 88];   // 탈 때마다 한 음씩 올라가요
 function sfx(kind, arg = 0) {
@@ -2420,7 +2435,7 @@ function sfx(kind, arg = 0) {
   if (AC.state === 'suspended') AC.resume();
   const t = AC.currentTime + 0.01, B = sfxBus;
   switch (kind) {
-    case 'click':  piano(84, t, 0.12, 0.09, B); break;                                        // 톡
+    case 'click':  blip(t); break;                                                            // 뿅 (작고 동그랗게)
     case 'go':     piano(79, t, 0.1, 0.12, B); piano(86, t + 0.07, 0.25, 0.12, B); break;    // 뿅!
     case 'block':  piano(50, t, 0.2, 0.17, B); piano(49, t + 0.06, 0.25, 0.1, B); break;     // 쿵
     case 'board':  piano(PENTA[arg % PENTA.length], t, 0.12, 0.07, B); break;                 // 폴짝

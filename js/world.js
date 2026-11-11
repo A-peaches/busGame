@@ -62,6 +62,26 @@ const weather = { kind: 'clear', label: '', temp: null, sun: null, place: '서�
 const WMO = c => c >= 71 && c <= 77 || c === 85 || c === 86 ? ['snow', '눈']
   : c >= 51 && c <= 67 || c >= 80 && c <= 82 || c >= 95 ? ['rain', '비']
   : c === 45 || c === 48 ? ['cloudy', '안개'] : c === 3 ? ['cloudy', '흐림'] : c === 2 ? ['clear', '구름 조금'] : ['clear', '맑음'];
+// ---- 날씨 줄의 작은 그림들 (얇은 갈색 선, 파스텔) ----
+const PIN_SVG = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><g fill="none" stroke="#6b5a48" stroke-width="1.3" stroke-linecap="round">
+  <circle cx="8" cy="8" r="4.6"/><circle cx="8" cy="8" r="1.4" fill="#e8768e" stroke="none"/>
+  <path d="M8 1 V3.2 M8 12.8 V15 M1 8 H3.2 M12.8 8 H15"/></g></svg>`;
+const W_SUN = '<circle cx="8" cy="8" r="3.2" fill="#f6c95a"/><path d="M8 1.6 V3 M8 13 V14.4 M1.6 8 H3 M13 8 H14.4 M3.5 3.5 L4.4 4.4 M11.6 11.6 L12.5 12.5 M3.5 12.5 L4.4 11.6 M11.6 4.4 L12.5 3.5" fill="none"/>';
+const W_MOON = '<path d="M10.8 2.6 A5.6 5.6 0 1 0 13.4 10.6 A4.4 4.4 0 0 1 10.8 2.6Z" fill="#f3e3a8"/>';
+const W_CLOUD = (y = 0, c = '#f4f1ec') => `<path d="M4.4 ${12.6 + y} H12 A2.6 2.6 0 0 0 12.2 ${7.4 + y} A3.4 3.4 0 0 0 5.6 ${7.2 + y} A2.7 2.7 0 0 0 4.4 ${12.6 + y}Z" fill="${c}"/>`;
+function weatherIcon(label) {
+  let night = false;
+  if (weather.sun) { const n = hhmm(new Date()); night = n < weather.sun.rise || n >= weather.sun.set; }
+  const body = {
+    '맑음': night ? W_MOON : W_SUN,
+    '구름 조금': `<g transform="translate(-1.2 -1) scale(.8)">${night ? W_MOON : W_SUN}</g>` + W_CLOUD(1.4),
+    '흐림': W_CLOUD(0, '#e6e2dc'),
+    '안개': W_CLOUD(-2.4, '#ece8e2') + '<path d="M3 13 H13 M4.5 15 H11.5" fill="none"/>',
+    '비': W_CLOUD(-2.2, '#e6e2dc') + '<path d="M5.6 12.6 L4.8 14.8 M8.6 12.6 L7.8 14.8 M11.4 12.6 L10.6 14.8" fill="none" stroke="#7fb4d6"/>',
+    '눈': W_CLOUD(-2.2, '#eef1f4') + '<g fill="#a9c6dc" stroke="none"><circle cx="5.2" cy="13.8" r="1"/><circle cx="8.2" cy="14.6" r="1"/><circle cx="11.2" cy="13.8" r="1"/></g>',
+  }[label] || W_SUN;
+  return `<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><g stroke="#6b5a48" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">${body}</g></svg>`;
+}
 async function loadWeather(loc) {
   try {
     const u = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat.toFixed(2)}&longitude=${loc.lon.toFixed(2)}` +
@@ -74,8 +94,15 @@ async function loadWeather(loc) {
   } catch (e) { /* 인터넷이 안 되면 맑은 날 + 서울 근사 일출·일몰로 */ }
   const forced = params.get('weather');            // 테스트용: ?weather=snow / rain / cloudy / clear
   if (['snow', 'rain', 'cloudy', 'clear'].includes(forced)) Object.assign(weather, { kind: forced, label: { snow: '눈', rain: '비', cloudy: '흐림', clear: '맑음' }[forced] });
-  $('weather').textContent = weather.label ? `${weather.place} · ${weather.label}${weather.temp !== null ? ' ' + weather.temp + '°' : ''}` : '';
+  renderWeatherLabel();
   renderScene();
+}
+// 내 위치는 글자 대신 위치 아이콘(동그라미+십자), 날씨는 그림 + 글자 + 기온
+function renderWeatherLabel() {
+  $('weather').innerHTML = weather.label
+    ? `${weather.place === '내 위치' ? `<span class="wIc" title="내 위치">${PIN_SVG}</span>` : `<span>${weather.place}</span>`}<span class="wDot">·</span>`
+      + `<span class="wIc">${weatherIcon(weather.label)}</span><span>${weather.label}${weather.temp !== null ? ' ' + weather.temp + '°' : ''}</span>`
+    : '';
 }
 function startWeather() {
   const consent = store.get('busGame.geo', null);

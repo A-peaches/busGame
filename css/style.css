@@ -66,6 +66,7 @@ html, body, button, canvas, #app { touch-action: manipulation; }
 .hello:empty, .weather:empty { display: none; }
 .weather {
   position: absolute; top: 52px; left: 12px; z-index: 4; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 4px;
   padding: 4px 12px; border-radius: 14px; font-size: 12px; color: var(--muted);
   background: rgba(255, 250, 240, .75); border: 1px solid var(--line);
 }
@@ -265,3 +266,4 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .pushWhy { font-size: 11px; color: #b0675a; text-align: left; margin: -4px 0 6px; word-break: break-all; }
 .pushWhy:empty { display: none; }
 .verLine { font-size: 10.5px; color: #b3a58e; margin: 6px 0 0; }
+.weather .wIc { display: inline-flex; } .weather .wIc svg { display: block; } .weather .wDot { opacity: .6; }

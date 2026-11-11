@@ -213,6 +213,7 @@ canvas.addEventListener('pointerdown', e => {
 function tapVehicle(v) {
   tapParked(v);
   railStep();
+  turnStep();
 }
 function tapParked(v) {
   if (S.liftMode) {
@@ -330,11 +331,12 @@ function update(dt) {
   for (const v of S.vehicles) {
     if (v.pop < 1) v.pop = Math.min(1, v.pop + dt * 4);
     if (v.shake > 0) v.shake -= dt;
+    if (v.spin > 0) v.spin = Math.max(0, v.spin - dt * 3.5);
 
     if (v.state === 'parked' && v.bump) {
       const b = v.bump;
       b.t += dt;
-      if (b.t >= b.T) { v.bump = null; v.off = 0; }
+      if (b.t >= b.T) { v.bump = null; v.off = 0; if (v.turnLater) uTurn(v); }
       else {
         const u = b.t / b.T, peak = b.d + 0.15;
         v.off = u < 0.45 ? peak * easeOut(u / 0.45) : peak * (1 - easeIn((u - 0.45) / 0.55));

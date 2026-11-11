@@ -50,6 +50,7 @@ function insideBoard(v, cols, rows) {
 // 10단계 묶음이 넘어갈 때마다 전체 난이도가 조금씩 올라가요. 단계는 100단계까지.
 const MAX_LEVEL = 100;
 const RAIL_FROM = 31;          // 이 단계부터 "레일 버스" 이벤트가 나와요
+const TURN_FROM = 61;          // 이 단계부터 "U턴 버스" 이벤트가 나와요
 const TIERS = {
   1: { stars: 1, name: '쉬움' },
   3: { stars: 3, name: '어려움' },
@@ -146,6 +147,10 @@ function genLevel(n) {
     v.color = palette[i < P.colorCount ? i : Math.floor(rng() * P.colorCount)];
     v.cap = (v.len - 1) * 8;          // 8 / 16 / 24 / 32석
     v.hidden = rng() < P.hiddenChance;
+    // U턴 버스 (61단계부터): 버스를 누를 때마다 앞뒤 방향이 휙 바뀌어요.
+    //   빼낼 순서를 정할 때 앞·뒤 어느 쪽으로든 나갈 수 있게 골랐으니, 한 번 더 누르면 언제든 풀 수 있어요.
+    v.turner = n >= TURN_FROM && rng() < Math.min(0.16 + (n - TURN_FROM) * 0.004, 0.3);
+    if (v.turner) v.hidden = false;
   });
 
   // 새 이벤트 "레일 버스" (31단계부터): 주차장 아래 레일 위에 버스들이 있어요.
@@ -202,7 +207,7 @@ function startLevel(n) {
   g.vehicles.forEach((v, i) => {
     const o = {
       id: i, cx: v.cx, cy: v.cy, ang: v.ang, len: v.len, l: v.l, w: v.w, body: bodyBox(v),
-      color: v.color, cap: v.cap, hidden: v.hidden,
+      color: v.color, cap: v.cap, hidden: v.hidden, turner: !!v.turner, spin: 0,
       state: v.onRail ? 'rail' : 'parked', off: 0, bump: null, shake: 0, filled: 0, incoming: 0, pop: 1, t: 0,
     };
     v._rt = o;
@@ -216,8 +221,20 @@ function startLevel(n) {
   for (let k = 0; k < S.ring.length; k++) if (S.waiting.length) S.ring[k] = S.waiting.shift();
   hideOverlay();
   updateUI();
+  // U턴 이벤트를 처음 만나면 안내
+  if (S.vehicles.some(v => v.turner) && !store.get('busGame.turnSeen', false)) {
+    store.set('busGame.turnSeen', true);
+    const card = $('card');
+    card.innerHTML = `<h2>새 이벤트! U턴 버스</h2>
+      <p>화살표에 <b>빙글 표시</b>가 있는 버스는<br>
+      아무 버스나 <b>누를 때마다 앞뒤 방향이 바뀌어요</b>.<br>
+      나가고 싶은 쪽을 볼 때 눌러 주세요!</p>
+      <button class="btn" id="ovOk">알겠어요</button>`;
+    card.querySelector('#ovOk').onclick = () => hideOverlay();
+    $('overlay').classList.add('show');
+  }
   // 레일 이벤트를 처음 만나면 안내
-  if (S.rail && !store.get('busGame.railSeen', false)) {
+  else if (S.rail && !store.get('busGame.railSeen', false)) {
     store.set('busGame.railSeen', true);
     const card = $('card');
     card.innerHTML = `<h2>새 이벤트! 레일 버스</h2>
@@ -256,6 +273,23 @@ function tapRail(i) {
     toast('노란 출구 칸에 오면 출발할 수 있어요', 1400);
   }
   railStep();
+  turnStep();
+}
+
+// ---- U턴 버스 ----
+// 버스를 누를 때마다 U턴 버스들이 앞뒤를 바꿔요 (부딪혀 돌아오는 중이면 돌아온 다음에)
+function turnStep() {
+  if (!S) return;
+  for (const v of S.vehicles) {
+    if (!v.turner || v.state !== 'parked') continue;
+    if (v.bump) v.turnLater = true; else uTurn(v);
+  }
+}
+function uTurn(v) {
+  v.turnLater = false;
+  v.ang = normAng(v.ang + Math.PI);
+  v.body = bodyBox(v);
+  v.spin = 1;            // 빙글 도는 애니메이션
 }
 
 const parkedBlockers = v => {

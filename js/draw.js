@@ -72,6 +72,23 @@ function drawVehicle(x, y, a, w, l, colorIdx, hidden, o = {}) {
   } else if (o.arrow) {
     // 크림색 화살표 + 얇은 테두리
     const s = Math.min(l * 0.22, w * 0.7), hw = w * 0.25, sw = w * 0.075, hb = -s + w * 0.2;
+    if (o.turner) {
+      // U턴 버스: 화살표 뒤에 노란 동그라미 + 빙글 화살표 (화살표가 잘 보이도록 먼저 그려요)
+      const r = w * 0.38, k = w * 0.12;
+      ctx.beginPath(); ctx.arc(0, 0, r + w * 0.06, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,250,238,.6)'; ctx.fill();
+      ctx.strokeStyle = '#5a4a3a'; ctx.fillStyle = '#5a4a3a'; ctx.lineWidth = Math.max(1.4, w * 0.07);
+      for (const b of [0, Math.PI]) {          // 반원 화살표 두 개 = 빙글 도는 표시
+        const a0 = b + Math.PI * 0.62, a1 = b + Math.PI * 1.38;
+        ctx.beginPath(); ctx.arc(0, 0, r, a0, a1); ctx.stroke();
+        const hx = Math.cos(a1) * r, hy = Math.sin(a1) * r, t = a1 + Math.PI / 2;
+        ctx.beginPath();
+        ctx.moveTo(hx + Math.cos(t) * k * 1.3, hy + Math.sin(t) * k * 1.3);
+        ctx.lineTo(hx + Math.cos(t + 2.1) * k, hy + Math.sin(t + 2.1) * k);
+        ctx.lineTo(hx + Math.cos(t - 2.1) * k, hy + Math.sin(t - 2.1) * k);
+        ctx.closePath(); ctx.fill();
+      }
+    }
     ctx.beginPath();
     ctx.moveTo(0, -s - w * 0.12); ctx.lineTo(hw, hb); ctx.lineTo(sw, hb); ctx.lineTo(sw, s);
     ctx.lineTo(-sw, s); ctx.lineTo(-sw, hb); ctx.lineTo(-hw, hb); ctx.closePath();
@@ -440,7 +457,8 @@ function vehiclePose(v) {
     const pop = v.pop < 1 ? 1 + Math.sin(v.pop * Math.PI) * 0.15 : 1;
     return {
       x: L.bx + (v.cx + a.ux * v.off) * L.cs + shake, y: L.by + (v.cy + a.uy * v.off) * L.cs,
-      a: v.ang, w: v.w * L.cs, l: v.l * L.cs, scale: pop,
+      a: v.ang + (v.spin > 0 ? -Math.PI * easeInOut(v.spin) : 0),     // U턴: 반 바퀴 빙글
+      w: v.w * L.cs, l: v.l * L.cs, scale: pop * (v.spin > 0 ? 1 + Math.sin(v.spin * Math.PI) * 0.1 : 1),
     };
   }
   const p = slotPos(v.slot), s = slotSize(v);
@@ -660,7 +678,7 @@ function draw() {
     const P = vehiclePose(v);
     const inSlot = v.state === 'slot' || v.state === 'departing';
     drawVehicle(P.x, P.y, P.a, P.w, P.l, v.color, v.hidden, {
-      arrow: !inSlot, seats: inSlot ? v.cap - v.filled : null, capLabel: v.state === 'parked' ? v.cap : null,
+      arrow: !inSlot, turner: v.turner && v.state === 'parked', seats: inSlot ? v.cap - v.filled : null, capLabel: v.state === 'parked' ? v.cap : null,
       alpha: P.alpha, scale: P.scale,
     });
   }

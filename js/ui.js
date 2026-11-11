@@ -272,7 +272,7 @@ const HELP_PAGES = [
       <li>클리어하면 하트는 줄지 않아요. 하트가 0개면 단계를 시작할 수 없어요.</li>
       <li>친구가 보낸 하트를 받으면 5개를 넘을 수도 있어요.</li>
     </ul>`],
-  ['⭐ 단계와 레일', '단계', `<ul>
+  ['⭐ 단계와 이벤트', '단계', `<ul>
       <li>모두 <b>100단계</b>예요. 한 단계를 깨면 다음 단계가 열려요.</li>
       <li>10단계마다 <b>쉬움 → 어려움 → 매우 어려움</b>이 반복되고, 갈수록 조금씩 어려워져요.</li>
       <li><b>별 5개(최고 난이도)</b>는 30단계마다 나와요.</li>
@@ -282,6 +282,12 @@ const HELP_PAGES = [
       <li>주차장 아래 레일 위에 버스가 있어요.</li>
       <li>버스를 <b>누를 때마다 레일이 한 칸씩</b> 움직여요.</li>
       <li><b>노란 출구 칸</b>에 온 버스만 출발할 수 있어요.</li>
+    </ul>
+    <h3>🔄 U턴 버스 (61단계부터)</h3>
+    <ul>
+      <li>화살표에 <b>빙글 표시</b>가 있는 버스예요.</li>
+      <li>아무 버스나 <b>누를 때마다 앞뒤 방향이 휙</b> 바뀌어요.</li>
+      <li>막혔다면 한 번 더 누르면 반대쪽을 봐요. 나가고 싶은 쪽을 볼 때 누르세요!</li>
     </ul>`],
   ['💌 친구와 알림', '친구', `<ul>
       <li>왼쪽 아래 <b>친구 버튼</b>에서 내 친구 코드를 보고, 친구 코드를 넣어 친구를 맺어요.</li>
@@ -312,7 +318,7 @@ function showHelp(page) {
   const [title, , body] = HELP_PAGES[helpPage];
   card.innerHTML = `<h2>설명서</h2>
     <div class="bookmarks">${HELP_PAGES.map((p, i) =>
-      `<button class="bm${i === helpPage ? ' on' : ''}" data-p="${i}"><b>${i + 1}</b>${p[1]}</button>`).join('')}</div>
+      `<button class="bm${i === helpPage ? ' on' : ''}" data-p="${i}">${i + 1}. ${p[1]}</button>`).join('')}</div>
     <div class="helpPage"><h3>${helpPage + 1}. ${title}</h3>${body}</div>
     <div class="helpNav">
       <button class="btn alt mini" id="hPrev" ${helpPage ? '' : 'disabled'}>‹ 이전</button>

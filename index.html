@@ -108,7 +108,8 @@
     box-shadow: 0 3px 6px rgba(70, 50, 30, .18);
   }
   .node small { display: block; font-size: 9px; letter-spacing: 1px; margin-top: 3px; color: rgba(255, 250, 241, .9); }
-  .node.done { background: #8fae78; }
+  .node.done { background: #c3dd96; color: var(--ink); }   /* 깬 단계: 노란 버튼과 어울리는 연두 */
+  .node.done small { color: #6f8f45; }
   .node.current { background: #f6dd92; color: var(--ink); animation: breathe 2.4s ease-in-out infinite; }
   .node.locked { background: #d8ccb9; cursor: pointer; box-shadow: 0 2px 4px rgba(70, 50, 30, .1); }
   .node.locked svg { display: block; margin: 0 auto; }
@@ -181,9 +182,16 @@
   }
   #overlay.show { display: flex; }
   .card {
+    position: relative;
     background: var(--cream); border-radius: 20px; padding: 24px 22px 20px; text-align: center; width: min(86%, 340px);
     border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(60, 40, 20, .25);
   }
+  /* 팝업 상자 위에 걸터앉은 고양이·강아지 그림판 */
+  .card canvas.perch {
+    position: absolute; inset: auto; left: 50%; top: -112px; transform: translateX(-50%);
+    width: 300px; height: 125px; pointer-events: none;
+  }
+  .card small { font-size: 12px; color: var(--muted); }
   .card h2 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
   #levelLabel, .btn, .node { font-weight: 700; }
   .card p { margin-bottom: 12px; color: var(--muted); line-height: 1.5; font-size: 15px; }
@@ -705,7 +713,7 @@ canvas.addEventListener('pointerdown', e => {
   // 가운데 나무를 누르면 빨리감기!
   const iry = L.ry - L.laneW / 2 - 4;
   if (Math.hypot((px - L.rcx) / (iry * 0.9), (py - (L.rcy - iry * 0.1)) / (iry * 0.9)) < 1) {
-    S.rush = 3; S.treeShake = 0.6; sfx('click'); toast('빨리빨리! 하트 길로 쏙쏙', 1300); return;
+    S.rush = 3; S.treeShake = 0.6; sfx('click'); return;
   }
 
   if (py > L.sTop + L.swH && py < L.sTop + L.swH + L.sH) {
@@ -1281,7 +1289,28 @@ function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, opts = {}) {
     }
   }
   // 눈
-  if (opts.sleep) {
+  if (opts.sad) {
+    // 시무룩: 눈물이 그렁그렁 맺힌 커다란 눈 + 축 처진 눈썹 + 살짝 내려간 입 + 또르르 눈물
+    const tt2 = performance.now() / 1000 + phase;
+    ctx.strokeStyle = '#2e231a'; ctx.lineWidth = Math.max(1, hr * 0.06); ctx.lineCap = 'round';
+    for (const s of [-1, 1]) {
+      const ex = hx + s * hr * 0.34, ey = hy - hr * 0.04;
+      ctx.fillStyle = '#2e231a'; ell(ex, ey, hr * 0.17, hr * 0.2);
+      ctx.fillStyle = 'rgba(160,210,240,.55)'; ell(ex, ey + hr * 0.1, hr * 0.17, hr * 0.09);   // 아래에 고인 눈물
+      ctx.fillStyle = '#fffaf0';
+      circle(ex - hr * 0.06, ey - hr * 0.08, hr * 0.07); circle(ex + hr * 0.06, ey + hr * 0.04, hr * 0.035);
+      ctx.beginPath(); ctx.moveTo(ex - s * hr * 0.18, ey - hr * 0.3); ctx.lineTo(ex + s * hr * 0.12, ey - hr * 0.38); ctx.stroke();   // 처진 눈썹
+      // 또르르 흐르는 눈물방울
+      const k = (tt2 * 0.6 + (s > 0 ? 0.5 : 0)) % 1, dy = hr * (0.2 + k * 0.45);
+      ctx.globalAlpha = 1 - k * 0.6;
+      ctx.beginPath(); ctx.moveTo(ex + s * hr * 0.1, ey + dy - hr * 0.1);
+      ctx.quadraticCurveTo(ex + s * hr * 0.17, ey + dy + hr * 0.03, ex + s * hr * 0.1, ey + dy + hr * 0.06);
+      ctx.quadraticCurveTo(ex + s * hr * 0.03, ey + dy + hr * 0.03, ex + s * hr * 0.1, ey + dy - hr * 0.1);
+      ctx.fillStyle = '#a9d6f2'; ctx.fill(); ctx.strokeStyle = 'rgba(96,140,170,.7)'; ctx.lineWidth = Math.max(0.6, hr * 0.03); ctx.stroke();
+      ctx.globalAlpha = 1; ctx.strokeStyle = '#2e231a'; ctx.lineWidth = Math.max(1, hr * 0.06);
+    }
+    ctx.beginPath(); ctx.arc(hx, hy + hr * 0.62, hr * 0.13, 1.15 * Math.PI, 1.85 * Math.PI); ctx.stroke();   // 시무룩한 입
+  } else if (opts.sleep) {
     // 쿨쿨: 감은 눈 (아래로 둥근 선)
     ctx.strokeStyle = '#2e231a'; ctx.lineWidth = Math.max(1, hr * 0.08);
     for (const s of [-1, 1]) { ctx.beginPath(); ctx.arc(hx + s * hr * 0.34, hy - hr * 0.1, hr * 0.13, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke(); }
@@ -1382,6 +1411,9 @@ function drawQueueArea() {
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   const waitPath = () => { ctx.beginPath(); L.wait.pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); };
   const polyPath = pts => { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); };
+  // 하트 가운데 잔디 섬을 길보다 "먼저" 칠해요 → 하트 위쪽 움푹한 곳에서도 길 테두리가 가려지지 않아요
+  polyPath(L.islandPts);
+  ctx.fillStyle = SP.meadow[0]; ctx.fill();
   const ringPath = () => polyPath(L.ringPts);   // 하트 모양 길
   const exitPath = () => { ctx.beginPath(); ctx.moveTo(L.exitX, L.exitY); ctx.lineTo(L.exitX, L.qTop + L.qH); };
   const dirt = season === 'winter' ? '#eef1f4' : '#ebd8b2';
@@ -1397,8 +1429,6 @@ function drawQueueArea() {
 
   // 하트 가운데 잔디 섬 + 큰 나무 + 꽃
   const iry = L.ry - L.laneW / 2 - 4;
-  polyPath(L.islandPts);
-  ctx.fillStyle = SP.meadow[0]; ctx.fill();   // (길 안쪽 테두리와 겹쳐 이중선이 되지 않게 테두리 없음)
   const cyI = L.rcy + L.ry * 0.05;
   for (let i = 0; i < 12 && SP.flowers.length; i++) {
     const [x, y] = L.islandPts[Math.floor(i / 12 * L.islandPts.length)];
@@ -1689,7 +1719,7 @@ function showOverlay(kind) {
   if (kind === 'win') {
     const tries = S.tries || 1;
     const all = store.get('busGame.tries', {}); all[S.level] = 0; store.set('busGame.tries', all);   // 다음 도전은 새로 세요
-    card.innerHTML = `<canvas id="celebCv" width="600" height="250" style="position:relative;inset:auto;width:300px;max-width:100%;height:auto;display:block;margin:-10px auto 2px"></canvas>
+    card.innerHTML = `<canvas id="celebCv" class="perch" width="600" height="250"></canvas>
       <h2>축하드립니다!</h2><p><b>${tries}번</b>의 시도로 성공했습니다!</p>
       <button class="btn" id="ovNext">${S.level + 1}단계로</button>
       <button class="btn alt" id="ovMap">메인 메뉴로</button>`;
@@ -1701,18 +1731,20 @@ function showOverlay(kind) {
   } else {
     const canSlot = S.boost.slot > 0 && S.slotCount < MAX_SLOTS;
     refreshHearts();
-    card.innerHTML = `<h2>꽉 막혔어요</h2><p>대기 칸이 가득 차서 더 태울 수 없어요.<br>
-      다시 하거나 그만두면 하트가 1개 줄어요 · 지금 하트 ${hearts.n}개</p>
-      ${canSlot ? '<button class="btn" id="ovSlot">자리 하나 늘리고 계속</button>' : ''}
-      <button class="btn ${canSlot ? 'alt' : ''}" id="ovRetry">다시 하기 (하트 1개)</button>
-      <button class="btn alt" id="ovMap">지도 보기</button>`;
+    card.innerHTML = `<canvas id="sadCv" class="perch" width="600" height="250"></canvas>
+      <h2>아쉬워요… 실패했어요</h2><p>대기 칸이 가득 차서 더 태울 수 없었어요.<br>
+      다시 도전할까요, 메인 메뉴로 갈까요?<br><small>다시 하거나 메인 메뉴로 가면 하트가 1개 줄어요 · 지금 하트 ${hearts.n}개</small></p>
+      <button class="btn" id="ovRetry">다시 도전 (하트 1개)</button>
+      <button class="btn alt" id="ovMap">메인 메뉴로</button>
+      ${canSlot ? '<button class="btn alt" id="ovSlot">자리 하나 늘리고 이어 하기</button>' : ''}`;
     if (canSlot) card.querySelector('#ovSlot').onclick = () => { useSlotBooster(); S.over = false; hideOverlay(); };
     card.querySelector('#ovRetry').onclick = () => {
       if (!useHeart()) { toast(`하트가 없어요 · ${heartLeft()} 뒤에 1개 충전`, 2200); return; }
-      startLevel(S.level);
+      stopCelebration(); startLevel(S.level);
     };
-    card.querySelector('#ovMap').onclick = () => { useHeart(); showMenu(); };
+    card.querySelector('#ovMap').onclick = () => { useHeart(); stopCelebration(); showMenu(); };
     $('overlay').classList.add('show');
+    sadLoop();
     return;
   }
   card.querySelector('#ovMap').onclick = () => showMenu();
@@ -1783,6 +1815,28 @@ function drawTrumpet(c, mx, my, dir, k) {
   c.restore();
   return { x: ex + Math.cos(ang) * k * 0.7, y: ey + Math.sin(ang) * k * 0.7 };
 }
+// 실패: 시무룩하게 눈물이 그렁그렁한 고양이와 강아지 (팝업 위에 걸터앉아 있어요)
+function sadLoop() {
+  stopCelebration();
+  const c = $('sadCv') && $('sadCv').getContext('2d');
+  if (!c) return;
+  const t0 = performance.now();
+  const frame = () => {
+    const T = (performance.now() - t0) / 1000, W = c.canvas.width, H = c.canvas.height;
+    c.clearRect(0, 0, W, H);
+    const saved = ctx, savedLW = LW_SCALE;
+    ctx = c; LW_SCALE = 2;
+    try {
+      for (const [x, kind, col, ph] of [[W * 0.36, 'cat', 6, 0], [W * 0.64, 'dog', 1, 1.1]]) {
+        const sniff = Math.max(0, Math.sin(T * 2.2 + ph)) * 2;   // 훌쩍훌쩍 어깨가 들썩
+        drawAnimal(x, H - 22, 40, col, kind, sniff, ph, { sad: true, ribbon: kind === 'cat' ? '#e8768e' : null });
+      }
+    } finally { ctx = saved; LW_SCALE = savedLW; }
+    if ($('overlay').classList.contains('show')) celebRAF = requestAnimationFrame(frame);
+  };
+  celebRAF = requestAnimationFrame(frame);
+}
+
 function drawTrumpeters(c, T) {
   const W = c.canvas.width, H = c.canvas.height;
   c.clearRect(0, 0, W, H);

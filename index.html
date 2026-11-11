@@ -1302,13 +1302,14 @@ function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, opts = {}) {
       ctx.fillStyle = 'rgba(160,210,240,.55)'; ell(ex, ey + hr * 0.1, hr * 0.17, hr * 0.09);   // 아래에 고인 눈물
       ctx.fillStyle = '#fffaf0';
       circle(ex - hr * 0.06, ey - hr * 0.08, hr * 0.07); circle(ex + hr * 0.06, ey + hr * 0.04, hr * 0.035);
-      ctx.beginPath(); ctx.moveTo(ex - s * hr * 0.18, ey - hr * 0.3); ctx.lineTo(ex + s * hr * 0.12, ey - hr * 0.38); ctx.stroke();   // 처진 눈썹
+      // 시무룩한 눈썹: 가운데(안쪽)는 올라가고 바깥쪽은 축 처진 八 모양
+      ctx.beginPath(); ctx.moveTo(ex - s * hr * 0.14, ey - hr * 0.44); ctx.quadraticCurveTo(ex + s * hr * 0.04, ey - hr * 0.4, ex + s * hr * 0.2, ey - hr * 0.28); ctx.stroke();
       // 또르르 흐르는 눈물방울
       const k = (tt2 * 0.6 + (s > 0 ? 0.5 : 0)) % 1, dy = hr * (0.2 + k * 0.45);
-      ctx.globalAlpha = 1 - k * 0.6;
-      ctx.beginPath(); ctx.moveTo(ex + s * hr * 0.1, ey + dy - hr * 0.1);
-      ctx.quadraticCurveTo(ex + s * hr * 0.17, ey + dy + hr * 0.03, ex + s * hr * 0.1, ey + dy + hr * 0.06);
-      ctx.quadraticCurveTo(ex + s * hr * 0.03, ey + dy + hr * 0.03, ex + s * hr * 0.1, ey + dy - hr * 0.1);
+      ctx.globalAlpha = 1 - k * 0.5;
+      ctx.beginPath(); ctx.moveTo(ex + s * hr * 0.1, ey + dy - hr * 0.14);
+      ctx.quadraticCurveTo(ex + s * hr * 0.21, ey + dy + hr * 0.04, ex + s * hr * 0.1, ey + dy + hr * 0.09);
+      ctx.quadraticCurveTo(ex + s * hr * -0.01, ey + dy + hr * 0.04, ex + s * hr * 0.1, ey + dy - hr * 0.14);
       ctx.fillStyle = '#a9d6f2'; ctx.fill(); ctx.strokeStyle = 'rgba(96,140,170,.7)'; ctx.lineWidth = Math.max(0.6, hr * 0.03); ctx.stroke();
       ctx.globalAlpha = 1; ctx.strokeStyle = '#2e231a'; ctx.lineWidth = Math.max(1, hr * 0.06);
     }
@@ -1833,7 +1834,7 @@ function sadLoop() {
     try {
       for (const [x, kind, col, ph] of [[W * 0.36, 'cat', 6, 0], [W * 0.64, 'dog', 1, 1.1]]) {
         const sniff = Math.max(0, Math.sin(T * 2.2 + ph)) * 2;   // 훌쩍훌쩍 어깨가 들썩
-        drawAnimal(x, H - 22, 40, col, kind, sniff, ph, { sad: true, ribbon: kind === 'cat' ? '#e8768e' : null });
+        drawAnimal(x, H - 22, 46, col, kind, sniff, ph, { sad: true, ribbon: kind === 'cat' ? '#e8768e' : null });
       }
     } finally { ctx = saved; LW_SCALE = savedLW; }
     if ($('overlay').classList.contains('show')) celebRAF = requestAnimationFrame(frame);

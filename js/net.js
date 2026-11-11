@@ -233,17 +233,33 @@ async function saveAuthForSW() {
   } catch (e) { /* 무시 */ }
 }
 // 실제로 알림이 연결돼 있는지 확인해요 (권한 + 구독). 권한만 있고 구독이 없으면 조용히 다시 연결해요.
+// 알림이 안 켜질 때 이유를 남겨 설정 화면에 보여 줘요 (어디서 막히는지 알 수 있게)
+let pushWhy = '';
+const setWhy = s => { pushWhy = s; try { store.set('busGame.pushWhy', s); } catch (e) { /* 무시 */ } };
+const errText = e => (e && (e.name || '') + (e.message ? ': ' + e.message : '')) || String(e);
+// 서비스 워커가 켜질 때까지 기다려요 (영원히 멈추지 않게 10초 제한)
+async function swReady() {
+  const reg = await navigator.serviceWorker.register('sw.js');
+  if (reg.active) return reg;
+  await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise((_, no) => setTimeout(() => no(new Error('서비스 워커 준비 시간 초과')), 10000)),
+  ]);
+  return reg;
+}
 async function pushState() {
-  if (!pushSupported() || Notification.permission !== 'granted') return false;
+  if (!pushSupported()) { setWhy('이 브라우저는 웹 알림을 지원하지 않아요'); return false; }
+  if (Notification.permission !== 'granted') { setWhy('알림 권한: ' + ({ default: '아직 안 정함', denied: '차단됨' }[Notification.permission] || Notification.permission)); return false; }
   try {
-    const reg = await navigator.serviceWorker.getRegistration() || await navigator.serviceWorker.register('sw.js');
-    const sub = reg && await reg.pushManager.getSubscription();
+    const reg = await swReady();
+    const sub = await reg.pushManager.getSubscription();
     if (sub) {
       store.set('busGame.push', true);
-      if (await ensureAccount()) { await saveAuthForSW(); api('/push', { subscription: sub.toJSON() }).catch(() => {}); }
+      if (await ensureAccount()) { await saveAuthForSW(); api('/push', { subscription: sub.toJSON() }).catch(e => setWhy('서버 저장 실패 · ' + errText(e))); }
+      setWhy('');
       return true;
     }
-  } catch (e) { /* 아래에서 다시 연결 */ }
+  } catch (e) { setWhy('확인 실패 · ' + errText(e)); }
   return enablePush(undefined, true);
 }
 async function enablePush(permP, silent) {
@@ -251,20 +267,27 @@ async function enablePush(permP, silent) {
   if (Notification.permission === 'denied') { toast('폰 설정에서 이 앱(크롬)의 알림을 허용해 주세요', 2600); return false; }
   // 권한은 먼저(버튼을 누른 순간) 물어보고, 계정은 그다음에 만들어요
   permP = permP || Notification.requestPermission();
-  if (!(await ensureAccount())) { toast('인터넷 연결을 확인해 주세요'); return false; }
+  if (!(await ensureAccount())) { setWhy('계정 연결 실패 (인터넷 확인)'); toast('인터넷 연결을 확인해 주세요'); return false; }
   const perm = await permP;
-  if (perm !== 'granted') { toast('알림이 허용되지 않았어요', 2000); return false; }
+  if (perm !== 'granted') { setWhy('알림 권한: ' + perm); toast('알림이 허용되지 않았어요', 2000); return false; }
+  let step = '서비스 워커';
   try {
-    const reg = await navigator.serviceWorker.register('sw.js');
-    await navigator.serviceWorker.ready;
+    const reg = await swReady();
+    step = '구독';
     let sub = await reg.pushManager.getSubscription();
     if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToU8(VAPID_PUBLIC) });
+    step = '서버 저장';
     await saveAuthForSW();
     await api('/push', { subscription: sub.toJSON() });
     store.set('busGame.push', true);
+    setWhy('');
     if (!silent) toast('폰 알림을 켰어요 🔔', 1800);
     return true;
-  } catch (e) { if (!silent) toast('알림을 켜지 못했어요', 2000); return false; }
+  } catch (e) {
+    setWhy(step + ' 실패 · ' + errText(e));
+    if (!silent) toast('알림을 켜지 못했어요', 2000);
+    return false;
+  }
 }
 // 알림 동의를 꼭 받아요: 아직 정하지 않았으면 시작할 때마다 물어보고, 허용돼 있으면 조용히 연결해요
 function askPushIfNeeded() {

@@ -251,3 +251,6 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .friendList { max-height: 34vh; overflow-y: auto; margin: 6px 0; }
 .friendRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 2px; border-bottom: 1px dashed #e2d6bf; font-size: 14px; text-align: left; }
 .friendRow small { color: var(--muted); font-size: 11px; }
+/* 알림이 안 켜질 때 이유 (작게) */
+.pushWhy { font-size: 11px; color: #b0675a; text-align: left; margin: -4px 0 6px; word-break: break-all; }
+.pushWhy:empty { display: none; }

@@ -541,7 +541,7 @@ function layout() {
   L.qTop = 2; L.qH = clamp(H * 0.27, 130, 250);
   L.headRoom = L.pr * 2.3;
   L.ry = Math.max(20, (L.qH - L.laneW - L.headRoom - 12) / 2);
-  L.rx = Math.max(L.ry * 1.2, Math.min((W - 28) * 0.34, L.ry * 2.4));
+  L.rx = Math.min((W - 28) * 0.34, L.ry * 1.2);      // 하트가 옆으로 늘어나지 않게
   L.rcx = 16 + L.laneW / 2 + L.rx + 4;
   L.rcy = L.qTop + L.headRoom + 6 + L.laneW / 2 + L.ry;
   buildRing();
@@ -550,10 +550,7 @@ function layout() {
   const tr = mulberry32(7);
   for (let i = 0; i < 26; i++) L.tufts.push([14 + tr() * (W - 28), L.qTop + 8 + tr() * (L.qH - 16), tr()]);
 
-  // 원 왼쪽 아래에서 정류장으로 내려가는 길 (멍냥이들이 걸어서 버스를 타러 가요)
-  L.exitA = 0.78 * Math.PI;                                   // 원에서 나가는 지점 (왼쪽 아래)
-  L.exitX = L.rcx + Math.cos(L.exitA) * L.rx;
-  L.exitY = L.rcy + Math.sin(L.exitA) * L.ry;
+  // 하트 왼쪽 아래(출구)에서 정류장으로 내려가는 길은 buildRing()에서 정해요
 
   // 정류장: 위쪽 보도(걸어가는 길) + 대기 칸 + 아래쪽 찻길(버스가 떠나는 길)
   L.sTop = L.qTop + L.qH + 8;
@@ -591,21 +588,37 @@ function pathPoint(path, s) {
   return { x: lerp(pts[lo][0], pts[hi][0], t), y: lerp(pts[lo][1], pts[hi][1], t) };
 }
 
-// 원형 길 (오른쪽 끝에서 시작해 시계 방향으로 돕니다)
+// 하트 모양 길 (가장 오른쪽 점 = 입구에서 시작해 시계 방향으로 돕니다)
 function buildRing() {
-  const pts = [];
-  for (let i = 0; i < 160; i++) {
-    const a = i / 160 * Math.PI * 2;
-    pts.push([L.rcx + Math.cos(a) * L.rx, L.rcy + Math.sin(a) * L.ry]);
+  const raw = [];
+  for (let i = 0; i < 200; i++) {
+    const t = i / 200 * Math.PI * 2;
+    raw.push([16 * Math.sin(t) ** 3, -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t))]);
   }
+  const ys = raw.map(p => p[1]), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  let pts = raw.map(([x, y]) => [L.rcx + x / 16 * L.rx, L.rcy + ((y - y0) / (y1 - y0) * 2 - 1) * L.ry]);
+  let k = 0;
+  pts.forEach((p, i) => { if (p[0] > pts[k][0]) k = i; });
+  pts = pts.slice(k).concat(pts.slice(0, k));            // 입구(가장 오른쪽)부터 시작
   L.ring = makePath(pts, true);
+  L.ringPts = pts;
   L.ringN = Math.max(8, Math.floor(L.ring.total / (L.sp * 1.05)));
   L.ringSp = L.ring.total / L.ringN;
+  // 출구: 하트의 왼쪽 아래 비탈
+  let best = -Infinity;
+  pts.forEach(([x, y], i) => {
+    const sc = -(x - L.rcx) / L.rx + (y - L.rcy) / L.ry;
+    if (sc > best) { best = sc; L.exitIdx = i; }
+  });
+  [L.exitX, L.exitY] = pts[L.exitIdx];
+  // 가운데 잔디 섬 (하트를 안쪽으로 줄인 모양)
+  const kk = 1 - (L.laneW / 2 + 4) / L.ry, cy = L.rcy + L.ry * 0.05;
+  L.islandPts = pts.map(([x, y]) => [L.rcx + (x - L.rcx) * kk, cy + (y - cy) * kk]);
 }
 
 // 원 입구(오른쪽)에서 시작해 위아래로 구불구불한 대기 줄
 function buildWaitPath() {
-  const g = L.laneW + 7, ex = L.rcx + L.rx, ey = L.rcy;
+  const g = L.laneW + 7, [ex, ey] = L.ring.pts[0];
   const xa = ex + L.laneW / 2 + 6, xb = L.W - 16;
   const C = Math.max(1, Math.floor((xb - xa) / g));
   const yT = L.qTop + L.headRoom + 6 + L.laneW / 2 + g / 2;
@@ -656,7 +669,7 @@ const slotPos = i => ({ x: L.sx0 + L.sw * (i + 0.5), y: L.sTop + L.swH + L.sH / 
 function walkRoute(p, v, s0) {
   const sp = slotPos(v.slot), top = sp.y - slotSize(v).l / 2;
   const qb = L.qTop + L.qH, T = L.ring.total;
-  const sExit = L.ring.cum[Math.round(L.exitA / (Math.PI * 2) * 160)];
+  const sExit = L.ring.cum[L.exitIdx];
   let d = ((sExit - s0) % T + T) % T;            // 앞으로 돌아가는 거리
   const dir = d <= T / 2 ? 1 : -1;               // 더 가까운 쪽으로
   if (dir < 0) d = T - d;
@@ -1268,8 +1281,12 @@ function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, opts = {}) {
   } else {
     ctx.fillStyle = '#2e231a';
     ell(hx - hr * 0.34, hy - hr * 0.05, hr * 0.14, hr * 0.17); ell(hx + hr * 0.34, hy - hr * 0.05, hr * 0.14, hr * 0.17);
-    ctx.fillStyle = 'rgba(255,250,240,.9)';
-    circle(hx - hr * 0.38, hy - hr * 0.11, hr * 0.05); circle(hx + hr * 0.3, hy - hr * 0.11, hr * 0.05);
+    // 초롱초롱: 큰 하얀 점 + 아래쪽에 작은 하얀 점 하나 더
+    ctx.fillStyle = 'rgba(255,252,245,.95)';
+    for (const s of [-1, 1]) {
+      circle(hx + s * hr * 0.34 - hr * 0.045, hy - hr * 0.11, hr * 0.055);
+      circle(hx + s * hr * 0.34 + hr * 0.05, hy + hr * 0.02, hr * 0.03);
+    }
   }
   // 리본 (몇몇 친구만): 머리 위 오른쪽에 나비 모양
   if (opts.ribbon) {
@@ -1345,7 +1362,8 @@ function drawQueueArea() {
   // 두 길이 만나는 곳에는 경계선 없이 하나로 이어져 보여요
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   const waitPath = () => { ctx.beginPath(); L.wait.pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); };
-  const ringPath = () => { ctx.beginPath(); ctx.ellipse(L.rcx, L.rcy, L.rx, L.ry, 0, 0, Math.PI * 2); };
+  const polyPath = pts => { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); };
+  const ringPath = () => polyPath(L.ringPts);   // 하트 모양 길
   const exitPath = () => { ctx.beginPath(); ctx.moveTo(L.exitX, L.exitY); ctx.lineTo(L.exitX, L.qTop + L.qH + 2); };
   const dirt = season === 'winter' ? '#eef1f4' : '#ebd8b2';
   ctx.strokeStyle = 'rgba(112,104,96,.6)'; ctx.lineWidth = L.laneW + 2;
@@ -1360,26 +1378,29 @@ function drawQueueArea() {
   const hBase = hy0 < L.qTop + L.qH / 2 ? Math.max(hy0 + L.laneW * 0.5, L.qTop + hs * 1.12) : hy0 + L.laneW * 0.6;
   drawHouse(Math.min(hx0 - L.laneW * 0.15, L.W - 16 - hs * 0.75), hBase, hs);
 
-  // 원 가운데 잔디 섬 + 큰 나무 + 꽃
-  const irx = L.rx - L.laneW / 2 - 4, iry = L.ry - L.laneW / 2 - 4;
-  ctx.fillStyle = SP.meadow[0]; ell(L.rcx, L.rcy, irx, iry);
+  // 하트 가운데 잔디 섬 + 큰 나무 + 꽃
+  const iry = L.ry - L.laneW / 2 - 4;
+  polyPath(L.islandPts);
+  ctx.fillStyle = SP.meadow[0]; ctx.fill();
   ctx.strokeStyle = 'rgba(112,104,96,.35)'; ctx.lineWidth = 1; ctx.stroke();
-  for (let i = 0; i < 10 && SP.flowers.length; i++) {
-    const a = i / 10 * Math.PI * 2 + 0.3;
+  const cyI = L.rcy + L.ry * 0.05;
+  for (let i = 0; i < 12 && SP.flowers.length; i++) {
+    const [x, y] = L.islandPts[Math.floor(i / 12 * L.islandPts.length)];
     ctx.fillStyle = SP.flowers[i % SP.flowers.length];
-    circle(L.rcx + Math.cos(a) * irx * 0.78, L.rcy + Math.sin(a) * iry * 0.7, 2.4);
+    circle(L.rcx + (x - L.rcx) * 0.8, cyI + (y - cyI) * 0.8, 2.2);
   }
   // 가운데 큰 나무 (메인 화면과 같은 계절의 잎사귀 나무)
   if (islandTree.complete && islandTree.naturalWidth) {
-    const imgH = iry * 2.05, baseY = L.rcy + iry * 0.62;
+    const imgH = iry * 1.75, baseY = L.rcy + iry * 0.4;
     ctx.drawImage(islandTree, L.rcx - imgH / 2, baseY - imgH * (110 / 120), imgH, imgH);
   }
 
-  // 도는 방향 화살표
+  // 도는 방향 화살표 (하트 길을 따라)
   ctx.fillStyle = 'rgba(255,255,255,.85)';
-  for (const a of [0.8, 2.4, 3.95, 5.5]) {
-    const px = L.rcx + Math.cos(a) * L.rx, py = L.rcy + Math.sin(a) * L.ry;
-    const ang = Math.atan2(L.ry * Math.cos(a), -L.rx * Math.sin(a));
+  const n = L.ringPts.length;
+  for (const f of [0.12, 0.38, 0.62, 0.88]) {
+    const i = Math.floor(f * n), [px, py] = L.ringPts[i], [qx, qy] = L.ringPts[(i + 2) % n];
+    const ang = Math.atan2(qy - py, qx - px);
     ctx.save(); ctx.translate(px, py); ctx.rotate(ang);
     ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(-3, -3.5); ctx.lineTo(-3, 3.5); ctx.closePath(); ctx.fill();
     ctx.restore();
@@ -1728,7 +1749,7 @@ function makeTree(seed, h, ss = season, detail = 1) {
     const bend = (R() - 0.5) * len * 0.3;
     const mx = (x + ex) / 2 + Math.cos(ang) * bend, my = (y + ey) / 2 + Math.sin(ang) * bend;
     branches += `<path d="M${f1(x)} ${f1(y)} Q${f1(mx)} ${f1(my)} ${f1(ex)} ${f1(ey)}" stroke-width="${f1(Math.max(w, 0.35))}"/>`;
-    if (d >= 3) mids.push([mx, my]);
+    if (d >= 2) mids.push([mx, my, d]);
     if (d >= maxD) { tips.push([ex, ey]); return; }
     const n = R() < 0.35 ? 3 : 2;
     for (let i = 0; i < n; i++) {
@@ -1772,7 +1793,12 @@ function makeTree(seed, h, ss = season, detail = 1) {
       leaves += `<path d="${shape}" fill="${pick(R, cols)}" opacity="${f1(0.72 + R() * 0.25)}" transform="translate(${f1(lx)} ${f1(ly)}) rotate(${Math.round(R() * 360)})"/>`;
     };
     for (const [x, y] of tips) for (let k = 0; k < perTip; k++) addLeaf(x, y, h * 0.13);
-    for (const [x, y] of mids) { addLeaf(x, y, h * 0.08); if (R() < 0.5) addLeaf(x, y, h * 0.08); }
+    // 가지 중간·아래쪽까지 잎을 달아 아래도 풍성하게 (아래로 갈수록 살짝 늘어지듯)
+    for (const [x, y, dd] of mids) {
+      const k = dd <= 3 ? 4 : 3;
+      for (let i = 0; i < k; i++) addLeaf(x, y + h * 0.02, h * 0.11);
+      if (R() < 0.5) wash += `<ellipse cx="${f1(x)}" cy="${f1(y + h * 0.02)}" rx="${f1(h * 0.07)}" ry="${f1(h * 0.05)}" fill="${pick(R, cols)}" opacity=".35"/>`;
+    }
     if (ss === 'spring') for (let k = 0; k < tips.length; k++) if (R() < 0.3) { const [x, y] = tips[k]; leaves += `<circle cx="${f1(x + (R() - 0.5) * h * 0.05)}" cy="${f1(y)}" r="${f1(h * 0.012)}" fill="#a9c98a" opacity=".8"/>`; }
   } else {
     // 겨울: 가지 위에 쌓인 눈

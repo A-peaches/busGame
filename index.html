@@ -21,6 +21,7 @@
     --green-dark: #6f945a;
     --cream: #fff8ec;
     --locked: #cdbfae;
+    --line: #4a3b2c;     /* 얇은 그림 테두리 색 */
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -38,10 +39,6 @@
   #menu .scene { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
   #menu .sky { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
   #menu > *:not(.scene):not(.sky) { position: relative; z-index: 1; }
-  .menuTop { padding: 18px 64px 6px; text-align: center; }
-  .menuTop h1 {
-    font-size: clamp(24px, 7.6vw, 36px); font-weight: 700; color: #7a5536; letter-spacing: 0; white-space: nowrap;
-  }
   /* 흘러가는 뭉게구름 */
   .cloud { position: absolute; left: -200px; opacity: .95; animation: drift linear infinite; }
   .cloud.c1 { top: 4%; width: 170px; animation-duration: 70s; animation-delay: -20s; }
@@ -65,59 +62,76 @@
   #mapScroll::-webkit-scrollbar { display: none; }
   #mapInner { position: relative; width: 100%; }
   #mapRoad { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+  /* 단계 원: 얇은 갈색 테두리, 차분한 색 */
   .node {
-    position: absolute; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%;
-    border: 4px solid #fff; color: #fff; font-size: 26px; line-height: 1; cursor: pointer;
-    box-shadow: 0 5px 0 rgba(0, 0, 0, .18);
+    position: absolute; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%;
+    border: 1.6px solid var(--line); color: #fffaf1; font-size: 22px; line-height: 1; cursor: pointer;
+    box-shadow: 0 3px 6px rgba(70, 50, 30, .18);
   }
-  .node small { display: block; font-size: 12px; margin-top: 1px; }
-  .node.done { background: var(--green); }
-  .node.current { background: var(--accent); animation: pulse 1.3s ease-in-out infinite; }
-  .node.locked { background: var(--locked); color: #f7f0e4; cursor: default; box-shadow: 0 5px 0 rgba(0, 0, 0, .1); }
+  .node small { display: block; font-size: 9px; letter-spacing: 1px; margin-top: 3px; color: rgba(255, 250, 241, .9); }
+  .node.done { background: #8fae78; }
+  .node.current { background: #d9906a; animation: breathe 2.4s ease-in-out infinite; }
+  .node.locked { background: #d8ccb9; cursor: pointer; box-shadow: 0 2px 4px rgba(70, 50, 30, .1); }
+  .node.locked svg { display: block; margin: 0 auto; }
   .node .busIcon {
-    position: absolute; left: 50%; top: -40px; font-size: 28px; transform: translateX(-50%);
-    animation: bob 1s ease-in-out infinite; pointer-events: none;
+    position: absolute; left: 50%; top: -34px; width: 40px; transform: translateX(-50%);
+    animation: bob 1.6s ease-in-out infinite; pointer-events: none;
   }
-  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
-  @keyframes bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -6px); } }
-  .menuBottom { padding: 10px 16px 18px; }
-  #playBtn {
-    width: 100%; height: 62px; border: none; border-radius: 20px; cursor: pointer;
-    background: var(--accent); color: #fff; font-size: 24px; box-shadow: 0 5px 0 var(--accent-dark);
-  }
-  #playBtn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--accent-dark); }
-  #menu > #soundBtn { position: absolute; top: 14px; right: 14px; z-index: 2; }
+  @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  @keyframes bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -4px); } }
+  #menu > #settingsBtn { position: absolute; top: 14px; right: 14px; z-index: 2; }
 
   /* ---------------- 게임 화면 ---------------- */
-  #game { background: linear-gradient(#cfe5e3, #f5ead2 40%, #f1e4c9); }
+  #game { background: linear-gradient(#cfe0dc, #f2e7d0 40%, #eee0c4); }
   header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 4px; }
+  .hbtns { display: flex; gap: 8px; }
   .round {
-    width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
-    background: var(--green); color: #fff; font-size: 21px; box-shadow: 0 3px 0 var(--green-dark);
+    width: 42px; height: 42px; border-radius: 50%; cursor: pointer; display: grid; place-items: center;
+    background: var(--cream); color: var(--ink); font-size: 20px;
+    border: 1.6px solid var(--line); box-shadow: 0 2px 5px rgba(70, 50, 30, .15);
   }
-  .round:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--green-dark); }
-  .round.off { opacity: .45; }
+  .round:active { transform: translateY(1px); box-shadow: none; }
   #title { text-align: center; }
-  #levelLabel { font-size: 24px; }
-  #leftLabel { font-size: 14px; color: var(--muted); }
+  #levelLabel { font-size: 22px; }
+  #leftLabel { font-size: 13px; color: var(--muted); }
   #stage { flex: 1; position: relative; min-height: 0; }
   canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
   footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16px; }
   .booster {
-    position: relative; flex: 1; max-width: 160px; height: 56px; border: none; border-radius: 16px; cursor: pointer;
-    background: var(--cream); color: var(--ink); font-size: 17px; box-shadow: 0 4px 0 #cdbf9f;
+    position: relative; flex: 1; max-width: 160px; height: 52px; border-radius: 14px; cursor: pointer;
+    background: var(--cream); color: var(--ink); font-size: 16px;
+    border: 1.6px solid var(--line); box-shadow: 0 2px 5px rgba(70, 50, 30, .15);
   }
-  .booster:active { transform: translateY(2px); box-shadow: 0 2px 0 #cdbf9f; }
+  .booster:active { transform: translateY(1px); box-shadow: none; }
   .booster:disabled { opacity: .45; cursor: default; }
-  .booster.active { background: #ffd54a; box-shadow: 0 4px 0 #c9a425; }
+  .booster.active { background: #f3dc9c; }
   .booster .cnt {
-    position: absolute; top: -8px; right: -6px; min-width: 24px; height: 24px; padding: 0 6px;
-    border-radius: 12px; background: var(--green); color: #fff; font-size: 14px; line-height: 24px;
+    position: absolute; top: -9px; right: -7px; min-width: 22px; height: 22px; padding: 0 5px;
+    border-radius: 11px; background: #8fae78; color: #fffaf1; font-size: 12px; line-height: 19px;
+    border: 1.4px solid var(--line);
   }
+
+  /* 설정 / 단계 팝업 */
+  .setRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0 6px; font-size: 16px; }
+  .setRow input[type=range] { flex: 1; accent-color: #b98a64; }
+  .switch { position: relative; width: 46px; height: 26px; flex: none; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch span {
+    position: absolute; inset: 0; border-radius: 13px; background: #d8ccb9; border: 1.4px solid var(--line);
+    transition: background .2s; cursor: pointer;
+  }
+  .switch span::after {
+    content: ''; position: absolute; top: 2px; left: 2px; width: 19px; height: 19px; border-radius: 50%;
+    background: var(--cream); border: 1.2px solid var(--line); transition: transform .2s;
+  }
+  .switch input:checked + span { background: #8fae78; }
+  .switch input:checked + span::after { transform: translateX(19px); }
+  .stars { font-size: 26px; letter-spacing: 3px; color: #d9906a; margin: 2px 0 6px; }
+  .stars .off { color: #dccfbc; }
 
   #toast {
     position: absolute; left: 50%; top: 68px; transform: translateX(-50%);
-    background: rgba(90, 68, 48, .9); color: #fff; padding: 10px 16px; border-radius: 12px;
+    background: rgba(74, 59, 44, .92); color: #fffaf1; padding: 10px 16px; border-radius: 12px;
     font-size: 16px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .25s; z-index: 6;
   }
   #toast.show { opacity: 1; }
@@ -127,15 +141,20 @@
     display: none; align-items: center; justify-content: center;
   }
   #overlay.show { display: flex; }
-  .card { background: var(--cream); border-radius: 24px; padding: 26px 22px 20px; text-align: center; width: min(86%, 340px); }
-  .card h2 { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
-  #levelLabel, #playBtn, .btn, .node { font-weight: 700; }
-  .card p { margin-bottom: 14px; color: var(--muted); line-height: 1.5; font-size: 16px; }
-  .btn {
-    display: block; width: 100%; padding: 14px; margin-top: 10px; border: none; border-radius: 14px; cursor: pointer;
-    font-size: 19px; background: var(--accent); color: #fff; box-shadow: 0 4px 0 var(--accent-dark);
+  .card {
+    background: var(--cream); border-radius: 20px; padding: 24px 22px 20px; text-align: center; width: min(86%, 340px);
+    border: 1.6px solid var(--line); box-shadow: 0 8px 24px rgba(60, 40, 20, .25);
   }
-  .btn.alt { background: #f1e5cf; color: var(--ink); box-shadow: 0 4px 0 #d3c1a1; }
+  .card h2 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+  #levelLabel, .btn, .node { font-weight: 700; }
+  .card p { margin-bottom: 12px; color: var(--muted); line-height: 1.5; font-size: 15px; }
+  .btn {
+    display: block; width: 100%; padding: 13px; margin-top: 10px; border-radius: 12px; cursor: pointer;
+    font-size: 17px; background: #d9906a; color: #fffaf1;
+    border: 1.6px solid var(--line); box-shadow: 0 2px 5px rgba(70, 50, 30, .15);
+  }
+  .btn:active { transform: translateY(1px); box-shadow: none; }
+  .btn.alt { background: #f1e5cf; color: var(--ink); }
 </style>
 </head>
 <body>
@@ -171,31 +190,31 @@
       <rect width="400" height="800" fill="url(#sun)"/>
 
       <!-- 먼 산 -->
-      <path d="M0 300 C 30 278 60 258 100 266 C 140 236 185 226 228 252 C 268 232 318 220 360 246 C 380 240 394 242 400 244 L400 800 L0 800Z" fill="url(#mt)"/>
-      <path d="M100 266 C 140 236 185 226 228 252" fill="none" stroke="#e8efe9" stroke-width="3" opacity=".7" filter="url(#soft)"/>
+      <path d="M0 300 C 30 278 60 258 100 266 C 140 236 185 226 228 252 C 268 232 318 220 360 246 C 380 240 394 242 400 244 L400 800 L0 800Z" fill="url(#mt)" stroke="#4a3b2c" stroke-opacity=".35" stroke-width="1"/>
 
-      <!-- 언덕 2 + 작은 빨간 지붕 집 + 나무 덤불 -->
-      <path d="M0 360 C 70 322 140 346 200 332 C 270 314 330 342 400 322 L400 800 L0 800Z" fill="url(#h2)"/>
-      <path d="M0 360 C 70 322 140 346 200 332 C 270 314 330 342 400 322" fill="none" stroke="#eef5d6" stroke-width="4" opacity=".8" filter="url(#soft)"/>
-      <g transform="translate(88 318)">
-        <rect x="0" y="8" width="22" height="14" fill="#f6ecd8"/>
-        <path d="M-4 9 L11 -2 L26 9 Z" fill="#d98a72"/>
+      <!-- 언덕 2 + 작은 빨간 지붕 집 + 나무 덤불 (얇은 테두리) -->
+      <path d="M0 360 C 70 322 140 346 200 332 C 270 314 330 342 400 322 L400 800 L0 800Z" fill="url(#h2)" stroke="#4a3b2c" stroke-opacity=".45" stroke-width="1"/>
+      <g transform="translate(88 318)" stroke="#4a3b2c" stroke-width=".9" stroke-linejoin="round">
+        <rect x="0" y="8" width="22" height="14" fill="#efe2c8"/>
+        <path d="M-4 9 L11 -2 L26 9 Z" fill="#c97f68"/>
         <rect x="8" y="13" width="5" height="9" fill="#a9876a"/>
         <rect x="15" y="12" width="4" height="4" fill="#9dc3d6"/>
       </g>
-      <g><circle cx="298" cy="322" r="15" fill="#86ad6c"/><circle cx="316" cy="326" r="12" fill="#7ba263"/><circle cx="293" cy="316" r="7" fill="#a4c98a"/>
-        <circle cx="150" cy="340" r="9" fill="#86ad6c"/><circle cx="162" cy="342" r="7" fill="#7ba263"/></g>
+      <g stroke="#4a3b2c" stroke-width=".9" stroke-opacity=".7">
+        <circle cx="316" cy="326" r="12" fill="#6f9658"/><circle cx="298" cy="322" r="15" fill="#81a868"/>
+        <circle cx="162" cy="342" r="7" fill="#6f9658"/><circle cx="150" cy="340" r="9" fill="#81a868"/></g>
+      <g fill="#a3c587" opacity=".7"><circle cx="293" cy="316" r="6"/><circle cx="147" cy="336" r="3.5"/></g>
 
       <!-- 언덕 3 -->
-      <path d="M0 470 C 90 422 180 462 260 432 C 320 410 362 426 400 414 L400 800 L0 800Z" fill="url(#h3)"/>
-      <path d="M0 470 C 90 422 180 462 260 432 C 320 410 362 426 400 414" fill="none" stroke="#e7f2cf" stroke-width="4" opacity=".75" filter="url(#soft)"/>
-      <g><circle cx="46" cy="452" r="22" fill="#7ba263"/><circle cx="70" cy="456" r="17" fill="#6f9858"/><circle cx="38" cy="440" r="10" fill="#9cc27f"/>
-        <rect x="52" y="462" width="5" height="14" rx="2" fill="#8f6a4d"/></g>
+      <path d="M0 470 C 90 422 180 462 260 432 C 320 410 362 426 400 414 L400 800 L0 800Z" fill="url(#h3)" stroke="#4a3b2c" stroke-opacity=".5" stroke-width="1.1"/>
+      <g stroke="#4a3b2c" stroke-width="1" stroke-opacity=".75">
+        <rect x="52" y="462" width="5" height="14" rx="2" fill="#8f6a4d"/>
+        <circle cx="70" cy="456" r="17" fill="#6a9254"/><circle cx="46" cy="452" r="22" fill="#78a160"/></g>
+      <g fill="#9dc17f" opacity=".7"><circle cx="38" cy="442" r="9"/><circle cx="64" cy="448" r="5"/></g>
 
       <!-- 가까운 언덕 -->
-      <path d="M0 600 C 100 560 200 600 290 570 C 340 554 375 562 400 558 L400 800 L0 800Z" fill="url(#h4)"/>
-      <path d="M0 600 C 100 560 200 600 290 570 C 340 554 375 562 400 558" fill="none" stroke="#dcedc0" stroke-width="4" opacity=".75" filter="url(#soft)"/>
-      <g stroke="#7aa863" stroke-width="2" stroke-linecap="round" opacity=".55" fill="none">
+      <path d="M0 600 C 100 560 200 600 290 570 C 340 554 375 562 400 558 L400 800 L0 800Z" fill="url(#h4)" stroke="#4a3b2c" stroke-opacity=".55" stroke-width="1.2"/>
+      <g stroke="#5f8a4a" stroke-width="1.4" stroke-linecap="round" opacity=".6" fill="none">
         <path d="M30 650 l3 -9 M36 652 l1 -10 M42 650 l-2 -8"/><path d="M330 690 l3 -9 M336 692 l1 -10 M342 690 l-2 -8"/>
         <path d="M180 740 l3 -9 M186 742 l1 -10 M192 740 l-2 -8"/><path d="M90 770 l3 -9 M96 772 l1 -10"/>
       </g>
@@ -212,13 +231,8 @@
       <svg class="cloud c3" viewBox="0 0 200 95"><g fill="#e4ecef"><circle cx="50" cy="66" r="22"/><circle cx="85" cy="52" r="32"/><circle cx="125" cy="48" r="36"/><circle cx="162" cy="66" r="22"/></g><g fill="#fff"><circle cx="50" cy="60" r="22"/><circle cx="85" cy="46" r="32"/><circle cx="125" cy="42" r="36"/><circle cx="162" cy="60" r="22"/></g></svg>
     </div>
 
-    <button class="round" id="soundBtn" title="소리 켜기/끄기">♪</button>
-    <div class="menuTop">
-      <h1>멍냥이의 버스여행</h1>
-    </div>
-
+    <button class="round settingsBtn" id="settingsBtn" title="설정"></button>
     <div id="mapScroll"><div id="mapInner"><svg id="mapRoad"></svg></div></div>
-    <div class="menuBottom"><button id="playBtn">▶ 1단계 시작</button></div>
   </section>
 
   <!-- ================= 게임 화면 ================= -->
@@ -229,12 +243,15 @@
         <div id="levelLabel">1단계</div>
         <div id="leftLabel">남은 승객 0명</div>
       </div>
-      <button class="round" id="restartBtn" title="다시 하기">↻</button>
+      <div class="hbtns">
+        <button class="round" id="restartBtn" title="다시 하기">↻</button>
+        <button class="round settingsBtn" id="settingsBtn2" title="설정"></button>
+      </div>
     </header>
     <div id="stage"><canvas id="cv"></canvas></div>
     <footer>
-      <button class="booster" id="slotBtn">➕ 자리 추가<span class="cnt" id="slotCnt">1</span></button>
-      <button class="booster" id="liftBtn">🏗️ 크레인<span class="cnt" id="liftCnt">1</span></button>
+      <button class="booster" id="slotBtn">+ 자리 추가<span class="cnt" id="slotCnt">1</span></button>
+      <button class="booster" id="liftBtn">크레인<span class="cnt" id="liftCnt">1</span></button>
     </footer>
   </section>
 
@@ -259,6 +276,7 @@ const COLORS = [
   { c: '#c19674', d: '#8f6a4d' }, // 코코아 (갈색)
 ];
 const HIDDEN_COLOR = { c: '#776b7d', d: '#524857' };
+const LINE = 'rgba(58,44,32,.9)';   // 그림의 얇은 갈색 테두리
 const MAX_SLOTS = 7;    // 대기 칸 최대
 const BASE_SLOTS = 4;   // 처음 열린 대기 칸
 const BODY_W = 0.74;    // 버스 폭 (칸 단위)
@@ -269,13 +287,28 @@ const ctx = canvas.getContext('2d');
 const stage = document.getElementById('stage');
 const $ = id => document.getElementById(id);
 
+// 얇은 갈색 선으로 그린 아이콘들
+const GEAR_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g fill="none" stroke="#4a3b2c" stroke-width="1.6" stroke-linecap="round">
+  <circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="6.8"/>
+  <path d="M12 2.6v2.6M12 18.8v2.6M2.6 12h2.6M18.8 12h2.6M5.4 5.4l1.8 1.8M16.8 16.8l1.8 1.8M5.4 18.6l1.8-1.8M16.8 7.2l1.8-1.8"/></g></svg>`;
+const LOCK_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g stroke="#4a3b2c" stroke-width="1.5" stroke-linejoin="round">
+  <path d="M8 11V8.2a4 4 0 0 1 8 0V11" fill="none"/><rect x="5.5" y="11" width="13" height="9" rx="2" fill="#f1e5cf"/>
+  <circle cx="12" cy="15.3" r="1.2" fill="#4a3b2c" stroke="none"/></g></svg>`;
+const BUS_SVG = `<svg class="busIcon" viewBox="0 0 42 28" aria-hidden="true"><g stroke="#4a3b2c" stroke-width="1.2" stroke-linejoin="round">
+  <path d="M3 8 Q3 3 9 3 H33 Q39 3 39 9 V21 H3 Z" fill="#efd9a0"/><path d="M3 14 H39 V21 H3 Z" fill="#d9906a"/>
+  <rect x="7" y="6" width="6" height="5" rx="1" fill="#b9d0d6"/><rect x="15" y="6" width="6" height="5" rx="1" fill="#b9d0d6"/>
+  <rect x="23" y="6" width="6" height="5" rx="1" fill="#b9d0d6"/><rect x="31" y="6" width="5" height="7" rx="1" fill="#b9d0d6"/>
+  <circle cx="11" cy="22" r="3.4" fill="#5a4a3a"/><circle cx="31" cy="22" r="3.4" fill="#5a4a3a"/></g></svg>`;
+
 // 저장 (브라우저에 진행 상황 기억)
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
 };
 let unlocked = Math.max(store.get('busGame.unlocked', 1), store.get('busGameLevel', 1));
-let soundOn = store.get('busGame.sound', true);
+// 소리 설정 (설정 창에서 바꿈)
+const settings = Object.assign({ bgmOn: true, bgmVol: 0.6, sfxOn: true, sfxVol: 0.8 }, store.get('busGame.settings', {}));
+const saveSettings = () => store.set('busGame.settings', settings);
 
 let S = null;  // 게임 상태 (메인 화면에서는 null)
 const L = {};  // 게임 화면 배치 정보
@@ -341,14 +374,36 @@ function insideBoard(v, cols, rows) {
 //  2) "지금 앞이 뚫린 버스"를 하나씩 골라 방향을 정하고 빼냅니다.
 //     → 이 순서대로 빼면 반드시 풀리므로, 모든 단계는 풀 수 있습니다.
 // =====================================================================
+// 난이도 주기: 10단계마다 [쉬움 → 어려움 → 매우 어려움]이 반복되고, 10번째 단계가 가장 어려워요.
+//   1:쉬움 2:어려움 3:매우 어려움 4:쉬움 5:어려움 6:매우 어려움 7:쉬움 8:어려움 9:매우 어려움 10:최고 난이도
+// 10단계 묶음이 넘어갈 때마다 전체 난이도가 조금씩 올라갑니다.
+const TIERS = {
+  1: { stars: 1, name: '쉬움' },
+  3: { stars: 3, name: '어려움' },
+  4: { stars: 4, name: '매우 어려움' },
+  5: { stars: 5, name: '최고 난이도' },
+};
+function levelTier(n) {
+  const pos = (n - 1) % 10 + 1;
+  if (pos === 10) return 5;
+  return [1, 3, 4][(pos - 1) % 3];
+}
+// 실제로 버스 수, 색 수 등을 정할 때 쓰는 "체감 난이도" 값
+function effectiveLevel(n) {
+  const block = Math.floor((n - 1) / 10);
+  return (levelTier(n) - 1) * 4 + 1 + block * 5;
+}
+
 function levelParams(n) {
+  const e = effectiveLevel(n);
   return {
-    cols: Math.min(6 + Math.floor((n - 1) / 4), 9),
-    rows: Math.min(8 + Math.floor((n - 1) / 3), 11),
-    colorCount: Math.min(3 + Math.floor((n - 1) / 2), COLORS.length),
-    diagChance: Math.min(0.1 + n * 0.025, 0.35),
-    hiddenChance: n >= 4 ? Math.min(0.08 + n * 0.02, 0.3) : 0,
-    mix: Math.min(10 + n * 3, 70),   // 승객 순서가 섞이는 정도
+    cols: Math.min(6 + Math.floor((e - 1) / 4), 9),
+    rows: Math.min(8 + Math.floor((e - 1) / 3), 11),
+    colorCount: Math.min(3 + Math.floor((e - 1) / 2), COLORS.length),
+    diagChance: Math.min(0.1 + e * 0.025, 0.35),
+    hiddenChance: e >= 4 ? Math.min(0.08 + e * 0.02, 0.3) : 0,
+    mix: Math.min(10 + e * 3, 70),   // 승객 순서가 섞이는 정도
+    target: e,
   };
 }
 
@@ -356,7 +411,7 @@ function genLevel(n) {
   const rng = mulberry32(n * 7919 + 13);
   const P = levelParams(n);
   const { cols, rows } = P;
-  const target = Math.min(17 + 3 * (n - 1), Math.floor(cols * rows / 2));
+  const target = Math.min(17 + 3 * (P.target - 1), Math.floor(cols * rows / 2));
 
   // 1) 빽빽하게 배치
   const placed = [];
@@ -693,8 +748,12 @@ $('liftBtn').onclick = () => {
 };
 $('restartBtn').onclick = () => startLevel(S.level);
 $('homeBtn').onclick = () => showMenu();
-$('soundBtn').onclick = () => { soundOn = !soundOn; store.set('busGame.sound', soundOn); $('soundBtn').classList.toggle('off', !soundOn); };
-$('playBtn').onclick = () => startLevel(unlocked);
+$('settingsBtn').onclick = $('settingsBtn2').onclick = () => showSettings();
+document.querySelectorAll('.settingsBtn').forEach(b => b.innerHTML = GEAR_SVG);
+// 화면의 모든 버튼에 "톡" 피아노 소리
+document.addEventListener('click', e => { if (e.target.closest('button')) sfx('click'); }, true);
+// 브라우저는 사용자가 한 번 터치해야 소리를 낼 수 있어서, 첫 터치 때 배경음악을 시작해요
+document.addEventListener('pointerdown', () => startBgm(), { once: true });
 window.addEventListener('resize', () => { if (S) layout(); else renderMap(); });
 
 // =====================================================================
@@ -759,7 +818,7 @@ function update(dt) {
       v.incoming++;
       S.flying.push({ color: p.color, kind: p.kind, x0: p.x, y0: p.y, t: 0, v });
       S.boardTimer = 0.08;
-      sfx('board');
+      sfx('board', v.filled + v.incoming);
       updateUI();
     }
   }
@@ -836,33 +895,53 @@ function drawVehicle(x, y, a, w, l, colorIdx, hidden, o = {}) {
   if (o.scale) ctx.scale(o.scale, o.scale);
   ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
 
-  ctx.fillStyle = 'rgba(0,0,0,.2)';
-  rr(-w / 2 + 2, -l / 2 + 4, w, l, w * 0.28); ctx.fill();
-  ctx.fillStyle = C.d;
-  rr(-w / 2, -l / 2, w, l, w * 0.28); ctx.fill();
-  ctx.fillStyle = C.c;
-  rr(-w / 2 + w * 0.07, -l / 2 + w * 0.05, w * 0.86, l - w * 0.16, w * 0.24); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.2)';
-  rr(-w * 0.3, -l / 2 + w * 0.45, w * 0.18, l - w * 0.9, w * 0.08); ctx.fill();
-  ctx.fillStyle = 'rgba(70,72,92,.75)';
-  rr(-w * 0.34, -l / 2 + w * 0.12, w * 0.68, w * 0.24, w * 0.08); ctx.fill();
-  ctx.fillStyle = 'rgba(70,72,92,.45)';
-  rr(-w * 0.28, l / 2 - w * 0.3, w * 0.56, w * 0.13, w * 0.05); ctx.fill();
+  const lw = Math.max(1, w * 0.05), R = w * 0.3;
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+
+  // 땅에 드리운 옅은 그림자
+  ctx.fillStyle = 'rgba(70,50,30,.16)';
+  rr(-w / 2 + 1.5, -l / 2 + 2.5, w, l, R); ctx.fill();
+
+  // 차체: 무광, 양옆이 살짝 어두워 둥근 부피감 + 얇은 갈색 테두리
+  const g = ctx.createLinearGradient(-w / 2, 0, w / 2, 0);
+  g.addColorStop(0, C.d); g.addColorStop(0.24, C.c); g.addColorStop(0.76, C.c); g.addColorStop(1, C.d);
+  ctx.fillStyle = g;
+  rr(-w / 2, -l / 2, w, l, R); ctx.fill();
+  ctx.strokeStyle = LINE; ctx.lineWidth = lw; ctx.stroke();
+
+  // 옛날 시골버스 같은 투톤 지붕
+  ctx.fillStyle = 'rgba(250,240,222,.3)';
+  rr(-w * 0.31, -l / 2 + w * 0.46, w * 0.62, l - w * 0.9, w * 0.14); ctx.fill();
+  ctx.strokeStyle = 'rgba(58,44,32,.4)'; ctx.lineWidth = lw * 0.7; ctx.stroke();
+
+  // 옆 창문 (위에서 보면 가장자리에 줄지어 보여요)
+  const span = l - w * 0.95, n = Math.max(1, Math.floor(span / (w * 0.34))), step = span / n;
+  ctx.fillStyle = 'rgba(120,140,146,.85)';
+  for (let i = 0; i < n; i++) {
+    const yy = -l / 2 + w * 0.5 + step * (i + 0.15);
+    for (const s of [-1, 1]) { rr(s * w * 0.43 - w * 0.04, yy, w * 0.08, step * 0.7, 1); ctx.fill(); }
+  }
+  // 앞유리 / 뒷유리
+  ctx.fillStyle = '#7f9195';
+  rr(-w * 0.36, -l / 2 + w * 0.1, w * 0.72, w * 0.24, w * 0.07); ctx.fill();
+  ctx.strokeStyle = LINE; ctx.lineWidth = lw * 0.75; ctx.stroke();
+  ctx.fillStyle = '#8d9ea1';
+  rr(-w * 0.3, l / 2 - w * 0.27, w * 0.6, w * 0.13, w * 0.05); ctx.fill(); ctx.stroke();
 
   if (hidden) {
     ctx.rotate(-a);
-    ctx.fillStyle = '#fff';
     ctx.font = `700 ${w * 0.62}px MaruBuri, serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('?', 0, 1);
+    ctx.strokeStyle = LINE; ctx.lineWidth = lw * 1.4; ctx.strokeText('?', 0, 1);
+    ctx.fillStyle = '#f6ecd8'; ctx.fillText('?', 0, 1);
   } else if (o.arrow) {
-    const s = Math.min(l * 0.24, w * 0.75);
-    ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff';
-    ctx.lineWidth = w * 0.13; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(0, s); ctx.lineTo(0, -s + w * 0.12); ctx.stroke();
+    // 크림색 화살표 + 얇은 테두리
+    const s = Math.min(l * 0.22, w * 0.7), hw = w * 0.25, sw = w * 0.075, hb = -s + w * 0.2;
     ctx.beginPath();
-    ctx.moveTo(0, -s - w * 0.12); ctx.lineTo(-w * 0.24, -s + w * 0.2); ctx.lineTo(w * 0.24, -s + w * 0.2);
-    ctx.closePath(); ctx.fill();
+    ctx.moveTo(0, -s - w * 0.12); ctx.lineTo(hw, hb); ctx.lineTo(sw, hb); ctx.lineTo(sw, s);
+    ctx.lineTo(-sw, s); ctx.lineTo(-sw, hb); ctx.lineTo(-hw, hb); ctx.closePath();
+    ctx.fillStyle = '#fbf3e2'; ctx.fill();
+    ctx.strokeStyle = LINE; ctx.lineWidth = lw * 0.8; ctx.stroke();
   } else if (o.seats) {
     const { filled, cap } = o.seats;
     const rowsN = cap / 2;
@@ -870,8 +949,9 @@ function drawVehicle(x, y, a, w, l, colorIdx, hidden, o = {}) {
     const gap = (bottom - top) / Math.max(1, rowsN - 1);
     const r = Math.min(w * 0.13, gap * 0.38);
     for (let i = 0; i < cap; i++) {
-      ctx.fillStyle = i < filled ? '#fff' : 'rgba(0,0,0,.22)';
-      circle((i % 2 === 0 ? -1 : 1) * w * 0.2, top + Math.floor(i / 2) * gap, r);
+      ctx.beginPath(); ctx.arc((i % 2 === 0 ? -1 : 1) * w * 0.2, top + Math.floor(i / 2) * gap, r, 0, Math.PI * 2);
+      if (i < filled) { ctx.fillStyle = '#fbf3e2'; ctx.fill(); ctx.strokeStyle = LINE; ctx.lineWidth = lw * 0.6; ctx.stroke(); }
+      else { ctx.fillStyle = 'rgba(58,44,32,.2)'; ctx.fill(); }
     }
   }
   ctx.restore();
@@ -879,72 +959,96 @@ function drawVehicle(x, y, a, w, l, colorIdx, hidden, o = {}) {
 
 function ell(x, y, rx, ry, rot = 0) { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2); ctx.fill(); }
 
+// 색 섞기 (밝은 털색 / 그늘진 털색 만들기)
+function mixHex(a, b, t) {
+  const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const A = p(a), B = p(b);
+  return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+const lightOf = C => C.l || (C.l = mixHex(C.c, '#fff8ec', 0.4));
+const shadeOf = C => C.s || (C.s = mixHex(C.c, C.d, 0.55));
+
 // 고양이 / 강아지 승객 (발 위치 기준)
 function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0) {
-  const C = COLORS[colorIdx];
-  ctx.fillStyle = 'rgba(60,45,20,.2)';
+  const C = COLORS[colorIdx], LT = lightOf(C), SH = shadeOf(C);
+  const lw = Math.max(0.75, r * 0.1);
+  const line = (w = lw) => { ctx.strokeStyle = LINE; ctx.lineWidth = w; ctx.stroke(); };
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.fillStyle = 'rgba(70,50,30,.2)';
   ell(x, y + r * 0.45, r * 0.8, r * 0.3);
   y -= bob;
 
   // 꼬리 (몸 뒤에 그려요)
   const tt = performance.now() / 1000 + phase;
   if (kind === 'cat') {
-    // 고양이: 길고 살랑살랑 흔들리는 꼬리
+    // 고양이: 길고 살랑살랑 흔들리는 꼬리 (테두리 → 털색 순서로 두 번 그어요)
     const sw = Math.sin(tt * 2.6);
     const tx = x + r * (1.25 + sw * 0.15), ty = y - r * (0.85 + sw * 0.1);
-    ctx.strokeStyle = C.d; ctx.lineWidth = r * 0.3; ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(x + r * 0.35, y - r * 0.05);
     ctx.bezierCurveTo(x + r * 1.15, y + r * 0.1, x + r * (1.35 + sw * 0.25), y - r * 0.35, tx, ty);
-    ctx.stroke();
-    ctx.fillStyle = C.c; circle(tx, ty, r * 0.15);
+    ctx.strokeStyle = LINE; ctx.lineWidth = r * 0.3 + lw * 2; ctx.stroke();
+    ctx.strokeStyle = C.c; ctx.lineWidth = r * 0.3; ctx.stroke();
   } else {
     // 강아지: 짧고 복슬복슬, 신나서 붕붕 흔드는 꼬리
     const wag = Math.sin(tt * 14) * 0.35;
     ctx.save();
     ctx.translate(x + r * 0.42, y - r * 0.15);
     ctx.rotate(-0.55 + wag);
-    ctx.fillStyle = C.d; ell(r * 0.36, 0, r * 0.4, r * 0.22);
-    ctx.fillStyle = C.c; ell(r * 0.44, -r * 0.03, r * 0.27, r * 0.14);
+    ctx.beginPath(); ctx.ellipse(r * 0.38, 0, r * 0.4, r * 0.21, 0, 0, Math.PI * 2);
+    ctx.fillStyle = C.c; ctx.fill(); line();
     ctx.restore();
   }
 
-  // 작고 통통한 몸 + 하얀 배 + 발
-  ctx.fillStyle = C.d; rr(x - r * 0.55, y - r * 0.55, r * 1.1, r * 1.0, r * 0.5); ctx.fill();
-  ctx.fillStyle = C.c; rr(x - r * 0.45, y - r * 0.5, r * 0.9, r * 0.85, r * 0.42); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.6)'; ell(x, y - r * 0.02, r * 0.24, r * 0.26);
-  ctx.fillStyle = C.d; ell(x - r * 0.26, y + r * 0.42, r * 0.18, r * 0.12); ell(x + r * 0.26, y + r * 0.42, r * 0.18, r * 0.12);
+  // 작고 통통한 몸 (위는 밝고 아래는 살짝 어둡게) + 크림색 배 + 발
+  const bg = ctx.createLinearGradient(0, y - r * 0.55, 0, y + r * 0.45);
+  bg.addColorStop(0, LT); bg.addColorStop(0.5, C.c); bg.addColorStop(1, SH);
+  rr(x - r * 0.52, y - r * 0.55, r * 1.04, r * 1.0, r * 0.48);
+  ctx.fillStyle = bg; ctx.fill(); line();
+  ctx.fillStyle = 'rgba(253,245,230,.75)'; ell(x, y - r * 0.02, r * 0.22, r * 0.25);
+  for (const s of [-1, 1]) {
+    ctx.beginPath(); ctx.ellipse(x + s * r * 0.25, y + r * 0.42, r * 0.17, r * 0.11, 0, 0, Math.PI * 2);
+    ctx.fillStyle = C.c; ctx.fill(); line(lw * 0.8);
+  }
 
   // 큰 머리
   const hx = x, hy = y - r * 1.2, hr = r * 1.02;
   // 고양이: 뾰족한 귀 (머리 뒤에)
   if (kind === 'cat') {
     for (const s of [-1, 1]) {
-      ctx.fillStyle = C.d;
       ctx.beginPath();
       ctx.moveTo(hx + s * hr * 0.95, hy - hr * 0.1); ctx.lineTo(hx + s * hr * 0.75, hy - hr * 1.22); ctx.lineTo(hx + s * hr * 0.12, hy - hr * 0.75);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#ffb3c6';
+      ctx.closePath(); ctx.fillStyle = C.c; ctx.fill(); line();
+      ctx.fillStyle = '#efb5bf';
       ctx.beginPath();
-      ctx.moveTo(hx + s * hr * 0.78, hy - hr * 0.35); ctx.lineTo(hx + s * hr * 0.7, hy - hr * 0.98); ctx.lineTo(hx + s * hr * 0.35, hy - hr * 0.7);
+      ctx.moveTo(hx + s * hr * 0.78, hy - hr * 0.38); ctx.lineTo(hx + s * hr * 0.7, hy - hr * 0.95); ctx.lineTo(hx + s * hr * 0.38, hy - hr * 0.72);
       ctx.closePath(); ctx.fill();
     }
   }
-  // 머리
-  ctx.fillStyle = C.d; circle(hx, hy, hr);
-  ctx.fillStyle = C.c; circle(hx, hy - hr * 0.06, hr * 0.86);
+  // 머리: 왼쪽 위에서 햇빛이 드는 듯 부드러운 음영
+  const hg = ctx.createRadialGradient(hx - hr * 0.35, hy - hr * 0.42, hr * 0.1, hx, hy, hr * 1.05);
+  hg.addColorStop(0, LT); hg.addColorStop(0.65, C.c); hg.addColorStop(1, SH);
+  ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2);
+  ctx.fillStyle = hg; ctx.fill(); line();
+  // 정수리 털 한 가닥
+  ctx.beginPath();
+  ctx.moveTo(hx - hr * 0.08, hy - hr * 0.97);
+  ctx.quadraticCurveTo(hx + hr * 0.02, hy - hr * 1.2, hx + hr * 0.2, hy - hr * 1.06);
+  line(lw * 0.85);
 
   if (kind === 'dog') {
-    // 강아지: 늘어진 귀 + 하얀 주둥이 + 까만 코
-    ctx.fillStyle = C.d;
-    ell(hx - hr * 0.9, hy + hr * 0.08, hr * 0.3, hr * 0.6, 0.35);
-    ell(hx + hr * 0.9, hy + hr * 0.08, hr * 0.3, hr * 0.6, -0.35);
-    ctx.fillStyle = 'rgba(255,255,255,.88)'; ell(hx, hy + hr * 0.34, hr * 0.42, hr * 0.28);
-    ctx.fillStyle = '#2b2118'; ell(hx, hy + hr * 0.2, hr * 0.17, hr * 0.12);
+    // 강아지: 늘어진 귀 + 크림색 주둥이 + 코
+    for (const s of [-1, 1]) {
+      ctx.beginPath(); ctx.ellipse(hx + s * hr * 0.9, hy + hr * 0.08, hr * 0.3, hr * 0.6, -s * 0.35, 0, Math.PI * 2);
+      ctx.fillStyle = SH; ctx.fill(); line();
+    }
+    ctx.beginPath(); ctx.ellipse(hx, hy + hr * 0.36, hr * 0.42, hr * 0.28, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#fbf1de'; ctx.fill(); line(lw * 0.6);
+    ctx.fillStyle = '#3a2c20'; ell(hx, hy + hr * 0.22, hr * 0.16, hr * 0.11);
   } else {
     // 고양이: 분홍 코 + 수염
-    ctx.fillStyle = 'rgba(255,255,255,.75)'; ell(hx, hy + hr * 0.32, hr * 0.36, hr * 0.22);
-    ctx.fillStyle = '#ff7a9a'; ell(hx, hy + hr * 0.2, hr * 0.12, hr * 0.08);
+    ctx.fillStyle = 'rgba(253,245,230,.85)'; ell(hx, hy + hr * 0.32, hr * 0.36, hr * 0.22);
+    ctx.fillStyle = '#d98490'; ell(hx, hy + hr * 0.2, hr * 0.12, hr * 0.08);
     if (r >= 7) {
       ctx.strokeStyle = 'rgba(60,40,30,.55)'; ctx.lineWidth = 0.8;
       ctx.beginPath();
@@ -968,11 +1072,11 @@ function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0) {
       ctx.stroke();
     }
   }
-  // 동글동글 큰 눈 + 반짝이
-  ctx.fillStyle = '#2b2118';
-  circle(hx - hr * 0.34, hy - hr * 0.06, hr * 0.16); circle(hx + hr * 0.34, hy - hr * 0.06, hr * 0.16);
-  ctx.fillStyle = '#fff';
-  circle(hx - hr * 0.39, hy - hr * 0.12, hr * 0.06); circle(hx + hr * 0.29, hy - hr * 0.12, hr * 0.06);
+  // 동글동글한 눈 + 작은 빛
+  ctx.fillStyle = '#2e231a';
+  ell(hx - hr * 0.34, hy - hr * 0.05, hr * 0.14, hr * 0.17); ell(hx + hr * 0.34, hy - hr * 0.05, hr * 0.14, hr * 0.17);
+  ctx.fillStyle = 'rgba(255,250,240,.9)';
+  circle(hx - hr * 0.38, hy - hr * 0.11, hr * 0.05); circle(hx + hr * 0.3, hy - hr * 0.11, hr * 0.05);
 }
 
 function vehiclePose(v) {
@@ -1004,6 +1108,7 @@ function drawQueueArea() {
   g.addColorStop(0, '#d3e7b3'); g.addColorStop(1, '#b4d593');
   ctx.fillStyle = g;
   rr(8, L.qTop, L.W - 16, L.qH, 18); ctx.fill();
+  ctx.strokeStyle = 'rgba(58,44,32,.55)'; ctx.lineWidth = 1.2; ctx.stroke();
   for (const [x, y, k] of L.tufts) {
     if (k < 0.75) {
       ctx.strokeStyle = '#93bb77'; ctx.lineWidth = 1.5;
@@ -1017,15 +1122,16 @@ function drawQueueArea() {
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   ctx.beginPath();
   L.wait.pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
-  ctx.strokeStyle = '#fff8ec'; ctx.lineWidth = L.laneW + 8; ctx.stroke();
-  ctx.strokeStyle = '#f0dfbd'; ctx.lineWidth = L.laneW; ctx.stroke();
+  ctx.strokeStyle = 'rgba(58,44,32,.6)'; ctx.lineWidth = L.laneW + 2.4; ctx.stroke();
+  ctx.strokeStyle = '#ead6b0'; ctx.lineWidth = L.laneW; ctx.stroke();
   ctx.beginPath(); ctx.ellipse(L.rcx, L.rcy, L.rx, L.ry, 0, 0, Math.PI * 2);
-  ctx.strokeStyle = '#fff8ec'; ctx.lineWidth = L.laneW + 8; ctx.stroke();
-  ctx.strokeStyle = '#f2e2c2'; ctx.lineWidth = L.laneW; ctx.stroke();
+  ctx.strokeStyle = 'rgba(58,44,32,.6)'; ctx.lineWidth = L.laneW + 2.4; ctx.stroke();
+  ctx.strokeStyle = '#ecd9b4'; ctx.lineWidth = L.laneW; ctx.stroke();
 
   // 원 가운데 잔디 섬 + 큰 나무 + 꽃
   const irx = L.rx - L.laneW / 2 - 4, iry = L.ry - L.laneW / 2 - 4;
   ctx.fillStyle = '#c2dea0'; ell(L.rcx, L.rcy, irx, iry);
+  ctx.strokeStyle = 'rgba(58,44,32,.35)'; ctx.lineWidth = 1; ctx.stroke();
   for (let i = 0; i < 10; i++) {
     const a = i / 10 * Math.PI * 2 + 0.3;
     ctx.fillStyle = i % 3 === 0 ? '#ffc4d6' : i % 3 === 1 ? '#fff6c8' : '#ffffff';
@@ -1033,10 +1139,12 @@ function drawQueueArea() {
   }
   const tr = Math.min(iry * 0.62, irx * 0.4);
   ctx.fillStyle = '#9a7556'; rr(L.rcx - tr * 0.13, L.rcy - tr * 0.1, tr * 0.26, tr * 0.75, 3); ctx.fill();
-  ctx.fillStyle = '#7ba263';
-  circle(L.rcx - tr * 0.55, L.rcy - tr * 0.05, tr * 0.5); circle(L.rcx + tr * 0.55, L.rcy - tr * 0.02, tr * 0.48);
-  ctx.fillStyle = '#88b06e'; circle(L.rcx, L.rcy - tr * 0.4, tr * 0.68);
-  ctx.fillStyle = '#a8cc8c'; circle(L.rcx - tr * 0.2, L.rcy - tr * 0.6, tr * 0.25);
+  ctx.strokeStyle = LINE; ctx.lineWidth = 1;
+  for (const [dx, dy, rr2, col] of [[-0.55, -0.05, 0.5, '#6f9658'], [0.55, -0.02, 0.48, '#6a9254'], [0, -0.4, 0.68, '#81a868']]) {
+    ctx.beginPath(); ctx.arc(L.rcx + tr * dx, L.rcy + tr * dy, tr * rr2, 0, Math.PI * 2);
+    ctx.fillStyle = col; ctx.fill(); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(165,200,135,.75)'; circle(L.rcx - tr * 0.2, L.rcy - tr * 0.62, tr * 0.24);
 
   // 정류장 표지판
   const sx = L.rcx + irx * 0.62, sy = L.rcy + iry * 0.55;
@@ -1087,15 +1195,16 @@ function draw() {
   // 정류장 대기 칸 (도로)
   ctx.fillStyle = '#a08f7d';
   rr(8, L.sTop - 4, L.W - 16, L.sH + 8, 16); ctx.fill();
+  ctx.strokeStyle = 'rgba(58,44,32,.6)'; ctx.lineWidth = 1.2; ctx.stroke();
   for (let i = 0; i < MAX_SLOTS; i++) {
     const p = slotPos(i), w = L.sw * 0.86, h = L.sH * 0.94;
     if (i < S.slotCount) {
       ctx.fillStyle = '#b5a592';
       rr(p.x - w / 2, p.y - h / 2, w, h, 10); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(58,44,32,.55)'; ctx.lineWidth = 1.2;
       rr(p.x - w / 2, p.y - h / 2, w, h, 10); ctx.stroke();
     } else {
-      ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = 'rgba(58,44,32,.4)'; ctx.lineWidth = 1.2; ctx.setLineDash([4, 4]);
       rr(p.x - w / 2, p.y - h / 2, w, h, 10); ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = S.boost.slot > 0 ? '#d6efb6' : 'rgba(255,255,255,.3)';
       ctx.font = `700 ${L.sw * 0.5}px MaruBuri, serif`;
@@ -1108,7 +1217,8 @@ function draw() {
   const pad = L.cs * 0.2;
   ctx.fillStyle = S.liftMode ? '#f6dc95' : '#d9ccb4';
   rr(L.bx - pad, L.by - pad, L.cs * S.cols + pad * 2, L.cs * S.rows + pad * 2, 18); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.35)';
+  ctx.strokeStyle = 'rgba(58,44,32,.6)'; ctx.lineWidth = 1.2; ctx.stroke();
+  ctx.fillStyle = 'rgba(120,95,65,.22)';
   for (let i = 1; i < S.cols; i++) for (let j = 1; j < S.rows; j++) circle(L.bx + i * L.cs, L.by + j * L.cs, 1.5);
 
   const order = { parked: 0, slot: 1, departing: 1, exiting: 2, toSlot: 2 };
@@ -1162,17 +1272,20 @@ function renderMap() {
   let deco = '';
   for (let i = 0; i < N; i += 2) {
     const tx = pts[i].x > W / 2 ? 36 + (i % 4) * 6 : W - 36 - (i % 4) * 6, ty = pts[i].y - 30;
-    deco += `<g transform="translate(${tx} ${ty})"><ellipse cx="0" cy="25" rx="16" ry="4" fill="#6f9858" opacity=".35"/>
-      <rect x="-4" y="6" width="8" height="18" rx="3" fill="#9a7556"/>
-      <circle cx="0" cy="0" r="17" fill="#7ba263"/><circle cx="-9" cy="8" r="11" fill="#7ba263"/><circle cx="9" cy="7" r="11" fill="#88b06e"/>
-      <circle cx="-4" cy="-6" r="6" fill="#a8cc8c"/></g>`;
+    deco += `<g transform="translate(${tx} ${ty})" stroke="#4a3b2c" stroke-width="1" stroke-opacity=".75">
+      <ellipse cx="0" cy="25" rx="16" ry="4" fill="#5f8a4a" opacity=".3" stroke="none"/>
+      <rect x="-3.5" y="6" width="7" height="18" rx="2" fill="#8f6a4d"/>
+      <circle cx="9" cy="7" r="11" fill="#6a9254"/><circle cx="-9" cy="8" r="11" fill="#78a160"/><circle cx="0" cy="-1" r="16" fill="#81a868"/>
+      <circle cx="-5" cy="-6" r="6" fill="#9dc17f" stroke="none" opacity=".8"/></g>`;
   }
   const svg = $('mapRoad');
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  // 흙길: 얇은 갈색 테두리 + 바퀴 자국
   svg.innerHTML = `${deco}
-    <path d="${d}" fill="none" stroke="#fff8ec" stroke-width="38" stroke-linecap="round" opacity=".9"/>
-    <path d="${d}" fill="none" stroke="#f0dfbd" stroke-width="28" stroke-linecap="round"/>
-    <path d="${d}" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="2 12" stroke-linecap="round" opacity=".9"/>`;
+    <path d="${d}" fill="none" stroke="#4a3b2c" stroke-opacity=".6" stroke-width="30" stroke-linecap="round"/>
+    <path d="${d}" fill="none" stroke="#ead6b0" stroke-width="27.5" stroke-linecap="round"/>
+    <path d="${d}" fill="none" stroke="#d6bf96" stroke-width="12" stroke-linecap="round" opacity=".55"/>
+    <path d="${d}" fill="none" stroke="#ead6b0" stroke-width="7" stroke-linecap="round"/>`;
 
   inner.querySelectorAll('.node').forEach(n => n.remove());
   pts.forEach((p, i) => {
@@ -1181,13 +1294,12 @@ function renderMap() {
     b.className = 'node ' + (n < unlocked ? 'done' : n === unlocked ? 'current' : 'locked');
     b.style.left = p.x + 'px';
     b.style.top = p.y + 'px';
-    b.innerHTML = n > unlocked ? '🔒' : `${n}<small>단계</small>`;
-    if (n === unlocked) b.innerHTML += '<span class="busIcon">🚌</span>';
-    if (n <= unlocked) b.onclick = () => startLevel(n);
+    b.innerHTML = n > unlocked ? LOCK_SVG : `${n}<small>${'★'.repeat(TIERS[levelTier(n)].stars)}</small>`;
+    if (n === unlocked) b.innerHTML += BUS_SVG;
+    b.onclick = () => n <= unlocked ? showLevelPopup(n) : toast('앞 단계를 먼저 깨 주세요');
     inner.appendChild(b);
   });
 
-  $('playBtn').textContent = `▶ ${unlocked}단계 시작`;
   const cur = pts[Math.min(unlocked, N) - 1];
   scroll.scrollTop = cur.y - scroll.clientHeight * 0.6;
 }
@@ -1197,7 +1309,7 @@ function renderMap() {
 // =====================================================================
 function updateUI() {
   $('levelLabel').textContent = `${S.level}단계`;
-  $('leftLabel').textContent = `남은 승객 ${remainingCount()}명`;
+  $('leftLabel').textContent = `${TIERS[levelTier(S.level)].name} · 남은 승객 ${remainingCount()}명`;
   $('slotCnt').textContent = S.boost.slot;
   $('liftCnt').textContent = S.boost.lift;
   $('slotBtn').disabled = S.boost.slot <= 0 || S.slotCount >= MAX_SLOTS;
@@ -1217,15 +1329,15 @@ function toast(msg, ms = 1400) {
 function showOverlay(kind) {
   const card = $('card');
   if (kind === 'win') {
-    card.innerHTML = `<h2>🎉 ${S.level}단계 완료!</h2><p>승객들이 모두 버스를 타고 출발했어요.</p>
-      <button class="btn" id="ovNext">${S.level + 1}단계로 ▶</button>
+    card.innerHTML = `<h2>${S.level}단계 완료</h2><p>멍냥이들이 모두 버스를 타고 출발했어요.</p>
+      <button class="btn" id="ovNext">${S.level + 1}단계로</button>
       <button class="btn alt" id="ovMap">지도 보기</button>`;
     card.querySelector('#ovNext').onclick = () => startLevel(S.level + 1);
   } else {
     const canSlot = S.boost.slot > 0 && S.slotCount < MAX_SLOTS;
-    card.innerHTML = `<h2>😵 꽉 막혔어요</h2><p>대기 칸이 가득 차서 더 태울 수 없어요.</p>
-      ${canSlot ? '<button class="btn" id="ovSlot">➕ 자리 하나 늘리고 계속</button>' : ''}
-      <button class="btn ${canSlot ? 'alt' : ''}" id="ovRetry">↻ 다시 하기</button>
+    card.innerHTML = `<h2>꽉 막혔어요</h2><p>대기 칸이 가득 차서 더 태울 수 없어요.</p>
+      ${canSlot ? '<button class="btn" id="ovSlot">자리 하나 늘리고 계속</button>' : ''}
+      <button class="btn ${canSlot ? 'alt' : ''}" id="ovRetry">다시 하기</button>
       <button class="btn alt" id="ovMap">지도 보기</button>`;
     if (canSlot) card.querySelector('#ovSlot').onclick = () => { useSlotBooster(); S.over = false; hideOverlay(); };
     card.querySelector('#ovRetry').onclick = () => startLevel(S.level);
@@ -1235,29 +1347,166 @@ function showOverlay(kind) {
 }
 function hideOverlay() { $('overlay').classList.remove('show'); }
 
+// 설정 창
+function showSettings() {
+  if (S && S.over) return;
+  const card = $('card');
+  card.innerHTML = `<h2>설정</h2>
+    <div class="setRow"><span>배경음악</span><label class="switch"><input type="checkbox" id="bgmOn"><span></span></label></div>
+    <div class="setRow"><input type="range" id="bgmVol" min="0" max="100" aria-label="배경음악 크기"></div>
+    <div class="setRow"><span>효과음</span><label class="switch"><input type="checkbox" id="sfxOn"><span></span></label></div>
+    <div class="setRow"><input type="range" id="sfxVol" min="0" max="100" aria-label="효과음 크기"></div>
+    <button class="btn alt" id="ovClose">닫기</button>`;
+  const q = s => card.querySelector(s);
+  q('#bgmOn').checked = settings.bgmOn;
+  q('#sfxOn').checked = settings.sfxOn;
+  q('#bgmVol').value = Math.round(settings.bgmVol * 100);
+  q('#sfxVol').value = Math.round(settings.sfxVol * 100);
+  q('#bgmOn').onchange = e => { settings.bgmOn = e.target.checked; saveSettings(); settings.bgmOn ? startBgm() : stopBgm(); };
+  q('#sfxOn').onchange = e => { settings.sfxOn = e.target.checked; saveSettings(); audio(); applyVolumes(); };
+  q('#bgmVol').oninput = e => { settings.bgmVol = e.target.value / 100; saveSettings(); audio(); applyVolumes(); };
+  q('#sfxVol').oninput = e => { settings.sfxVol = e.target.value / 100; saveSettings(); audio(); applyVolumes(); };
+  q('#sfxVol').onchange = () => sfx('go');   // 크기 미리 듣기
+  q('#ovClose').onclick = () => hideOverlay();
+  $('overlay').classList.add('show');
+}
+
+// 단계 원을 눌렀을 때 뜨는 팝업
+function showLevelPopup(n) {
+  const tier = TIERS[levelTier(n)];
+  const card = $('card');
+  card.innerHTML = `<h2>${n}단계</h2>
+    <div class="stars">${'★'.repeat(tier.stars)}<span class="off">${'★'.repeat(5 - tier.stars)}</span></div>
+    <p>난이도 · ${tier.name}${n < unlocked ? '<br>이미 깬 단계예요' : ''}</p>
+    <button class="btn" id="ovStart">시작하기</button>
+    <button class="btn alt" id="ovClose">닫기</button>`;
+  card.querySelector('#ovStart').onclick = () => startLevel(n);
+  card.querySelector('#ovClose').onclick = () => hideOverlay();
+  $('overlay').classList.add('show');
+}
+
 // =====================================================================
-//  효과음
+//  소리: 피아노 음색을 브라우저에서 직접 합성합니다 (음악 파일 없음)
 // =====================================================================
-let AC = null;
-function sfx(kind) {
-  if (!soundOn) return;
-  try {
-    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
-    const map = {
-      go: [520, 0.09, 'triangle', 0.06], block: [140, 0.12, 'square', 0.04], board: [900, 0.04, 'sine', 0.025],
-      depart: [600, 0.2, 'triangle', 0.06], win: [700, 0.45, 'triangle', 0.08], lose: [220, 0.45, 'sawtooth', 0.04],
-    };
-    const [f, d, type, vol] = map[kind];
-    const o = AC.createOscillator(), g = AC.createGain(), now = AC.currentTime;
-    o.type = type;
-    o.frequency.setValueAtTime(f, now);
-    if (kind === 'depart' || kind === 'win') o.frequency.exponentialRampToValueAtTime(f * 1.7, now + d);
-    if (kind === 'lose') o.frequency.exponentialRampToValueAtTime(f * 0.5, now + d);
-    g.gain.setValueAtTime(vol, now);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + d);
-    o.connect(g).connect(AC.destination);
-    o.start(now); o.stop(now + d);
-  } catch (e) {}
+let AC = null, sfxBus = null, bgmBus = null;
+function audio() {
+  if (AC) return AC;
+  try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
+  // 잔향: 작은 나무 방에서 치는 피아노 느낌
+  const len = Math.floor(AC.sampleRate * 2.4);
+  const ir = AC.createBuffer(2, len, AC.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2);
+  }
+  const verb = AC.createConvolver(); verb.buffer = ir;
+  const wet = AC.createGain(); wet.gain.value = 0.3;
+  verb.connect(wet).connect(AC.destination);
+  sfxBus = AC.createGain(); bgmBus = AC.createGain();
+  sfxBus.gain.value = 0; bgmBus.gain.value = 0;
+  for (const b of [sfxBus, bgmBus]) { b.connect(AC.destination); b.connect(verb); }
+  applyVolumes();
+  return AC;
+}
+function applyVolumes() {
+  if (!AC) return;
+  const t = AC.currentTime;
+  sfxBus.gain.setTargetAtTime(settings.sfxOn ? settings.sfxVol * 0.9 : 0, t, 0.03);
+  bgmBus.gain.setTargetAtTime(settings.bgmOn ? settings.bgmVol * 0.55 : 0, t, 0.15);
+}
+document.addEventListener('visibilitychange', () => {
+  if (!AC) return;
+  if (document.hidden) AC.suspend(); else AC.resume();
+});
+
+// 피아노 한 음: 배음 몇 개 + 빠른 타건 + 천천히 사라지는 울림
+function piano(m, t, dur, vel, bus) {
+  const f = 440 * Math.pow(2, (m - 69) / 12);
+  const out = AC.createGain();
+  const lp = AC.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(Math.min(9000, f * 8), t);
+  lp.frequency.exponentialRampToValueAtTime(Math.max(500, f * 2.2), t + 0.9);
+  out.connect(lp).connect(bus);
+  const end = t + Math.max(0.45, Math.min(dur + 0.6, clamp(3.4 - (m - 48) * 0.045, 0.8, 3.6)));
+  out.gain.setValueAtTime(0.0001, t);
+  out.gain.exponentialRampToValueAtTime(vel, t + 0.008);
+  out.gain.exponentialRampToValueAtTime(vel * 0.35, t + 0.35);
+  out.gain.exponentialRampToValueAtTime(0.0001, end);
+  for (const [h, amp, det] of [[1, 1, 0], [2, 0.45, 2], [3, 0.2, -3], [4, 0.08, 4]]) {
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.frequency.value = f * h; o.detune.value = det; g.gain.value = amp;
+    o.connect(g).connect(out);
+    o.start(t); o.stop(end + 0.05);
+  }
+}
+
+// 효과음: "뿅뿅" 느낌을 피아노로
+const PENTA = [72, 74, 76, 79, 81, 84, 86, 88];   // 탈 때마다 한 음씩 올라가요
+function sfx(kind, arg = 0) {
+  if (!settings.sfxOn || !audio()) return;
+  if (AC.state === 'suspended') AC.resume();
+  const t = AC.currentTime + 0.01, B = sfxBus;
+  switch (kind) {
+    case 'click':  piano(84, t, 0.12, 0.09, B); break;                                        // 톡
+    case 'go':     piano(79, t, 0.1, 0.12, B); piano(86, t + 0.07, 0.25, 0.12, B); break;    // 뿅!
+    case 'block':  piano(50, t, 0.2, 0.17, B); piano(49, t + 0.06, 0.25, 0.1, B); break;     // 쿵
+    case 'board':  piano(PENTA[arg % PENTA.length], t, 0.12, 0.07, B); break;                 // 폴짝
+    case 'depart': [72, 76, 79, 84].forEach((m, i) => piano(m, t + i * 0.07, 0.35, 0.1, B)); break;
+    case 'win':    [65, 69, 72, 77, 81, 84].forEach((m, i) => piano(m, t + i * 0.11, 0.9, 0.11, B)); break;
+    case 'lose':   [69, 65, 62, 57].forEach((m, i) => piano(m, t + i * 0.18, 0.9, 0.09, B)); break;
+  }
+}
+
+// 배경음악: 시골의 푸근한 오후 같은 잔잔한 피아노 (F장조, 16마디 반복)
+//   마디마다 [왼손 아르페지오 음 5개(낮은→높은), 오른손 멜로디 [시작 박, 길이(박), 음]]
+const BPM = 66, BEAT = 60 / BPM;
+const SONG = [
+  [[41, 48, 53, 57, 60], [[0, 1.5, 69], [1.5, 0.5, 72], [2, 2, 77]]],              // F
+  [[40, 48, 52, 55, 60], [[0, 1.5, 76], [1.5, 0.5, 74], [2, 2, 72]]],              // C/E
+  [[38, 45, 50, 53, 57], [[0, 1, 74], [1, 1, 77], [2, 1.5, 81], [3.5, 0.5, 79]]],  // Dm
+  [[45, 52, 57, 60, 64], [[0, 3, 76]]],                                            // Am
+  [[46, 53, 58, 62, 65], [[0, 1.5, 74], [1.5, 0.5, 72], [2, 1, 70], [3, 1, 74]]],  // Bb
+  [[45, 48, 53, 57, 60], [[0, 1.5, 72], [1.5, 0.5, 69], [2, 2, 65]]],              // F/A
+  [[43, 50, 53, 58, 62], [[0, 1, 67], [1, 1, 70], [2, 1, 74], [3, 1, 77]]],        // Gm7
+  [[36, 43, 48, 52, 55], [[0, 2, 76], [2, 2, 72]]],                                // C
+  [[41, 48, 53, 57, 60], [[0, 1.5, 77], [1.5, 0.5, 76], [2, 1, 72], [3, 1, 69]]],  // F
+  [[45, 52, 57, 60, 64], [[0, 1.5, 72], [1.5, 0.5, 76], [2, 2, 81]]],              // Am
+  [[46, 53, 58, 62, 65], [[0, 1, 79], [1, 1, 77], [2, 2, 74]]],                    // Bb
+  [[41, 48, 53, 57, 60], [[0, 1, 72], [1, 1, 69], [2, 2, 72]]],                    // F
+  [[43, 50, 55, 58, 62], [[0, 1, 70], [1, 1, 74], [2, 1.5, 79], [3.5, 0.5, 77]]],  // Gm
+  [[45, 52, 57, 60, 64], [[0, 1.5, 76], [1.5, 0.5, 72], [2, 2, 69]]],              // Am
+  [[46, 53, 58, 62, 65], [[0, 1, 74], [1, 1, 72], [2, 1, 70], [3, 1, 67]]],        // Bb
+  [[36, 43, 48, 53, 55], [[0, 2, 72], [2, 2, 67]]],                                // Csus4
+];
+let bgmTimer = null, bgmNext = 0, bgmBar = 0;
+const hum = () => (Math.random() - 0.5) * 0.014;     // 사람이 치는 듯한 미세한 흔들림
+const vary = () => 0.85 + Math.random() * 0.3;
+function scheduleBgm() {
+  if (bgmNext < AC.currentTime) bgmNext = AC.currentTime + 0.1;
+  while (bgmNext < AC.currentTime + 1.2) {
+    const [arp, mel] = SONG[bgmBar % SONG.length], t0 = bgmNext;
+    const high = Math.floor(bgmBar / SONG.length) % 2 === 1;   // 두 번째 반복은 한 옥타브 위 오르골 느낌
+    [0, 1, 2, 3, 4, 3, 2, 1].forEach((k, i) =>
+      piano(arp[k], t0 + i * BEAT / 2 + hum(), BEAT * 0.9, (i === 0 ? 0.06 : 0.032) * vary(), bgmBus));
+    mel.forEach(([s, d, m]) =>
+      piano(m + (high ? 12 : 0), t0 + s * BEAT + hum(), d * BEAT, (high ? 0.05 : 0.075) * vary(), bgmBus));
+    bgmNext += 4 * BEAT;
+    bgmBar++;
+  }
+}
+function startBgm() {
+  if (!settings.bgmOn || bgmTimer || !audio()) return;
+  if (AC.state === 'suspended') AC.resume();
+  bgmNext = AC.currentTime + 0.3;
+  applyVolumes();
+  scheduleBgm();
+  bgmTimer = setInterval(scheduleBgm, 300);
+}
+function stopBgm() {
+  clearInterval(bgmTimer);
+  bgmTimer = null;
+  applyVolumes();
 }
 
 // =====================================================================
@@ -1272,7 +1521,6 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
-$('soundBtn').classList.toggle('off', !soundOn);
 // 메인 화면에 날리는 민들레 홀씨
 for (let i = 0; i < 16; i++) {
   const f = document.createElement('div');

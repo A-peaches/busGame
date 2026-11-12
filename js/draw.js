@@ -64,6 +64,14 @@ function drawVehicle(x, y, a, w, l, colorIdx, hidden, o = {}) {
   rr(-w * 0.3, l / 2 - w * 0.27, w * 0.6, w * 0.13, w * 0.05); ctx.fill(); ctx.stroke();
 
   if (hidden) {
+    // 색은 숨겨도 나가는 방향은 보여 줘요: 앞쪽 끝에 작은 화살촉 (무엇을 먼저 치워야 할지 알 수 있게)
+    if (o.arrow) {
+      const hy = -l / 2 + w * 0.78, hw = w * 0.28, hh = w * 0.26;
+      ctx.beginPath();
+      ctx.moveTo(0, hy - hh); ctx.lineTo(hw, hy + hh * 0.6); ctx.lineTo(0, hy + hh * 0.15); ctx.lineTo(-hw, hy + hh * 0.6); ctx.closePath();
+      ctx.fillStyle = '#f6ecd8'; ctx.fill();
+      ctx.strokeStyle = LINE; ctx.lineWidth = lw * 0.8; ctx.stroke();
+    }
     ctx.rotate(-a);
     ctx.font = `700 ${w * 0.62}px MaruBuri, serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';

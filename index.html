@@ -22,15 +22,29 @@
         if (moved) return; moved = true;
         location.replace(NEW_HOME + '#move=' + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(data))))));
       };
-      // 예전 주소의 게임 알림 연결만 끊어요 (투두 앱 것은 건드리지 않아요). 새 주소에서 다시 연결해요.
-      if (navigator.serviceWorker) {
-        navigator.serviceWorker.getRegistrations().then(function (rs) {
-          return Promise.all(rs.filter(function (r) { return r.scope.indexOf('/busGame/') >= 0; }).map(function (r) { return r.unregister(); }));
-        }).then(go, go);
-        setTimeout(go, 1500);
-      } else go();
+      // 예전 주소의 게임 알림 연결만 끊어요 (투두 앱 것은 건드리지 않아요). 기다리지 않고 바로 넘어가요
+      //   (카카오톡 같은 앱 속 브라우저는 이걸 기다리다 멈출 수 있어서)
+      try {
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+          navigator.serviceWorker.getRegistrations().then(function (rs) {
+            rs.forEach(function (r) { if (r.scope.indexOf('/busGame/') >= 0) r.unregister(); });
+          }).catch(function () {});
+        }
+      } catch (e2) { /* 무시 */ }
+      setTimeout(go, 150);
       document.documentElement.style.background = '#f6dd92';
       window.stop();                      // 예전 주소에서는 게임을 불러오지 않아요
+      // 그래도 안 넘어가면 누를 수 있는 버튼을 보여 줘요
+      setTimeout(function () {
+        try {
+          var d = document.createElement('div');
+          d.style.cssText = 'position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;font:16px sans-serif;color:#4a3b2c;text-align:center;padding:24px';
+          d.innerHTML = '<div>멍냥이의 버스여행이 새 주소로 이사했어요 🚌</div>' +
+            '<a href="' + NEW_HOME + '" style="padding:12px 22px;border-radius:14px;background:#fbf3e2;border:1px solid #c9b99c;color:#4a3b2c;text-decoration:none;font-weight:700">새 주소로 가기</a>' +
+            '<small style="color:#8a7a68">' + NEW_HOME.replace('https://', '') + '</small>';
+          (document.body || document.documentElement).appendChild(d);
+        } catch (e3) { /* 무시 */ }
+      }, 1200);
       return;
     }
     // 새 주소: 옮겨 온 기록 받기 (이 기기의 새 주소에 아직 기록이 없을 때만)
@@ -50,7 +64,7 @@
 <meta name="theme-color" content="#f6dd92">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="css/style.css?v=74">
+<link rel="stylesheet" href="css/style.css?v=75">
 </head>
 <body>
 <div id="app">
@@ -131,15 +145,15 @@
   <canvas id="confetti" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:7"></canvas>
 </div>
 
-<script src="js/config.js?v=74"></script>
-<script src="js/level.js?v=74"></script>
-<script src="js/game.js?v=74"></script>
-<script src="js/draw.js?v=74"></script>
-<script src="js/ui.js?v=74"></script>
-<script src="js/scene.js?v=74"></script>
-<script src="js/world.js?v=74"></script>
-<script src="js/net.js?v=74"></script>
-<script src="js/audio.js?v=74"></script>
-<script src="js/main.js?v=74"></script>
+<script src="js/config.js?v=75"></script>
+<script src="js/level.js?v=75"></script>
+<script src="js/game.js?v=75"></script>
+<script src="js/draw.js?v=75"></script>
+<script src="js/ui.js?v=75"></script>
+<script src="js/scene.js?v=75"></script>
+<script src="js/world.js?v=75"></script>
+<script src="js/net.js?v=75"></script>
+<script src="js/audio.js?v=75"></script>
+<script src="js/main.js?v=75"></script>
 </body>
 </html>

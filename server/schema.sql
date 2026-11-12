@@ -77,3 +77,22 @@ CREATE TABLE IF NOT EXISTS blocks (
   created  INTEGER NOT NULL,
   PRIMARY KEY (a, b)
 );
+
+-- 친구 요청 (닉네임으로 찾아서 보내고, 받은 사람이 수락해요)
+CREATE TABLE IF NOT EXISTS friend_requests (
+  from_id  TEXT NOT NULL,
+  to_id    TEXT NOT NULL,
+  at       INTEGER NOT NULL,
+  PRIMARY KEY (from_id, to_id)
+);
+CREATE INDEX IF NOT EXISTS friend_requests_to ON friend_requests(to_id);
+
+-- 전체 채팅 (사흘 지난 글은 지워요)
+CREATE TABLE IF NOT EXISTS chat (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id  TEXT NOT NULL,
+  nickname TEXT NOT NULL,
+  body     TEXT NOT NULL,
+  at       INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS users_nick ON users(nickname);

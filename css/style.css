@@ -273,6 +273,28 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .btn.mini.more { padding: 7px 8px; letter-spacing: 1px; }
 /* 친구 줄: 이름은 한 줄(길면 …), 단계는 아래 작은 글씨 */
 .friendRow > span:first-child { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.friendRow > span:first-child small { display: block; margin-left: 26px; }
+.friendRow > span:first-child small { display: block; }
+.friendRow > span:first-child .rank ~ small { margin-left: 26px; }
 .friendRow .btn.mini { padding: 7px 9px; }
 .friendRow .btn.mini.more { padding: 7px 7px; }
+
+/* 채팅 버튼 (우편함 옆) */
+#menu > #chatBtn { position: absolute; left: 162px; bottom: 16px; z-index: 4; }
+/* 친구 창: 구역 제목, 찾기 결과, 접속 표시 */
+.secTitle { text-align: left; font-size: 12.5px; color: var(--muted); margin: 8px 2px 2px; font-weight: 700; }
+.findList { max-height: 24vh; overflow-y: auto; }
+.findList:empty { display: none; }
+.friendRow .tag { color: var(--muted); font-size: 11.5px; flex: none; }
+.friendRow small { display: block; }
+.onDot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 5px; vertical-align: middle; background: #cfc6b6; border: 1px solid rgba(96,90,84,.35); }
+.onDot.on { background: #6cc46a; border-color: #4e9a4d; }
+.reqList .friendRow { background: #fdf3dc; border-radius: 8px; }
+/* 전체 채팅 */
+.chatList { height: 46vh; overflow-y: auto; text-align: left; background: #fffaf0; border: 1px solid #e2d6bf; border-radius: 10px; padding: 8px; margin: 4px 0 8px; }
+.chatMsg { margin: 0 0 8px; font-size: 13.5px; }
+.chatMsg b { display: block; font-size: 11.5px; color: var(--muted); margin: 0 0 2px 2px; }
+.chatMsg .bubble { display: inline-block; max-width: 78%; padding: 6px 10px; border-radius: 12px 12px 12px 4px; background: #f3ead9; border: 1px solid #e2d6bf; color: var(--ink); word-break: break-all; }
+.chatMsg small { font-size: 10px; color: #b3a58e; margin-left: 4px; }
+.chatMsg.mine { text-align: right; }
+.chatMsg.mine .bubble { background: #f6dd92; border-color: #e3c56e; border-radius: 12px 12px 4px 12px; text-align: left; }
+.chatInput { margin-top: 0; }

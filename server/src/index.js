@@ -85,6 +85,11 @@ async function handle(req, env, ctx) {
 
       const user = await auth(req, env);
       if (!user) return json({ error: 'unauthorized' }, 401);
+      // 접속 중 표시: 1분에 한 번만 마지막 접속 시각을 새로 적어요
+      if (now() - (user.last_seen || 0) > 60000) {
+        user.last_seen = now();
+        ctx.waitUntil(env.DB.prepare('UPDATE users SET last_seen = ? WHERE id = ?').bind(user.last_seen, user.id).run());
+      }
 
       if (path === '/me') return json(publicMe(user));
       if (path === '/sync' && req.method === 'POST') return sync(env, user, body);
@@ -94,6 +99,21 @@ async function handle(req, env, ctx) {
         return addFriend(env, ctx, user, body);
       }
       if (path === '/friends/remove' && req.method === 'POST') return removeFriend(env, user, body);
+      if (path === '/users/search' && req.method === 'GET') {
+        if (await tooMany(env, 'srch:' + user.id, 60, 3600000)) return slowDown();        // 한 시간에 60번까지
+        return searchUsers(env, user, url.searchParams.get('q'));
+      }
+      if (path === '/friends/request' && req.method === 'POST') {
+        if (await tooMany(env, 'req:' + user.id, 30, 3600000)) return slowDown();         // 한 시간에 30번까지
+        return requestFriend(env, ctx, user, body);
+      }
+      if (path === '/friends/respond' && req.method === 'POST') return respondFriend(env, ctx, user, body);
+      if (path === '/chat' && req.method === 'GET') return listChat(env, user, +url.searchParams.get('after') || 0);
+      if (path === '/chat' && req.method === 'POST') {
+        if (await tooMany(env, 'chat1:' + user.id, 1, 2000)) return json({ error: '조금 천천히 보내 주세요' }, 429);   // 2초에 1번
+        if (await tooMany(env, 'chat5:' + user.id, 20, 300000)) return json({ error: '잠시 쉬었다가 보내 주세요' }, 429); // 5분에 20번
+        return sendChat(env, user, body);
+      }
       if (path === '/gift' && req.method === 'POST') return gift(env, ctx, user, body);
       if (path === '/gifts' && req.method === 'GET') return listGifts(env, user);
       if (path === '/gifts/claim' && req.method === 'POST') return claimGifts(env, user, body);
@@ -164,7 +184,8 @@ async function sync(env, user, body) {
     .bind(nickname, unlocked, hearts, hearts_t, full_at, full_notified, now(), user.id).run();
   const g = await env.DB.prepare('SELECT COUNT(*) AS c FROM gifts WHERE to_id = ? AND claimed = 0').bind(user.id).first();
   const l = await env.DB.prepare('SELECT COUNT(*) AS c FROM letters WHERE to_id = ? AND read = 0').bind(user.id).first();
-  return json({ unlocked, gifts: g ? g.c : 0, letters: l ? l.c : 0, code: user.code });
+  const fr = await env.DB.prepare('SELECT COUNT(*) AS c FROM friend_requests WHERE to_id = ?').bind(user.id).first();
+  return json({ unlocked, gifts: g ? g.c : 0, letters: l ? l.c : 0, requests: fr ? fr.c : 0, code: user.code });
 }
 
 // ---- 우편함: 하트를 주고받은 기록 + 친구 쪽지 ----
@@ -210,9 +231,16 @@ async function readMail(env, user) {
 
 async function listFriends(env, user) {
   const { results } = await env.DB.prepare(
-    `SELECT u.id, u.nickname, u.unlocked, f.last_gift FROM friends f JOIN users u ON u.id = f.b WHERE f.a = ? ORDER BY u.unlocked DESC, u.nickname`)
+    `SELECT u.id, u.nickname, u.unlocked, u.last_seen, f.last_gift FROM friends f JOIN users u ON u.id = f.b WHERE f.a = ? ORDER BY u.unlocked DESC, u.nickname`)
     .bind(user.id).all();
-  return json({ friends: results.map(r => ({ id: r.id, nickname: r.nickname, unlocked: r.unlocked, nextGiftAt: r.last_gift ? r.last_gift + GIFT_MS : 0 })), now: now() });
+  const rq = await env.DB.prepare(
+    `SELECT u.id, u.nickname, u.unlocked, r.at FROM friend_requests r JOIN users u ON u.id = r.from_id WHERE r.to_id = ? ORDER BY r.at DESC LIMIT 30`)
+    .bind(user.id).all();
+  return json({
+    friends: results.map(r => ({ id: r.id, nickname: r.nickname, unlocked: r.unlocked, lastSeen: r.last_seen || 0, nextGiftAt: r.last_gift ? r.last_gift + GIFT_MS : 0 })),
+    requests: rq.results.map(r => ({ id: r.id, nickname: r.nickname, unlocked: r.unlocked, at: r.at })),
+    now: now(),
+  });
 }
 
 async function addFriend(env, ctx, user, body) {
@@ -233,6 +261,81 @@ async function addFriend(env, ctx, user, body) {
   return json({ ok: true, friend: { id: other.id, nickname: other.nickname, unlocked: other.unlocked } });
 }
 
+// ---- 닉네임으로 친구 찾기 → 친구 요청 → 상대가 수락하면 친구 ----
+async function searchUsers(env, user, q) {
+  q = cleanName(q);
+  if (!q) return json({ users: [] });
+  const like = '%' + q.replace(/[!%_]/g, c => '!' + c) + '%';     // %, _ 는 글자 그대로 찾아요 (! 로 표시)
+  const { results } = await env.DB.prepare(
+    `SELECT u.id, u.nickname, u.unlocked,
+       EXISTS(SELECT 1 FROM friends f WHERE f.a = ?1 AND f.b = u.id) AS friend,
+       EXISTS(SELECT 1 FROM friend_requests r WHERE r.from_id = ?1 AND r.to_id = u.id) AS sent
+     FROM users u
+     WHERE u.nickname LIKE ?2 ESCAPE '!' AND u.id != ?1 AND u.nickname != ''
+       AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.a = ?1 AND b.b = u.id) OR (b.a = u.id AND b.b = ?1))
+     ORDER BY (u.nickname = ?3) DESC, u.last_seen DESC LIMIT 15`).bind(user.id, like, q).all();
+  return json({ users: results.map(r => ({ id: r.id, nickname: r.nickname, unlocked: r.unlocked, friend: !!r.friend, sent: !!r.sent })) });
+}
+async function makeFriends(env, a, b) {
+  const t = now();
+  await env.DB.batch([
+    env.DB.prepare('INSERT OR IGNORE INTO friends (a, b, created) VALUES (?, ?, ?)').bind(a, b, t),
+    env.DB.prepare('INSERT OR IGNORE INTO friends (a, b, created) VALUES (?, ?, ?)').bind(b, a, t),
+    env.DB.prepare('DELETE FROM friend_requests WHERE (from_id = ?1 AND to_id = ?2) OR (from_id = ?2 AND to_id = ?1)').bind(a, b),
+  ]);
+}
+async function requestFriend(env, ctx, user, body) {
+  const id = String(body.id || '');
+  if (!/^[0-9a-f]{16}$/.test(id) || id === user.id) return json({ error: '잘못된 요청이에요' }, 400);
+  const other = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();
+  if (!other) return json({ error: '그 친구를 찾을 수 없어요' }, 404);
+  const blocked = await env.DB.prepare('SELECT 1 FROM blocks WHERE (a = ?1 AND b = ?2) OR (a = ?2 AND b = ?1)').bind(user.id, id).first();
+  if (blocked) return json({ error: '친구 요청을 보낼 수 없어요' }, 400);
+  if (await env.DB.prepare('SELECT 1 FROM friends WHERE a = ? AND b = ?').bind(user.id, id).first()) return json({ ok: true, friend: true });
+  // 상대가 이미 나에게 요청했다면 바로 친구가 돼요
+  if (await env.DB.prepare('SELECT 1 FROM friend_requests WHERE from_id = ? AND to_id = ?').bind(id, user.id).first()) {
+    await makeFriends(env, user.id, id);
+    ctx.waitUntil(notify(env, other, '🐾 새 친구', `${user.nickname || '누군가'}님과 친구가 되었어요!`));
+    return json({ ok: true, friend: true });
+  }
+  const r = await env.DB.prepare('INSERT OR IGNORE INTO friend_requests (from_id, to_id, at) VALUES (?, ?, ?)').bind(user.id, id, now()).run();
+  if (r.meta && r.meta.changes) ctx.waitUntil(notify(env, other, '🐾 친구 요청', `${user.nickname || '누군가'}님이 친구가 되고 싶어 해요`));
+  return json({ ok: true, sent: true });
+}
+async function respondFriend(env, ctx, user, body) {
+  const id = String(body.id || '');
+  const rq = await env.DB.prepare('SELECT 1 FROM friend_requests WHERE from_id = ? AND to_id = ?').bind(id, user.id).first();
+  if (!rq) return json({ error: '요청을 찾을 수 없어요' }, 404);
+  if (body.accept) {
+    await makeFriends(env, user.id, id);
+    const other = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();
+    if (other) ctx.waitUntil(notify(env, other, '🐾 새 친구', `${user.nickname || '누군가'}님이 친구 요청을 받아 주었어요!`));
+  } else {
+    await env.DB.prepare('DELETE FROM friend_requests WHERE from_id = ? AND to_id = ?').bind(id, user.id).run();
+  }
+  return json({ ok: true });
+}
+
+// ---- 전체 채팅 (모두가 보는 짧은 말, 사흘 뒤 지워져요) ----
+const CHAT_MAX = 100;
+async function listChat(env, user, after) {
+  const q = after > 0
+    ? env.DB.prepare(`SELECT id, user_id, nickname, body, at FROM chat WHERE id > ?1
+        AND user_id NOT IN (SELECT b FROM blocks WHERE a = ?2) ORDER BY id ASC LIMIT 50`).bind(after, user.id)
+    : env.DB.prepare(`SELECT * FROM (SELECT id, user_id, nickname, body, at FROM chat
+        WHERE user_id NOT IN (SELECT b FROM blocks WHERE a = ?1) ORDER BY id DESC LIMIT 50) ORDER BY id ASC`).bind(user.id);
+  const { results } = await q.all();
+  return json({ messages: results.map(r => ({ id: r.id, nickname: r.nickname, body: r.body, at: r.at, mine: r.user_id === user.id })), now: now() });
+}
+async function sendChat(env, user, body) {
+  const text = String(body.text || '').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX);
+  if (!text) return json({ error: '내용을 적어 주세요' }, 400);
+  if (!user.nickname) return json({ error: '닉네임을 먼저 정해 주세요' }, 400);
+  const r = await env.DB.prepare('INSERT INTO chat (user_id, nickname, body, at) VALUES (?, ?, ?, ?) RETURNING id')
+    .bind(user.id, user.nickname, text, now()).first();
+  return json({ ok: true, id: r && r.id });
+}
+
 // 친구 삭제(양쪽 다 끊어요) / 차단(삭제 + 다시 친구가 될 수 없게)
 async function removeFriend(env, user, body) {
   const id = String(body.id || '');
@@ -240,6 +343,7 @@ async function removeFriend(env, user, body) {
   const q = [
     env.DB.prepare('DELETE FROM friends WHERE (a = ?1 AND b = ?2) OR (a = ?2 AND b = ?1)').bind(user.id, id),
   ];
+  q.push(env.DB.prepare('DELETE FROM friend_requests WHERE (from_id = ?1 AND to_id = ?2) OR (from_id = ?2 AND to_id = ?1)').bind(user.id, id));
   if (body.block) q.push(env.DB.prepare('INSERT OR IGNORE INTO blocks (a, b, created) VALUES (?, ?, ?)').bind(user.id, id, now()));
   await env.DB.batch(q);
   return json({ ok: true });
@@ -308,6 +412,7 @@ async function cleanUp(env) {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM notes WHERE seen = 1 AND at < ?').bind(now() - 7 * DAY),
     env.DB.prepare('DELETE FROM throttle WHERE reset < ?').bind(now()),
+    env.DB.prepare('DELETE FROM chat WHERE at < ?').bind(now() - 3 * DAY),
   ]);
 }
 

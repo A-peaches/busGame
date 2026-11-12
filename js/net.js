@@ -1,7 +1,7 @@
 // 멍냥이의 버스여행 - 서버 연결 (Cloudflare): 단계 저장, 친구, 하트 선물, 폰 알림
 // =====================================================================
 //  계정은 가입 없이 기기마다 자동으로 만들어져요 (닉네임을 정하면).
-//  친구 코드로 친구를 추가하고, 친구에게 6시간마다 하트 1개를 보낼 수 있어요.
+//  닉네임으로 친구를 찾아 요청하고, 친구에게 6시간마다 하트 1개를 보낼 수 있어요. 전체 채팅도 있어요.
 // =====================================================================
 const API = 'https://meow-bus-api.bbhtodo.workers.dev';
 const VAPID_PUBLIC = 'BMBMyytakpUuVSzdzYb6B6A2MZs-Y1MiM-TyyUrbVza8ROCRuOSWtZRqmWKRnxk7CDxzEfevcfInudWMo35nGzI';
@@ -52,6 +52,7 @@ async function syncOnce() {
       if (!S) renderMap();
     }
     setMailBadge((r.gifts || 0) + (r.letters || 0));   // 안 받은 하트 + 안 읽은 쪽지 → 우편함에 N
+    setFriendBadge(r.requests || 0);                   // 받은 친구 요청 → 친구 버튼에 빨간 점
   } catch (e) {
     if (e.status === 401) { acct = null; store.set('busGame.acct', null); }
   }
@@ -165,7 +166,7 @@ async function showMail() {
 function manageFriend(id, name) {
   const card = $('card');
   card.innerHTML = `<h2>${esc(name)}님</h2>
-    <p><b>친구 삭제</b>: 서로의 친구 목록에서 사라져요. 친구 코드로 다시 친구가 될 수 있어요.<br>
+    <p><b>친구 삭제</b>: 서로의 친구 목록에서 사라져요. 다시 친구 요청을 보낼 수 있어요.<br>
     <b>차단</b>: 친구에서 지우고, 앞으로 서로 친구 추가를 할 수 없어요.</p>
     <button class="btn alt" id="fDel">친구 삭제</button>
     <button class="btn alt" id="fBlock">차단하기</button>
@@ -185,6 +186,15 @@ const fmtWait = ms => {
   const m = Math.max(0, Math.ceil(ms / 60000)), h = Math.floor(m / 60);
   return h ? `${h}시간 뒤` : `${m}분 뒤`;     // 짧게 (친구 줄이 좁아서)
 };
+// 마지막 접속: 5분 안이면 "접속 중"(초록 동그라미), 아니면 "N분/시간/일 전"
+const ONLINE_MS = 5 * 60 * 1000;
+const seenText = (ls, t) => {
+  if (!ls) return '접속 기록 없음';
+  const d = t - ls;
+  if (d < ONLINE_MS) return '접속 중';
+  const m = Math.floor(d / 60000), h = Math.floor(m / 60), day = Math.floor(h / 24);
+  return day ? `${day}일 전 접속` : h ? `${h}시간 전 접속` : `${m}분 전 접속`;
+};
 async function showFriends() {
   const card = $('card');
   const close = '<button class="btn alt" id="ovClose">닫기</button>';
@@ -193,38 +203,65 @@ async function showFriends() {
   $('overlay').classList.add('show');
   if (!nickname) { card.innerHTML = '<h2>친구</h2><p>먼저 닉네임을 정해 주세요.</p>' + close; bindClose(); return; }
   if (!(await ensureAccount())) { card.innerHTML = '<h2>친구</h2><p>인터넷 연결을 확인해 주세요.</p>' + close; bindClose(); return; }
-  let list = [], diff = 0;
-  try { const r = await api('/friends'); list = r.friends; diff = r.now - Date.now(); }
+  let list = [], reqs = [], diff = 0;
+  try { const r = await api('/friends'); list = r.friends; reqs = r.requests || []; diff = r.now - Date.now(); }
   catch (e) { card.innerHTML = '<h2>친구</h2><p>친구 목록을 불러오지 못했어요.</p>' + close; bindClose(); return; }
+  setFriendBadge(reqs.length);
   const t = Date.now() + diff;
   // 많이 깬 순서대로 (나도 함께), 1·2·3등은 트로피
   const ranked = [...list, { me: true, unlocked }].sort((a, b) => b.unlocked - a.unlocked);
   card.innerHTML = `<h2>친구</h2>
-    <p>내 친구 코드</p>
-    <div class="codeRow"><b class="myCode">${esc(acct.code)}</b><button class="btn alt mini" id="copyCode">복사</button></div>
-    <div class="codeRow"><input class="nickInput" id="friendCode" maxlength="9" placeholder="친구 코드 입력 (예: ABCD-EF23)"><button class="btn mini" id="addFriend">추가</button></div>
+    <div class="codeRow"><input class="nickInput" id="findNick" maxlength="10" placeholder="닉네임으로 친구 찾기"><button class="btn mini" id="findBtn">찾기</button></div>
+    <div class="findList" id="findList"></div>
+    ${reqs.length ? `<p class="secTitle">받은 친구 요청</p><div class="friendList reqList">${reqs.map(q =>
+      `<div class="friendRow"><span>${esc(q.nickname || '친구')}<small>${q.unlocked}단계</small></span>
+        <span class="friendBtns"><button class="btn mini" data-accept="${esc(q.id)}">수락</button><button class="btn alt mini" data-reject="${esc(q.id)}">거절</button></span></div>`).join('')}</div>` : ''}
+    <p class="secTitle">친구 ${list.length}명</p>
     <div class="friendList">${list.length ? ranked.map((f, i) => {
       const rank = `<span class="rank">${i < 3 ? trophy(i) : i + 1}</span>`;
-      if (f.me) return `<div class="friendRow me"><span>${rank}${esc(nickname)} <small>나 · ${unlocked}단계</small></span></div>`;
+      if (f.me) return `<div class="friendRow me"><span>${rank}${esc(nickname)}<small>나 · ${unlocked}단계</small></span></div>`;
       const wait = f.nextGiftAt && f.nextGiftAt > t;
-      return `<div class="friendRow"><span>${rank}${esc(f.nickname || '친구')} <small>${f.unlocked}단계</small></span>
+      const on = f.lastSeen && t - f.lastSeen < ONLINE_MS;
+      return `<div class="friendRow"><span>${rank}${esc(f.nickname || '친구')}<i class="onDot${on ? ' on' : ''}" title="${on ? '접속 중' : ''}"></i><small>${f.unlocked}단계 · ${seenText(f.lastSeen, t)}</small></span>
         <span class="friendBtns"><button class="btn mini ${wait ? 'alt' : ''}" data-id="${esc(f.id)}" ${wait ? 'disabled' : ''}>${wait ? fmtWait(f.nextGiftAt - t) : '하트'}</button>
         <button class="btn alt mini" data-letter="${esc(f.id)}" data-name="${esc(f.nickname || '친구')}">쪽지</button>
         <button class="btn alt mini more" data-more="${esc(f.id)}" data-name="${esc(f.nickname || '친구')}" aria-label="더보기">⋯</button></span></div>`;
-    }).join('') : '<p><small>아직 친구가 없어요. 친구 코드를 서로 알려 주세요!</small></p>'}</div>
+    }).join('') : '<p><small>아직 친구가 없어요. 위에서 닉네임으로 찾아 친구 요청을 보내 보세요!</small></p>'}</div>
     <p><small>친구에게 6시간마다 하트 1개를 보낼 수 있어요</small></p>
     ${close}`;
   bindClose();
-  card.querySelector('#copyCode').onclick = async () => {
-    try { await navigator.clipboard.writeText(acct.code); toast('친구 코드를 복사했어요'); }
-    catch (e) { toast(acct.code); }
+  // 닉네임으로 찾기 → [친구 요청]
+  const inp = card.querySelector('#findNick'), out = card.querySelector('#findList');
+  const find = async () => {
+    const q = inp.value.trim();
+    if (!q) { toast('닉네임을 적어 주세요'); return; }
+    out.innerHTML = '<p><small>찾는 중…</small></p>';
+    let users = [];
+    try { users = (await api('/users/search?q=' + encodeURIComponent(q))).users; }
+    catch (e) { out.innerHTML = `<p><small>${e.status === 429 ? '잠시 후에 다시 찾아 주세요' : '찾지 못했어요'}</small></p>`; return; }
+    out.innerHTML = users.length ? users.map(u => `<div class="friendRow"><span>${esc(u.nickname)}<small>${u.unlocked}단계</small></span>
+      ${u.friend ? '<small class="tag">친구</small>' : u.sent ? '<small class="tag">요청함</small>'
+        : `<button class="btn mini" data-req="${esc(u.id)}" data-name="${esc(u.nickname)}">친구 요청</button>`}</div>`).join('')
+      : '<p><small>그 닉네임을 가진 사람이 없어요</small></p>';
+    out.querySelectorAll('button[data-req]').forEach(b => b.onclick = async () => {
+      b.disabled = true;
+      try {
+        const r = await api('/friends/request', { id: b.dataset.req });
+        if (r.friend) { toast(`${b.dataset.name}님과 친구가 되었어요! 🐾`, 2000); showFriends(); return; }
+        b.outerHTML = '<small class="tag">요청함</small>';
+        toast('친구 요청을 보냈어요', 1600);
+      } catch (e) { b.disabled = false; toast(e.message && e.message.length < 40 ? e.message : '보내지 못했어요', 1800); }
+    });
   };
-  card.querySelector('#addFriend').onclick = async () => {
-    const code = card.querySelector('#friendCode').value.trim();
-    if (!code) { toast('친구 코드를 적어 주세요'); return; }
-    try { const r = await api('/friends/add', { code }); toast(`${r.friend.nickname || '친구'}님과 친구가 되었어요! 🐾`, 2000); showFriends(); }
-    catch (e) { toast(e.message && e.message.length < 40 ? e.message : '친구를 추가하지 못했어요', 2000); }
+  card.querySelector('#findBtn').onclick = find;
+  inp.onkeydown = e => { if (e.key === 'Enter') find(); };
+  // 받은 요청: 수락 / 거절
+  const answer = async (id, accept) => {
+    try { await api('/friends/respond', { id, accept }); toast(accept ? '친구가 되었어요! 🐾' : '요청을 거절했어요', 1600); } catch (e) { toast('다시 시도해 주세요'); }
+    showFriends();
   };
+  card.querySelectorAll('button[data-accept]').forEach(b => b.onclick = () => answer(b.dataset.accept, true));
+  card.querySelectorAll('button[data-reject]').forEach(b => b.onclick = () => answer(b.dataset.reject, false));
   card.querySelectorAll('.friendRow button[data-letter]').forEach(b => b.onclick = () => writeLetter(b.dataset.letter, b.dataset.name, showFriends));
   card.querySelectorAll('.friendRow button[data-more]').forEach(b => b.onclick = () => manageFriend(b.dataset.more, b.dataset.name));
   card.querySelectorAll('.friendRow button[data-id]').forEach(b => b.onclick = async () => {
@@ -232,6 +269,59 @@ async function showFriends() {
     try { await api('/gift', { to: b.dataset.id }); toast('하트를 보냈어요! 💌', 1800); showFriends(); }
     catch (e) { toast(e.status === 429 ? '아직 보낼 수 없어요' : '보내지 못했어요', 1800); showFriends(); }
   });
+}
+// 친구 버튼의 빨간 점: 받은 친구 요청이 있을 때
+function setFriendBadge(n) {
+  const b = $('friendsBtn');
+  if (b) b.classList.toggle('hasDot', n > 0);
+}
+
+// ---- 전체 채팅 (모두가 보는 짧은 말) ----
+let chatLast = 0, chatTimer = 0, chatOpen = false;
+const fmtClock = ms => { const d = new Date(ms); return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`; };
+async function showChat() {
+  const card = $('card');
+  card.innerHTML = `<h2>전체 채팅</h2>
+    <div class="chatList" id="chatList"><p><small>불러오는 중…</small></p></div>
+    <div class="codeRow chatInput"><input class="nickInput" id="chatText" maxlength="100" placeholder="모두에게 한마디 (100자)" autocomplete="off"><button class="btn mini" id="chatSend">보내기</button></div>
+    <p><small>모두가 보는 곳이에요. 고운 말을 써 주세요 · 사흘 지난 글은 사라져요</small></p>
+    <button class="btn alt" id="ovClose">닫기</button>`;
+  $('overlay').classList.add('show');
+  const box = card.querySelector('#chatList'), inp = card.querySelector('#chatText');
+  const stop = () => { chatOpen = false; clearTimeout(chatTimer); };
+  card.querySelector('#ovClose').onclick = () => { stop(); hideOverlay(); };
+  if (!nickname || !(await ensureAccount())) { box.innerHTML = '<p><small>먼저 닉네임을 정하고 인터넷에 연결해 주세요.</small></p>'; return; }
+  chatOpen = true; chatLast = 0; box.innerHTML = '';
+  const add = list => {
+    if (!list.length) { if (!box.children.length) box.innerHTML = '<p class="chatEmpty"><small>아직 아무도 말하지 않았어요. 첫 인사를 남겨 보세요!</small></p>'; return; }
+    const empty = box.querySelector('.chatEmpty'); if (empty) empty.remove();
+    const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+    for (const m of list) {
+      chatLast = Math.max(chatLast, m.id);
+      const el = document.createElement('div');
+      el.className = 'chatMsg' + (m.mine ? ' mine' : '');
+      el.innerHTML = `${m.mine ? '' : `<b>${esc(m.nickname)}</b>`}<span class="bubble">${esc(m.body)}</span><small>${fmtClock(m.at)}</small>`;
+      box.appendChild(el);
+    }
+    if (nearBottom || list.some(m => m.mine)) box.scrollTop = box.scrollHeight;
+  };
+  const poll = async () => {
+    if (!chatOpen || !$('overlay').classList.contains('show') || !card.contains(box)) { stop(); return; }
+    try { add((await api('/chat?after=' + chatLast)).messages); } catch (e) { /* 잠깐 끊겨도 다음에 다시 */ }
+    if (chatOpen) chatTimer = setTimeout(poll, document.hidden ? 15000 : 4000);   // 4초마다 새 글 확인
+  };
+  await poll();
+  box.scrollTop = box.scrollHeight;
+  const send = async () => {
+    const text = inp.value.trim();
+    if (!text) return;
+    const btn = card.querySelector('#chatSend'); btn.disabled = true;
+    try { await api('/chat', { text }); inp.value = ''; clearTimeout(chatTimer); await poll(); }
+    catch (e) { toast(e.message && e.message.length < 40 ? e.message : '보내지 못했어요', 1800); }
+    btn.disabled = false; inp.focus();
+  };
+  card.querySelector('#chatSend').onclick = send;
+  inp.onkeydown = e => { if (e.key === 'Enter') send(); };
 }
 
 // ---- 폰 알림 (웹 푸시) ----
@@ -447,6 +537,11 @@ const MAIL_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="t
   <path d="M12 13.2 C10.6 11.6 9.4 12.2 9.6 13.3 C9.8 14.4 12 15.8 12 15.8 C12 15.8 14.2 14.4 14.4 13.3 C14.6 12.2 13.4 11.6 12 13.2Z" fill="#e8768e" stroke-width="1"/></g></svg>`;
 $('mailBtn').innerHTML = MAIL_SVG + '<span class="dot">N</span>';   // 새 소식이 있으면 N
 $('mailBtn').onclick = () => showMail();
+const CHAT_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g stroke="#4a3b2c" stroke-width="1.5" stroke-linejoin="round">
+  <path d="M4 5.5 H20 A1.5 1.5 0 0 1 21.5 7 V15 A1.5 1.5 0 0 1 20 16.5 H11 L6.5 20 V16.5 H4 A1.5 1.5 0 0 1 2.5 15 V7 A1.5 1.5 0 0 1 4 5.5Z" fill="#cfe6d6"/>
+  <circle cx="8" cy="11" r="1.1" fill="#4a3b2c" stroke="none"/><circle cx="12" cy="11" r="1.1" fill="#4a3b2c" stroke="none"/><circle cx="16" cy="11" r="1.1" fill="#4a3b2c" stroke="none"/></g></svg>`;
+$('chatBtn').innerHTML = CHAT_SVG;
+$('chatBtn').onclick = () => showChat();
 if (acct) saveAuthForSW();
 // 서비스 워커는 늘 등록해요 (폰 알림 + 앱처럼 설치하기)
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

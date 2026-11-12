@@ -582,26 +582,11 @@ function askReconnect() {
   card.querySelector('#ovClose').onclick = () => hideOverlay();
   $('overlay').classList.add('show');
 }
-// 알림 동의를 꼭 받아요: 아직 정하지 않았으면 시작할 때마다 물어보고, 허용돼 있으면 조용히 연결해요
+// 들어올 때마다 알림을 묻지 않아요. 허용돼 있으면 조용히 연결만 확인하고,
+//   켜고 싶으면 처음 닉네임 정할 때나 설정 → 폰 알림에서 켤 수 있어요.
 function askPushIfNeeded() {
   if (!nickname || !pushSupported()) return;
-  const p = Notification.permission;
-  if (p === 'granted') { pushState(); return; }     // 허용돼 있으면 구독을 확인하고 서버와 다시 맞춰요
-  if ($('overlay').classList.contains('show')) return;
-  if (p === 'denied') {                          // 막혀 있으면 사흘에 한 번 켜는 방법을 알려 드려요
-    if (IS_IOS && !IS_STANDALONE) return;          // 아이폰 사파리 창에서는 알림을 켤 방법이 없어서 안내하지 않아요
-    if (Date.now() - store.get('busGame.blockedTip', 0) > 3 * 86400000) { store.set('busGame.blockedTip', Date.now()); showPushBlocked(); }
-    return;
-  }
-  if (p !== 'default') return;
-  const card = $('card');
-  card.innerHTML = `<h2>🔔 알림을 켜 주세요</h2>
-    <p>친구가 <b>하트</b>나 <b>쪽지</b>를 보냈을 때,<br>하트가 <b>가득 찼을 때</b> 알려 드려요.</p>
-    <button class="btn" id="pushYes">알림 허용하기</button>
-    <button class="btn alt" id="pushLater">나중에</button>`;
-  card.querySelector('#pushYes').onclick = () => { const pp = Notification.requestPermission(); hideOverlay(); enablePush(pp); };
-  card.querySelector('#pushLater').onclick = () => hideOverlay();
-  $('overlay').classList.add('show');
+  if (Notification.permission === 'granted') pushState();
 }
 async function disablePush() {
   try {

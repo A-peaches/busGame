@@ -4,7 +4,7 @@
 //  닉네임으로 친구를 찾아 요청하고, 친구에게 6시간마다 하트 1개를 보낼 수 있어요. 전체 채팅도 있어요.
 // =====================================================================
 const API = 'https://meow-bus-api.bbhtodo.workers.dev';
-const VAPID_PUBLIC = 'BMBMyytakpUuVSzdzYb6B6A2MZs-Y1MiM-TyyUrbVza8ROCRuOSWtZRqmWKRnxk7CDxzEfevcfInudWMo35nGzI';
+const VAPID_PUBLIC = 'BGIy5HnCW1a3D-uWQ1uyv7qrhYbJ8IVbVCxouk_EuaGl1h2l5yq_AthZYZFS8uWz9kiI83Vym4R3vHPq5otHhbs';
 let acct = store.get('busGame.acct', null);      // { id, token, code }
 let pendingGifts = 0;
 

@@ -530,7 +530,7 @@ async function notify(env, user, title, body) {
       headers: { TTL: '86400', Urgency: 'high', Authorization: `vapid t=${jwt}, k=${env.VAPID_PUBLIC}` },
     });
     if (r.status >= 300) console.log('push fail', r.status, new URL(sub.endpoint).host, (await r.text()).slice(0, 200));
-    if (r.status === 404 || r.status === 410) {      // 구독이 만료됐으면 지워요
+    if (r.status === 404 || r.status === 410 || r.status === 403) {      // 구독이 만료됐거나 예전 열쇠로 만든 구독이면 지워요 (게임을 열면 새로 구독해요)
       await env.DB.prepare('UPDATE users SET push = NULL WHERE id = ?').bind(user.id).run();
     }
   } catch (e) { console.log('push error', String(e && e.message || e).slice(0, 200)); }   // 알림 실패는 게임에 영향 없게

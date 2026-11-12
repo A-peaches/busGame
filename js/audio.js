@@ -7,20 +7,27 @@ let AC = null, sfxBus = null, bgmBus = null;
 const resumeAudio = () => { try { const p = AC.resume(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* 무시 */ } };
 function audio() {
   if (AC) return AC;
-  try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
+  // 'playback': 소리 버퍼를 넉넉하게 → 게임 화면이 바쁠 때도 소리가 끊기거나 지지직거리지 않아요 (반응은 조금 늦어도 괜찮은 배경음악용)
+  try { AC = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'playback' }); }
+  catch (e) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e2) { return null; } }
   // 잔향: 작은 나무 방에서 치는 피아노 느낌
-  const len = Math.floor(AC.sampleRate * 1.4);   // 잔향 길이를 줄여 계산량 절약 (발열 줄이기)
+  const len = Math.floor(AC.sampleRate * 1.0);   // 잔향 길이를 줄여 계산량 절약 (발열·끊김 줄이기)
   const ir = AC.createBuffer(2, len, AC.sampleRate);
   for (let ch = 0; ch < 2; ch++) {
     const d = ir.getChannelData(ch);
     for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2);
   }
+  // 마지막 단계: 여러 음이 겹쳐 커져도 찢어지는 소리(지지직)가 나지 않게 살짝 눌러 줘요
+  const lim = AC.createDynamicsCompressor();
+  lim.threshold.value = -12; lim.knee.value = 8; lim.ratio.value = 12; lim.attack.value = 0.003; lim.release.value = 0.25;
+  const master = AC.createGain(); master.gain.value = 0.8;
+  master.connect(lim).connect(AC.destination);
   const verb = AC.createConvolver(); verb.buffer = ir;
   const wet = AC.createGain(); wet.gain.value = 0.3;
-  verb.connect(wet).connect(AC.destination);
+  verb.connect(wet).connect(master);
   sfxBus = AC.createGain(); bgmBus = AC.createGain();
   sfxBus.gain.value = 0; bgmBus.gain.value = 0;
-  for (const b of [sfxBus, bgmBus]) { b.connect(AC.destination); b.connect(verb); }
+  for (const b of [sfxBus, bgmBus]) { b.connect(master); b.connect(verb); }
   applyVolumes();
   return AC;
 }
@@ -47,14 +54,14 @@ function piano(m, t, dur, vel, bus) {
   lp.frequency.setValueAtTime(Math.min(9000, f * 8), t);
   lp.frequency.exponentialRampToValueAtTime(Math.max(420, f * 1.8), t + 0.6);
   out.connect(lp).connect(bus);
-  const end = t + Math.max(0.45, Math.min(dur + 0.6, clamp(3.4 - (m - 48) * 0.045, 0.8, 3.6)));
+  const end = t + Math.max(0.45, Math.min(dur + 0.5, clamp(2.6 - (m - 48) * 0.04, 0.7, 2.6)));   // 너무 길게 남기지 않아요 (겹치는 소리 수↓)
   out.gain.setValueAtTime(0.0001, t);
   out.gain.exponentialRampToValueAtTime(vel, t + 0.008);
   out.gain.exponentialRampToValueAtTime(vel * 0.35, t + 0.35);
   out.gain.exponentialRampToValueAtTime(0.0001, end);
   // 피아노처럼: 높은 배음은 치는 순간만 밝고 금방 사라지고, 기음은 오래 남아요 (실로폰·오르골처럼 맑게만 울리지 않게)
   //   줄이 살짝 뻣뻣해서 높은 배음이 조금씩 높게 울리는 것도 흉내 내요
-  for (const [h, amp, det] of [[1, 1, 0], [2, 0.5, 3], [3, 0.24, -4], [4, 0.12, 7]]) {
+  for (const [h, amp, det] of (vel < 0.04 ? [[1, 1, 0], [2, 0.5, 3], [3, 0.24, -4]] : [[1, 1, 0], [2, 0.5, 3], [3, 0.24, -4], [4, 0.12, 7]])) {
     const o = AC.createOscillator(), g = AC.createGain();
     o.type = h === 1 ? 'triangle' : 'sine';
     o.frequency.value = f * h * (1 + 0.0004 * h * h); o.detune.value = det;

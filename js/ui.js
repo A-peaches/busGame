@@ -367,7 +367,7 @@ function showHelp(page) {
       <span>${helpPage + 1} / ${HELP_PAGES.length}</span>
       <button class="btn alt mini" id="hNext" ${helpPage < HELP_PAGES.length - 1 ? '' : 'disabled'}>다음 ›</button>
     </div>
-    <button class="btn" id="ovClose">알겠어요</button>`;
+    ${X_BTN}`;
   card.querySelectorAll('.bm').forEach(b => b.onclick = () => showHelp(+b.dataset.p));
   card.querySelector('#hPrev').onclick = () => showHelp(helpPage - 1);
   card.querySelector('#hNext').onclick = () => showHelp(helpPage + 1);

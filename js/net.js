@@ -112,7 +112,7 @@ function writeLetter(id, name, back) {
     <textarea class="letterBox" id="letterText" maxlength="80" placeholder="짧은 쪽지를 적어 주세요"></textarea>
     <div class="letterCount"><span id="letterN">0</span> / 80</div>
     <button class="btn" id="letterSend">보내기</button>
-    <button class="btn alt" id="ovBack">돌아가기</button>`;
+    ${X_BACK}`;
   const ta = card.querySelector('#letterText');
   ta.oninput = () => card.querySelector('#letterN').textContent = ta.value.length;
   card.querySelector('#ovBack').onclick = () => back();
@@ -214,7 +214,7 @@ async function showInquiry(back) {
     <div class="letterCount"><span id="inqN">0</span> / 1000</div>
     <button class="btn" id="inqSend">보내기</button>
     <p class="secTitle">내 문의</p><div class="noticeList" id="myInq"><p><small>불러오는 중…</small></p></div>
-    <button class="btn alt" id="ovBack">돌아가기</button>`;
+    ${X_BACK}`;
   const ta = card.querySelector('#inqText');
   ta.oninput = () => card.querySelector('#inqN').textContent = ta.value.length;
   card.querySelector('#ovBack').onclick = () => back ? back() : hideOverlay();
@@ -249,7 +249,7 @@ function manageFriend(id, name) {
     <b>차단</b>: 친구에서 지우고, 앞으로 서로 친구 추가를 할 수 없어요.</p>
     <button class="btn alt" id="fDel">친구 삭제</button>
     <button class="btn alt" id="fBlock">차단하기</button>
-    <button class="btn" id="ovBack">돌아가기</button>`;
+    ${X_BACK}`;
   const go = async block => {
     try { await api('/friends/remove', { id, block }); toast(block ? `${name}님을 차단했어요` : `${name}님을 친구에서 지웠어요`, 1800); }
     catch (e) { toast('다시 시도해 주세요'); }
@@ -582,7 +582,7 @@ async function disablePush() {
 // ---- 백업 코드: 개인정보 없이 다른 기기에서 이어 하기 ----
 async function showBackup() {
   const card = $('card');
-  const back = '<button class="btn alt" id="ovBack">설정으로</button>';
+  const back = X_BACK;
   const bindBack = () => card.querySelector('#ovBack').onclick = () => showSettings();
   if (!nickname) { card.innerHTML = '<h2>백업 코드</h2><p>먼저 닉네임을 정해 주세요.</p>' + back; bindBack(); return; }
   card.innerHTML = `<h2>백업 코드 만들기</h2>
@@ -614,7 +614,7 @@ function showRestore(first) {
       ${pushSupported() ? `<p class="pushNote"><small>🔔 하트 도착·하트 가득·쪽지 알림을 받으려면<br>다음 화면에서 <b>알림 허용</b>을 눌러 주세요</small></p>` : ''}
     </div>` : ''}
     <button class="btn" id="bkOk">불러오기</button>
-    <button class="btn alt" id="ovBack">${first ? '돌아가기' : '설정으로'}</button>`;
+    ${X_BACK}`;
   const inp = card.querySelector('#bkInput');
   card.querySelector('#ovBack').onclick = () => first ? showNickname(true) : showSettings();
   const go = async () => {

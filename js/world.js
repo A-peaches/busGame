@@ -263,7 +263,7 @@ function showNickname(first) {
       ${typeof pushSupported === 'function' && pushSupported() ? `<p class="pushNote"><small>🔔 하트 도착·하트 가득·쪽지 알림을 받으려면<br>다음 화면에서 <b>알림 허용</b>을 눌러 주세요</small></p>` : ''}
     </div>` : ''}
     <button class="btn" id="nickOk">${first ? '여행 시작' : '저장'}</button>
-    ${first ? '<button class="linkBtn" id="restoreBtn">🔑 백업 코드로 불러오기</button>' : '<button class="btn alt" id="ovClose">취소</button>'}`;
+    ${first ? '<button class="linkBtn" id="restoreBtn">🔑 백업 코드로 불러오기</button>' : X_BTN}`;
   const inp = card.querySelector('#nickInput');
   const ok = async () => {
     const v = inp.value.trim();

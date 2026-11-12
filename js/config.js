@@ -47,7 +47,7 @@ const BUS_SVG = `<svg class="busIcon" viewBox="0 0 42 28" aria-hidden="true"><g 
 
 // 저장 (브라우저에 진행 상황 기억)
 // 지금 쓰는 파일 버전 (index.html 의 ?v= 와 같게). 설정 창 맨 아래에 보여서 폰이 새 파일을 받았는지 알 수 있어요
-const APP_VER = 60;
+const APP_VER = 61;
 // 화면 해상도 상한: 폰 화면이 아주 촘촘해도(3배) 2배까지만 그려요 → 그릴 점이 절반 이하, 발열·배터리 절약
 // 가벼운 모드: 오래된 폰에서 버벅이지 않게 그림을 조금 단순하게 해요.
 //   설정값 'auto'(느리면 자동으로 켜짐) / 'on' / 'off'. 자동으로 켜진 적이 있으면 기억해 둬요.
@@ -90,7 +90,11 @@ const store = {
 };
 let unlocked = Math.max(store.get('busGame.unlocked', 1), store.get('busGameLevel', 1));
 // 소리 설정 (설정 창에서 바꿈)
-const settings = Object.assign({ bgmOn: true, bgmVol: 0.6, sfxOn: true, sfxVol: 0.8 }, store.get('busGame.settings', {}));
+const settings = Object.assign({ bgmOn: true, bgmVol: 0.6, sfxOn: true, sfxVol: 0.8, font: 'm' }, store.get('busGame.settings', {}));
+// 글자 크기: 작게 / 보통(기본) / 크게 → 화면 모든 글자에 더하는 값
+const FONT_DELTA = { s: '-2px', m: '-1px', l: '1px' };
+function applyFont() { document.documentElement.style.setProperty('--fd', FONT_DELTA[settings.font] || FONT_DELTA.m); }
+applyFont();
 const saveSettings = () => store.set('busGame.settings', settings);
 
 let S = null;  // 게임 상태 (메인 화면에서는 null)

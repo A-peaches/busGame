@@ -52,13 +52,16 @@ const MAX_LEVEL = 100;
 // 이벤트: 5단계부터 한 단계에 하나씩, 풍선 버스 → U턴 버스 → 레일 버스 → 자리 바꾸기 순서로 번갈아 나와요 (난이도 별은 그대로)
 const EVENT_FROM = 5;
 const EVENTS = ['balloon', 'turn', 'rail', 'shuffle'];
-const EVENT_NAMES = { balloon: '풍선 버스', turn: 'U턴 버스', rail: '레일 버스', shuffle: '자리 바꾸기' };
-const EVENT_DOUBLE_FROM = 61;  // 이 단계부터는 이벤트가 두 개씩 겹쳐 나와요 (뒤 단계 난이도 유지)
+const EVENT_NAMES = { balloon: '풍선 버스', turn: 'U턴 버스', rail: '레일 버스', shuffle: '자리 바꾸기', cloud: '구름' };
+const EVENT_DOUBLE_FROM = 61;
+const CLOUD_FROM = 10;         // 구름 이벤트: 10단계부터 5단계마다, 대기 줄 뒤쪽을 뭉게구름이 가려요  // 이 단계부터는 이벤트가 두 개씩 겹쳐 나와요 (뒤 단계 난이도 유지)
 // 이 단계의 이벤트들: 5~60단계는 하나, 61단계부터는 바로 다음 순서 이벤트까지 두 개 (풍선+U턴, U턴+레일, 레일+자리 바꾸기, 자리 바꾸기+풍선)
 const levelEvents = n => {
   if (n < EVENT_FROM) return [];
   const i = (n - EVENT_FROM) % EVENTS.length;
-  return n >= EVENT_DOUBLE_FROM ? [EVENTS[i], EVENTS[(i + 1) % EVENTS.length]] : [EVENTS[i]];
+  const list = n >= EVENT_DOUBLE_FROM ? [EVENTS[i], EVENTS[(i + 1) % EVENTS.length]] : [EVENTS[i]];
+  if (n >= CLOUD_FROM && n % 5 === 0) list.push('cloud');   // 구름: 10·15·20…단계에 덤으로 (버스 배치는 그대로)
+  return list;
 };
 const hasEvent = (n, e) => levelEvents(n).includes(e);
 const BALLOON_COUNT = 3;       // 풍선 버스: 한 단계에 3대가
@@ -284,6 +287,7 @@ function startLevel(n) {
     boost: { slot: (levelTier(n) === 5 ? 2 : 1) + cheerLevel(allTries[n] - 1), lift: 1, mix: levelTier(n) >= 4 ? 1 : 0 },
     tries: allTries[n], rush: 0, treeShake: 0,
     balloon: hasEvent(n, 'balloon') ? { left: BALLOON_EVERY } : null,
+    cloud: hasEvent(n, 'cloud'),
     shuffle: hasEvent(n, 'shuffle') ? { every: SHUFFLE_EVERY(n), left: SHUFFLE_EVERY(n), wait: 0, count: 0 } : null,
   };
   g.vehicles.forEach((v, i) => {
@@ -310,6 +314,18 @@ function startLevel(n) {
   {
     const step = cheerLevel(allTries[n] - 1), seen = store.get('busGame.cheerSeen', {});
     if (step > (seen[n] || 0)) { seen[n] = step; store.set('busGame.cheerSeen', seen); showCheer(step); return; }
+  }
+  // 구름 이벤트를 처음 만나면 안내 (처음 한 번만)
+  if (S.cloud && !store.get('busGame.cloudSeen', false)) {
+    store.set('busGame.cloudSeen', true);
+    const card = $('card');
+    card.innerHTML = `<h2>새 이벤트! 구름 ☁️</h2>
+      <p>뭉게구름이 둥실 떠서<br><b>줄 서 있는 멍냥이들 뒤쪽</b>을 가려요.<br>
+      다음에 올 친구들이 잘 안 보이니 조심조심!</p>
+      <button class="btn" id="ovOk">알겠어요</button>`;
+    card.querySelector('#ovOk').onclick = () => hideOverlay();
+    $('overlay').classList.add('show');
+    return;
   }
   // 풍선 버스 이벤트를 처음 만나면 안내 (처음 한 번만)
   if (S.balloon && !store.get('busGame.balloonSeen', false)) {

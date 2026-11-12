@@ -633,6 +633,7 @@ function drawQueueArea() {
     drawThought(p.x, p.y + L.pr * 0.3 - L.pr * 2.05 - p.bob, L.pr, p.kind);
   }
 
+  if (S.cloud) drawQueueCloud();
   const hiddenN = S.waiting.length - Math.min(S.waiting.length, L.waitMax);
   if (hiddenN > 0) {
     const t = `+${hiddenN}`;
@@ -643,6 +644,39 @@ function drawQueueArea() {
     ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(t, L.W - 16 - tw / 2, L.qTop + 17);
   }
+}
+
+// ---- 구름 이벤트: 메인 화면 하늘에 떠다니는 뭉게구름 두 덩이가 대기 줄 뒤쪽 절반 위에 둥실 떠 있어요 ----
+//   (곧 탈 하트 길은 그대로 보여요. 구름 사이로 멍냥이들이 조금씩 보일 수도 있어요)
+let queueClouds = null;
+function queueCloudImgs() {
+  const key = season;
+  if (queueClouds && queueClouds.key === key) return queueClouds.imgs;
+  const P = SEASONS[season];
+  const imgs = [0, 1].map(i => {
+    const img = new Image();
+    setSvgImage(img, makeCloud('qc' + i, 31 + i * 9, P)
+      .replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ').replace('width="100%"', 'width="520" height="240"'));
+    return img;
+  });
+  queueClouds = { key, imgs };
+  return imgs;
+}
+function drawQueueCloud() {
+  const [ex] = L.ring.pts[0];
+  const xa = ex + L.laneW / 2 + 6, xb = L.W - 8;
+  const half = xa + (xb - xa) * 0.5;                        // 대기 줄 뒤쪽 절반
+  const cw = Math.max((xb - xa) * 1.1, L.qH * 1.5), ch = cw * 120 / 260;   // 구름 그림은 위쪽이 비어 있어서 넉넉하게
+  const imgs = queueCloudImgs();
+  ctx.save(); rr(8, L.qTop, L.W - 16, L.qH, 18); ctx.clip();
+  [[-0.32, 0.3, 0], [0.18, 0.24, 2.1]].forEach(([fy, sp, ph], i) => {
+    const img = imgs[i];
+    if (!img.complete || !img.naturalWidth) return;
+    const dx = Math.sin(S.time * sp + ph) * (xb - xa) * 0.05;    // 아주 천천히 좌우로 둥실둥실
+    const dy = Math.sin(S.time * sp * 1.3 + ph) * 2;
+    ctx.drawImage(img, half - cw * (i ? 0.2 : 0.1) + dx, L.qTop + L.qH * fy + dy, cw, ch);
+  });
+  ctx.restore();
 }
 
 function draw() {

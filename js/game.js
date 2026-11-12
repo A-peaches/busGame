@@ -366,15 +366,18 @@ function useMixBooster() {
       const o = S.vehicles.find(x => x !== v && !freeSet.has(x) && !done.has(x) && x.color === c && x.cap === v.cap && (x.state === 'parked' || x.state === 'rail'));
       if (!o) continue;
       o.color = v.color; v.color = c;
-      v.pop = 0; if (o.state === 'parked') o.pop = 0;
       done.add(v); done.add(o); todo.splice(i, 1); changed++;
       break;
     }
   }
-  if (!changed) { toast('이미 딱 맞는 색이에요!', 1600); return; }
-  S.boost.mix--;
+  // 알림 없이: 보이는 버스들이 잠깐 이 색 저 색으로 빙글빙글 바뀌다가 하나씩 제 색에 멈춰요
+  const pool = [...new Set(S.vehicles.map(x => x.color))];
+  for (const x of S.vehicles) {
+    if (x.state !== 'parked' || x.hidden) continue;
+    x.mixT = 0.55 + Math.random() * 0.45; x.mixTick = 0; x.mixPool = pool;
+  }
+  if (changed) S.boost.mix--;                 // 이미 딱 맞았으면 아이템은 그대로 남아요
   sfx('go');
-  toast('버스 색을 멍냥이들에게 맞췄어요!', 1600);
   updateUI();
 }
 $('mixBtn').onclick = () => useMixBooster();
@@ -455,6 +458,11 @@ function update(dt) {
   for (const v of S.vehicles) {
     if (v.move) { v.move.t += dt * 1.6; if (v.move.t >= 1) { v.move = null; revealCheck(false); } }
     if (v.pop < 1) v.pop = Math.min(1, v.pop + dt * 4);
+    if (v.mixT > 0) {                           // 색 섞기: 짧게 이 색 저 색 → 제 색에 멈추며 통!
+      v.mixT -= dt; v.mixTick -= dt;
+      if (v.mixTick <= 0) { v.mixTick = 0.075; v.mixCol = v.mixPool[Math.floor(Math.random() * v.mixPool.length)]; }
+      if (v.mixT <= 0) { v.mixT = 0; v.pop = 0; }
+    }
     if (v.shake > 0) v.shake -= dt;
     if (v.spin > 0) v.spin = Math.max(0, v.spin - dt * 3.5);
 

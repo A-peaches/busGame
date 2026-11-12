@@ -718,7 +718,7 @@ function draw() {
     const clip = v.state === 'exiting' ? (v.fromRail ? [13, L.bTop + 1, L.W - 26, L.railTop + L.railH - L.bTop - 1, 12] : [13, L.bTop + 1, L.W - 26, L.bH - 6, 12])
       : (v.state === 'departing' || (v.state === 'toSlot' && !v.lifted)) ? [8.5, L.sTop - 3.5, L.W - 17, panelH - 1, 13] : null;
     if (clip) { ctx.save(); rr(...clip); ctx.clip(); }
-    drawVehicle(P.x, P.y, P.a, P.w, P.l, v.color, v.hidden, {
+    drawVehicle(P.x, P.y, P.a, P.w, P.l, v.mixT > 0 ? v.mixCol : v.color, v.hidden, {
       arrow: !inSlot && v.state !== 'toSlot', turner: v.turner && v.state === 'parked' ? S.turnLeft : 0, seats: inSlot ? v.cap - v.filled : null, capLabel: v.state === 'parked' ? v.cap : null,
       alpha: P.alpha, scale: P.scale,
     });
@@ -815,7 +815,7 @@ function drawZzz(x, headTop, r, ph) {
 // ---- 주차장 그림 캐시 ----
 //   주차장 바탕과 움직이지 않는 버스들을 따로 그려 두고 매 프레임엔 그 그림 한 장만 붙여요.
 //   버스를 꺼내거나, 부딪히거나, U턴·자리 바꾸기 등으로 모습이 바뀌면 그때만 새로 그려요.
-const parkedStill = v => !(v.bump || v.shake > 0 || v.spin > 0 || v.move || v.pop < 1 || v.off);
+const parkedStill = v => !(v.bump || v.shake > 0 || v.spin > 0 || v.move || v.pop < 1 || v.off || v.mixT > 0);
 let boardCache = null;
 function boardCacheKey() {
   let k = `${L.W}|${L.H}|${L.cs}|${DPR}|${S.level}|${S.liftMode ? 1 : 0}|${S.turnLeft}`;

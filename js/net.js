@@ -404,7 +404,7 @@ async function showChat() {
   card.innerHTML = `<h2>전체 채팅</h2>
     <div class="chatList" id="chatList"><p><small>불러오는 중…</small></p></div>
     <div class="codeRow chatInput"><input class="nickInput" id="chatText" maxlength="100" placeholder="모두에게 한마디 (100자)" autocomplete="off"><button class="btn mini" id="chatSend">보내기</button></div>
-    <p><small>모두가 보는 곳이에요. 고운 말을 써 주세요 · 사흘 지난 글은 사라져요</small></p>
+    <p style="white-space:nowrap"><small>고운 말을 써 주세요. 사흘 뒤면 자동 삭제됩니다.</small></p>
     ${X_BTN}`;
   $('overlay').classList.add('show');
   const box = card.querySelector('#chatList'), inp = card.querySelector('#chatText');

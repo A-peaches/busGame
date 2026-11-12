@@ -2,18 +2,16 @@
 // =====================================================================
 //  시작!
 // =====================================================================
-// 매 프레임: 움직임 계산은 늘 하고, 그리기는 화면이 바쁠 때만 초당 60번 (조용할 땐 30번) → 발열 줄이기
-let last = performance.now(), skip = false;
-const busy = () => S && (S.rush > 0 || S.holding || S.flying.length > 0 ||
-  S.vehicles.some(v => v.move || v.spin > 0 || v.bump || v.shake > 0 || v.pop < 1 || ['exiting', 'toSlot', 'departing'].includes(v.state)));
+// 매 프레임: 초당 60번까지만 그려요. 120Hz 화면 폰에서도 60번이라 발열이 줄고, 60Hz 폰은 그대로 부드러워요
+let last = performance.now(), lastDraw = 0;
 function loop(now) {
   requestAnimationFrame(loop);              // 먼저 다음 프레임을 예약해요 → 아래에서 오류가 나도 게임이 얼지 않아요
+  if (now - lastDraw < 14) return;          // 너무 잦은 프레임(120Hz)은 건너뛰어요
   const dt = Math.min(0.05, (now - last) / 1000);
-  last = now;
+  last = now; lastDraw = now;
   try {
     update(dt);
-    skip = !skip;
-    if (S && (busy() || !skip)) draw();
+    if (S) draw();
   } catch (e) { reportError(e); }
 }
 

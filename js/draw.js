@@ -671,25 +671,8 @@ function draw() {
     }
   }
 
-  // 주차장: 연석 + 따뜻한 회색 아스팔트 + 바랜 주차선 + P 표시
-  //   위쪽 대기 구역·정류장과 똑같은 가로 폭으로 깔고, 버스들은 그 가운데에 놓여요
-  const bx0 = 13, by0 = L.bTop - 4 + 5, bw = L.W - 26, bh = L.bH + 4 - 10;
-  ctx.fillStyle = '#e2dacb';
-  rr(8, L.bTop - 4, L.W - 16, L.bH + 4, 16); ctx.fill();
-  ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
-  ctx.fillStyle = S.liftMode ? '#cdbb86' : '#a7a199';
-  rr(bx0, by0, bw, bh, 12); ctx.fill(); ctx.stroke();
-  drawSpeckles(bx0, by0, bw, bh, 160);
-  ctx.strokeStyle = 'rgba(246,240,226,.32)'; ctx.lineWidth = 1.4;
-  ctx.setLineDash([L.cs * 0.55, L.cs * 0.45]);
-  for (let i = 1; i < S.cols; i++) {
-    ctx.beginPath(); ctx.moveTo(L.bx + i * L.cs, L.by + L.cs * 0.1); ctx.lineTo(L.bx + i * L.cs, L.by + S.rows * L.cs); ctx.stroke();
-  }
-  ctx.setLineDash([]);
-  ctx.fillStyle = 'rgba(246,240,226,.16)';
-  ctx.font = `700 ${L.cs * 1.4}px MaruBuri, serif`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('P', L.bx + S.cols * L.cs / 2, L.by + S.rows * L.cs / 2);
+  // 주차장(바탕 + 가만히 서 있는 버스들)은 한 장의 그림으로 만들어 두고, 바뀔 때만 다시 그려요 (발열 줄이기)
+  drawBoardCached();
 
   if (S.rail) drawRail();
 
@@ -704,6 +687,7 @@ function draw() {
   const order = { parked: 0, slot: 1, departing: 1, exiting: 2, toSlot: 2 };
   const list = S.vehicles.filter(v => v.state in order).sort((a, b) => order[a.state] - order[b.state]);
   for (const v of list) {
+    if (v.state === 'parked' && parkedStill(v)) continue;     // 주차장 그림에 이미 있어요
     const P = vehiclePose(v);
     if (P.alpha === 0) continue;
     const inSlot = v.state === 'slot' || v.state === 'departing';
@@ -775,16 +759,77 @@ function drawNoteBubble(x, y, r, t) {
 }
 
 // 쿨쿨 자는 친구 머리 위의 Z
+// 자는 친구 위로 둥실 떠오르는 z: 'z' 글자를 한 번만 그려 두고 크기만 바꿔 붙여요 (글자를 매번 쓰면 무거워요)
+let zSprite = null;
+function zImage() {
+  if (zSprite) return zSprite;
+  const S0 = 32, cv = document.createElement('canvas');
+  cv.width = cv.height = S0;
+  const c = cv.getContext('2d');
+  c.font = `700 ${S0 * 0.85}px MaruBuri, serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillStyle = '#8f9bb3'; c.fillText('z', S0 / 2, S0 / 2);
+  return (zSprite = cv);
+}
+document.fonts && document.fonts.ready.then(() => { zSprite = null; });
 function drawZzz(x, headTop, r, ph) {
-  const t = (performance.now() / 1000 + ph) % 2.4 / 2.4;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const t = (performance.now() / 1000 + ph) % 2.4 / 2.4, img = zImage();
   for (let i = 0; i < 3; i++) {
-    const k = (t + i / 3) % 1;
+    const k = (t + i / 3) % 1, sz = r * (0.6 + k * 0.6) * 1.18;
     ctx.globalAlpha = Math.sin(k * Math.PI) * 0.9;
-    ctx.font = `700 ${r * (0.6 + k * 0.6)}px MaruBuri, serif`;
-    ctx.fillStyle = '#8f9bb3';
-    ctx.fillText('z', x + r * (0.7 + k * 0.9), headTop - r * k * 1.4);
+    ctx.drawImage(img, x + r * (0.7 + k * 0.9) - sz / 2, headTop - r * k * 1.4 - sz / 2, sz, sz);
   }
   ctx.globalAlpha = 1;
 }
 
+// ---- 주차장 그림 캐시 ----
+//   주차장 바탕과 움직이지 않는 버스들을 따로 그려 두고 매 프레임엔 그 그림 한 장만 붙여요.
+//   버스를 꺼내거나, 부딪히거나, U턴·자리 바꾸기 등으로 모습이 바뀌면 그때만 새로 그려요.
+const parkedStill = v => !(v.bump || v.shake > 0 || v.spin > 0 || v.move || v.pop < 1 || v.off);
+let boardCache = null;
+function boardCacheKey() {
+  let k = `${L.W}|${L.H}|${L.cs}|${DPR}|${S.level}|${S.liftMode ? 1 : 0}|${S.turnLeft}`;
+  for (const v of S.vehicles) if (v.state === 'parked' && parkedStill(v)) k += `|${v.id},${v.cx},${v.cy},${v.ang},${v.hidden ? 1 : 0}`;
+  return k;
+}
+function drawBoardCached() {
+  const key = boardCacheKey();
+  const y0 = Math.floor(L.bTop - 8), h = Math.ceil(L.bH + 16);
+  if (!boardCache || boardCache.key !== key) {
+    const cv = (boardCache && boardCache.cv) || document.createElement('canvas');
+    cv.width = Math.ceil(L.W * DPR); cv.height = Math.ceil(h * DPR);
+    const c = cv.getContext('2d');
+    c.setTransform(DPR, 0, 0, DPR, 0, -y0 * DPR);
+    c.clearRect(0, y0, L.W, h);
+    const saved = ctx; ctx = c;
+    try {
+    // 주차장: 연석 + 따뜻한 회색 아스팔트 + 바랜 주차선 + P 표시
+      //   위쪽 대기 구역·정류장과 똑같은 가로 폭으로 깔고, 버스들은 그 가운데에 놓여요
+      const bx0 = 13, by0 = L.bTop - 4 + 5, bw = L.W - 26, bh = L.bH + 4 - 10;
+      ctx.fillStyle = '#e2dacb';
+      rr(8, L.bTop - 4, L.W - 16, L.bH + 4, 16); ctx.fill();
+      ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = S.liftMode ? '#cdbb86' : '#a7a199';
+      rr(bx0, by0, bw, bh, 12); ctx.fill(); ctx.stroke();
+      drawSpeckles(bx0, by0, bw, bh, 160);
+      ctx.strokeStyle = 'rgba(246,240,226,.32)'; ctx.lineWidth = 1.4;
+      ctx.setLineDash([L.cs * 0.55, L.cs * 0.45]);
+      for (let i = 1; i < S.cols; i++) {
+        ctx.beginPath(); ctx.moveTo(L.bx + i * L.cs, L.by + L.cs * 0.1); ctx.lineTo(L.bx + i * L.cs, L.by + S.rows * L.cs); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(246,240,226,.16)';
+      ctx.font = `700 ${L.cs * 1.4}px MaruBuri, serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('P', L.bx + S.cols * L.cs / 2, L.by + S.rows * L.cs / 2);
+      // 가만히 서 있는 버스들
+      for (const v of S.vehicles) {
+        if (v.state !== 'parked' || !parkedStill(v)) continue;
+        const P = vehiclePose(v);
+        drawVehicle(P.x, P.y, P.a, P.w, P.l, v.color, v.hidden, { arrow: true, turner: v.turner ? S.turnLeft : 0, capLabel: v.cap, scale: P.scale });
+      }
+    } finally { ctx = saved; }
+    boardCache = { cv, key, y0, h };
+  }
+  ctx.drawImage(boardCache.cv, 0, boardCache.y0, L.W, boardCache.h);
+}
+document.fonts && document.fonts.ready.then(() => { boardCache = null; });   // 글꼴이 늦게 와도 숫자가 바른 글꼴로

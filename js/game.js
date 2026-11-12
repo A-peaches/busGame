@@ -395,7 +395,9 @@ function update(dt) {
   if (S.rush > 0) S.rush -= dt;
   if (S.treeShake > 0) S.treeShake -= dt;
   if (S.rail && S.rail.anim > 0) S.rail.anim = Math.max(0, S.rail.anim - dt / 0.25);
-  const fast = S.rush > 0 ? 3.5 : 1;
+  // 빈자리가 있고 기다리는 친구가 있으면 하트 길이 조금 더 빨리 돌아서 금방 채워져요 (듬성듬성하지 않게)
+  const gaps = S.waiting.length ? S.ring.reduce((a, p) => a + (p ? 0 : 1), 0) : 0;
+  const fast = S.rush > 0 ? 3.5 : 1 + Math.min(2.2, gaps * 0.35);
   S.ringOff = (S.ringOff + dt * L.pr * 3.2 * fast) % L.ring.total;
   for (let k = 0; k < S.ring.length; k++) {
     if (!S.ring[k] && S.waiting.length && ringS(k) < L.ringSp * 0.7) S.ring[k] = S.waiting.shift();

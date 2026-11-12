@@ -393,6 +393,11 @@ function setFriendBadge(n) {
 
 // ---- 전체 채팅 (모두가 보는 짧은 말) ----
 let chatLast = 0, chatTimer = 0, chatOpen = false;
+const medalSvg = n => {
+  const [c, d] = [['#f2c35a', '#c99a2e'], ['#d9dde2', '#9aa3ad'], ['#e2a77a', '#b07447']][n - 1];
+  return `<svg class="medal" viewBox="0 0 16 18" width="13" height="15" aria-label="${n}위"><path d="M4 0 H7 L8 5 L9 0 H12 L10 7 H6Z" fill="#8dbbe0" stroke="#5a4e44" stroke-width=".8"/>
+    <circle cx="8" cy="11.5" r="5.2" fill="${c}" stroke="${d}" stroke-width="1.2"/><text x="8" y="14" text-anchor="middle" font-size="6.5" font-weight="700" fill="#5a4e44">${n}</text></svg>`;
+};
 const fmtClock = ms => { const d = new Date(ms); return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`; };
 async function showChat() {
   const card = $('card');
@@ -415,7 +420,9 @@ async function showChat() {
       chatLast = Math.max(chatLast, m.id);
       const el = document.createElement('div');
       el.className = 'chatMsg' + (m.mine ? ' mine' : '');
-      el.innerHTML = `${m.mine ? '' : `<b>${esc(m.nickname)}</b>`}<span class="bubble">${esc(m.body)}</span><small>${fmtClock(m.at)}</small>`;
+      // 닉네임 옆에 단계, 전체 1·2·3위면 작은 금·은·동 메달
+      const tag = m.level ? `<span class="lvTag">${m.level}단계${m.medal ? medalSvg(m.medal) : ''}</span>` : '';
+      el.innerHTML = `${m.mine ? (tag ? `<b class="meTag">${tag}</b>` : '') : `<b>${esc(m.nickname)}${tag}</b>`}<span class="bubble">${esc(m.body)}</span><small>${fmtClock(m.at)}</small>`;
       box.appendChild(el);
     }
     if (nearBottom || list.some(m => m.mine)) box.scrollTop = box.scrollHeight;

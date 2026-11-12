@@ -373,3 +373,14 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 #pauseCover .dots i:nth-child(3) { animation-delay: .5s; }
 @keyframes dotBlink { 0%, 100% { opacity: .2; } 40% { opacity: 1; } }
 #pauseCover .dozeHint { margin-top: 10px; font-size: 13px; color: rgba(251, 241, 222, .55); }
+
+/* 가로로 돌리면: 세로로 돌려 달라는 안내 (게임은 자동으로 멈춰요) */
+#rotateNotice { display: none; position: fixed; inset: 0; z-index: 30; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(16, 14, 22, .96); color: #fbf1de; text-align: center; }
+#rotateNotice p { margin: 14px 0 6px; font-size: 20px; font-weight: 700; }
+#rotateNotice small { color: rgba(251, 241, 222, .6); font-size: 13px; }
+@media (orientation: landscape) and (max-height: 540px) { #rotateNotice { display: flex; } }
+/* 채팅: 닉네임 옆 단계 + 1·2·3위 메달 */
+.chatMsg .lvTag { font-weight: 400; font-size: 10.5px; color: #b3a58e; margin-left: 5px; display: inline-flex; align-items: center; gap: 2px; }
+.chatMsg .lvTag .medal { vertical-align: -1px; }
+.chatMsg .meTag { display: block; text-align: right; margin: 0 2px 2px 0; }

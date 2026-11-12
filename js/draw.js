@@ -821,6 +821,7 @@ function boardCacheKey() {
   return k;
 }
 function drawBoardCached() {
+  if (!(L.cs > 0 && L.bH > 0 && L.W > 0)) return;           // 화면이 너무 낮으면(가로 등) 그리지 않아요
   const key = boardCacheKey();
   const y0 = Math.floor(L.bTop - 8), h = Math.ceil(L.bH + 16);
   if (!boardCache || boardCache.key !== key) {
@@ -866,6 +867,7 @@ document.fonts && document.fonts.ready.then(() => { boardCache = null; });   // 
 // ---- 구워 두는 그림층 (안 변하는 부분을 한 장으로 만들어 두고, key 가 바뀔 때만 다시 그려요) ----
 const layerCache = {};
 function cachedLayer(name, key, y0, h, fn) {
+  if (!(h > 0 && L.W > 0)) return;
   let c = layerCache[name];
   if (!c || c.key !== key) {
     const cv = (c && c.cv) || document.createElement('canvas');

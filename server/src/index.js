@@ -394,7 +394,16 @@ async function listChat(env, user, after) {
     : env.DB.prepare(`SELECT * FROM (SELECT id, user_id, nickname, body, at FROM chat
         WHERE user_id NOT IN (SELECT b FROM blocks WHERE a = ?1) ORDER BY id DESC LIMIT 50) ORDER BY id ASC`).bind(user.id);
   const { results } = await q.all();
-  return json({ messages: results.map(r => ({ id: r.id, nickname: r.nickname, body: r.body, at: r.at, mine: r.user_id === user.id })), now: now() });
+  // 닉네임 옆에 지금 단계, 전체 1·2·3위에게는 금·은·동 메달 (같은 단계면 먼저 시작한 사람이 앞)
+  const ids = [...new Set(results.map(r => r.user_id))];
+  const lv = {};
+  if (ids.length) {
+    const u = await env.DB.prepare(`SELECT id, unlocked FROM users WHERE id IN (${ids.map(() => '?').join(',')})`).bind(...ids).all();
+    for (const x of u.results) lv[x.id] = x.unlocked;
+  }
+  const top = (await env.DB.prepare("SELECT id FROM users WHERE nickname != '' ORDER BY unlocked DESC, created ASC LIMIT 3").all()).results.map(x => x.id);
+  return json({ messages: results.map(r => ({ id: r.id, nickname: r.nickname, body: r.body, at: r.at, mine: r.user_id === user.id,
+    level: lv[r.user_id] || 0, medal: top.indexOf(r.user_id) + 1 })), now: now() });
 }
 async function sendChat(env, user, body) {
   const text = String(body.text || '').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX);

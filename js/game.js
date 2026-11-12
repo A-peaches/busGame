@@ -375,7 +375,14 @@ document.addEventListener('touchend', e => {
 document.addEventListener('gesturestart', e => e.preventDefault());
 // 화면의 모든 버튼에 "톡" 피아노 소리
 document.addEventListener('click', e => { if (e.target.closest('button')) sfx('click'); }, true);
-window.addEventListener('resize', () => { if (S) layout(); else if (typeof renderMap === 'function') renderMap(); });   // 다 불러오기 전에 크기가 바뀌어도 괜찮게
+let resizeTimer = 0;
+function onResize() {
+  if (S) layout(); else if (typeof renderMap === 'function') renderMap();   // 다 불러오기 전에 크기가 바뀌어도 괜찮게
+  // 가로로 돌렸으면 게임을 잠깐 멈춰요 (세로로 돌려 달라는 안내가 화면을 덮어요)
+  if (S && !S.over && !S.paused && innerWidth > innerHeight && innerHeight <= 540 && typeof setPaused === 'function') setPaused(true);
+}
+window.addEventListener('resize', () => { onResize(); clearTimeout(resizeTimer); resizeTimer = setTimeout(onResize, 350); });   // 돌린 뒤 화면이 자리 잡으면 한 번 더
+window.addEventListener('orientationchange', () => setTimeout(onResize, 400));
 
 // =====================================================================
 //  매 프레임 업데이트

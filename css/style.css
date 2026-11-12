@@ -402,3 +402,8 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .pickRow button { font: inherit; font-size: calc(12px + var(--fd)); padding: 4px 9px; border-radius: 12px; border: 1px solid #c9b99c; background: #f3ead9; color: var(--muted); cursor: pointer; white-space: nowrap; }
 .pickRow button.on { background: #f6dd92; color: var(--ink); font-weight: 700; }
 .setRow > span:first-child { white-space: nowrap; }
+
+/* 친구 창은 넓게: 10글자 닉네임과 접속 동그라미가 한 줄에 들어가요 */
+.card.wide { width: min(94%, 372px); padding-left: 14px; padding-right: 14px; }
+.card.wide .friendRow { gap: 6px; }
+.card.wide .friendRow .btn.mini.ic { width: 32px; }

@@ -144,7 +144,7 @@ function showOverlay(kind) {
   $('overlay').classList.add('show');
 }
 function clearPause() { const c = document.getElementById('pauseCover'); if (c) c.classList.remove('show'); }
-function hideOverlay() { $('overlay').classList.remove('show'); $('card').classList.remove('help'); stopCelebration(); }
+function hideOverlay() { $('overlay').classList.remove('show'); $('card').classList.remove('help', 'wide'); stopCelebration(); }
 
 // =====================================================================
 //  클리어 축하: 핑크·파랑·노랑·연두 폭죽 + 나팔 부는 강아지와 고양이

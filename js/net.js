@@ -283,6 +283,7 @@ async function showFriends() {
   const card = $('card');
   const close = X_BTN;
   const bindClose = () => { const c = card.querySelector('#ovClose'); if (c) c.onclick = () => hideOverlay(); };
+  card.classList.add('wide');   // 친구 창은 넓게: 10글자 닉네임 + 접속 표시가 한 줄에
   card.innerHTML = '<h2>친구</h2><p>불러오는 중…</p>' + close; bindClose();
   $('overlay').classList.add('show');
   if (!nickname) { card.innerHTML = '<h2>친구</h2><p>먼저 닉네임을 정해 주세요.</p>' + close; bindClose(); return; }

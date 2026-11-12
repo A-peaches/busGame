@@ -329,7 +329,7 @@ function railStep() {
 }
 const railCenter = i => ({ x: L.rx0 + L.railW * (i + 0.5), y: L.railTop + L.railH / 2 });   // 레일 칸 = 주차장 세로줄
 const railSize = v => ({ w: v.w * L.cs, l: Math.min(L.railH * 0.88, v.l * L.cs) });
-// 레일 버스를 누르면: 바로 위 같은 세로줄이 비어 있을 때만 위로 쭉 빠져나가요. 어느 쪽이든 한 턴이 지나요.
+// 레일 버스를 누르면: 바로 위 같은 세로줄이 비어 있을 때만 위로 쭉 빠져나가요. 빠져나갔을 때만 레일이 한 칸 움직여요.
 function railToBoard(v, i) {
   v.cx = i + 0.5 + (S.rail.off || 0);
   v.cy = (L.railTop + L.railH / 2 - L.by) / L.cs;
@@ -338,13 +338,14 @@ function railToBoard(v, i) {
 }
 function tapRail(i) {
   const R = S.rail, v = R.items[i];
+  let left = false;                                     // 레일은 버스가 실제로 빠져나갔을 때만 움직여요
   if (v && !(S.vehicles.some(o => o.move) || (S.shuffle && S.shuffle.wait > 0))) {
     railToBoard(v, i);
     const si = freeSlot();
     if (S.liftMode) {                                   // 크레인으로는 막혀 있어도 바로 들어 올려요
       if (si < 0) { toast('빈 자리가 없어요!'); return; }
       R.items[i] = null; S.liftMode = false; S.boost.lift--;
-      launch(v, si, true); updateUI();
+      launch(v, si, true); updateUI(); left = true;
     } else if (parkedBlockers(v).length) {
       v.shake = 0.35; v.state = 'rail';                 // 위가 막혀 있어요: 부르르
     } else if (si < 0) {
@@ -352,10 +353,11 @@ function tapRail(i) {
     } else {
       R.items[i] = null;
       launch(v, si, false);                             // 위로 쭉 빠져나가 찻길로
+      left = true;
     }
   }
-  railStep();
-  turnStep();
+  if (left) railStep();
+  if (v) turnStep();
 }
 
 // ---- 자리 바꾸기 ----

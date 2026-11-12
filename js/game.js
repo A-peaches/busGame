@@ -226,11 +226,11 @@ canvas.addEventListener('pointerdown', e => {
   if (hit) tapVehicle(hit);
 });
 
-// 주차장 버스를 누르면: 원래 동작 + 레일이 한 칸 움직여요
+// 주차장 버스를 누르면: 원래 동작. 레일은 버스가 실제로 빠져나갔을 때만 한 칸 움직여요
+//   (못 나가는 버스를 일부러 눌러 레일만 돌리는 꼼수 막기)
 function tapVehicle(v) {
   if (S.vehicles.some(o => o.move) || (S.shuffle && S.shuffle.wait > 0)) return;   // 자리 바꾸는 중엔 잠깐 기다려요
-  tapParked(v);
-  railStep();
+  if (tapParked(v)) railStep();
   turnStep();
 }
 function tapParked(v) {
@@ -241,7 +241,7 @@ function tapParked(v) {
     S.boost.lift--;
     launch(v, si, true);
     updateUI();
-    return;
+    return true;
   }
 
   const blockers = parkedBlockers(v);
@@ -259,6 +259,7 @@ function tapParked(v) {
   const si = freeSlot();
   if (si < 0) { v.shake = 0.35; toast('대기 칸이 꽉 찼어요!'); sfx('block'); return; }
   launch(v, si, false);
+  return true;
 }
 
 function launch(v, si, lifted) {

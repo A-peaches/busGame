@@ -212,7 +212,7 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .btn.alt { background: #f1e5cf; color: var(--ink); }
 
 /* 설명서 버튼 (메인 화면 왼쪽 아래) + 설명서 팝업 */
-#menu > #helpBtn { position: absolute; right: 12px; top: 220px; z-index: 4; }
+#menu > #helpBtn { position: absolute; right: 12px; bottom: 166px; z-index: 4; }
 .card.help { max-height: 86vh; overflow-y: auto; text-align: left; }
 .card.help h2 { text-align: center; }
 .card.help h3 { font-size: 15px; margin: 4px 0 6px; color: var(--ink); }
@@ -234,9 +234,9 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .card.help li { font-size: 13px; line-height: 1.5; color: var(--muted); margin-bottom: 2px; }
 .card.help li b { color: var(--ink); }
 /* 친구 버튼 (설명서 버튼 옆) + 선물 도착 빨간 점 */
-#menu > #friendsBtn { position: absolute; right: 12px; top: 116px; z-index: 4; }
-/* 오른쪽 세로 버튼: 설정 아래로 자주 쓰는 순서 (우편함 → 친구 → 채팅 → 설명서) */
-#menu > #mailBtn { position: absolute; right: 12px; top: 64px; z-index: 4; }
+#menu > #friendsBtn { position: absolute; right: 12px; bottom: 66px; z-index: 4; }
+/* 오른쪽 아래 세로 버튼: 엄지에 가까운 맨 아래가 가장 자주 쓰는 것 (아래부터 우편함 → 친구 → 채팅 → 설명서) */
+#menu > #mailBtn { position: absolute; right: 12px; bottom: 16px; z-index: 4; }
 #friendsBtn, #mailBtn { position: relative; }
 #friendsBtn .dot, #mailBtn .dot { display: none; position: absolute; top: 2px; right: 2px; width: 10px; height: 10px; border-radius: 50%; background: #e8768e; border: 1px solid #fff8ec; }
 #friendsBtn.hasDot .dot, #mailBtn.hasDot .dot { display: block; }
@@ -280,7 +280,7 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .friendRow .btn.mini.more { padding: 7px 7px; }
 
 /* 채팅 버튼 (우편함 옆) */
-#menu > #chatBtn { position: absolute; right: 12px; top: 168px; z-index: 4; }
+#menu > #chatBtn { position: absolute; right: 12px; bottom: 116px; z-index: 4; }
 /* 친구 창: 구역 제목, 찾기 결과, 접속 표시 */
 .secTitle { text-align: left; font-size: 12.5px; color: var(--muted); margin: 8px 2px 2px; font-weight: 700; }
 .findList { max-height: 24vh; overflow-y: auto; }

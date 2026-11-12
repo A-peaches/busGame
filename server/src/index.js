@@ -92,7 +92,7 @@ async function handle(req, env, ctx) {
       }
 
       if (path === '/me') return json(publicMe(user));
-      if (path === '/sync' && req.method === 'POST') return sync(env, user, body);
+      if (path === '/sync' && req.method === 'POST') return sync(env, user, body, ctx);
       if (path === '/friends' && req.method === 'GET') return listFriends(env, user);
       if (path === '/friends/add' && req.method === 'POST') {
         if (await tooMany(env, 'add:' + user.id, 20, 3600000)) return slowDown();         // 한 시간에 20번까지
@@ -170,7 +170,7 @@ async function restore(env, body) {
   return json({ id: u.id, token: u.token, code: u.code, nickname: u.nickname, unlocked: u.unlocked, hearts: { n: u.hearts, t: u.hearts_t } });
 }
 
-async function sync(env, user, body) {
+async function sync(env, user, body, ctx) {
   const nickname = body.nickname !== undefined ? cleanName(body.nickname) : user.nickname;
   const unlocked = Math.min(100, user.unlocked + 5, Math.max(user.unlocked, body.unlocked | 0));   // 한 번에 5단계 넘게 뛰지 않게
   let { hearts, hearts_t, full_at, full_notified } = user;
@@ -182,10 +182,25 @@ async function sync(env, user, body) {
   }
   await env.DB.prepare('UPDATE users SET nickname = ?, unlocked = ?, hearts = ?, hearts_t = ?, full_at = ?, full_notified = ?, last_seen = ? WHERE id = ?')
     .bind(nickname, unlocked, hearts, hearts_t, full_at, full_notified, now(), user.id).run();
+  // 친구를 따라잡거나 앞질렀으면 그 친구에게 알려 줘요 (이번에 넘어선 친구만)
+  if (unlocked > user.unlocked && ctx) ctx.waitUntil(tellCaughtUp(env, user, nickname, user.unlocked, unlocked));
   const g = await env.DB.prepare('SELECT COUNT(*) AS c FROM gifts WHERE to_id = ? AND claimed = 0').bind(user.id).first();
   const l = await env.DB.prepare('SELECT COUNT(*) AS c FROM letters WHERE to_id = ? AND read = 0').bind(user.id).first();
   const fr = await env.DB.prepare('SELECT COUNT(*) AS c FROM friend_requests WHERE to_id = ?').bind(user.id).first();
   return json({ unlocked, gifts: g ? g.c : 0, letters: l ? l.c : 0, requests: fr ? fr.c : 0, code: user.code });
+}
+
+// 내가 old → cur 단계가 되면서 넘어선 친구들에게 알림: 같은 단계가 되면 '따라잡았어요', 더 앞서면 '앞질렀어요'
+//   (같은 단계에 있던 친구를 한 단계 앞서 나가도 '앞질렀어요')
+async function tellCaughtUp(env, user, nickname, old, cur) {
+  const { results } = await env.DB.prepare(
+    `SELECT u.* FROM friends f JOIN users u ON u.id = f.b WHERE f.a = ? AND u.unlocked >= ? AND u.unlocked <= ? LIMIT 20`)
+    .bind(user.id, old, cur).all();
+  const who = nickname || '친구';
+  for (const u of results) {
+    if (cur > u.unlocked) await notify(env, u, '🏃 친구가 앞질렀어요!', `${who}님이 나를 앞질러 ${cur}단계에 도착했어요. 다시 따라잡아 볼까요?`);
+    else await notify(env, u, '🐾 친구가 따라잡았어요!', `${who}님이 나와 같은 ${cur}단계에 왔어요. 질 수 없죠!`);
+  }
 }
 
 // ---- 우편함: 하트를 주고받은 기록 + 친구 쪽지 ----

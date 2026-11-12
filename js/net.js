@@ -161,10 +161,29 @@ async function showMail() {
   setMailBadge(toClaim);
 }
 
+// ---- 친구 삭제 / 차단 ----
+function manageFriend(id, name) {
+  const card = $('card');
+  card.innerHTML = `<h2>${esc(name)}님</h2>
+    <p><b>친구 삭제</b>: 서로의 친구 목록에서 사라져요. 친구 코드로 다시 친구가 될 수 있어요.<br>
+    <b>차단</b>: 친구에서 지우고, 앞으로 서로 친구 추가를 할 수 없어요.</p>
+    <button class="btn alt" id="fDel">친구 삭제</button>
+    <button class="btn alt" id="fBlock">차단하기</button>
+    <button class="btn" id="ovBack">돌아가기</button>`;
+  const go = async block => {
+    try { await api('/friends/remove', { id, block }); toast(block ? `${name}님을 차단했어요` : `${name}님을 친구에서 지웠어요`, 1800); }
+    catch (e) { toast('다시 시도해 주세요'); }
+    showFriends();
+  };
+  card.querySelector('#fDel').onclick = () => go(false);
+  card.querySelector('#fBlock').onclick = () => go(true);
+  card.querySelector('#ovBack').onclick = () => showFriends();
+}
+
 // ---- 친구 창 ----
 const fmtWait = ms => {
   const m = Math.max(0, Math.ceil(ms / 60000)), h = Math.floor(m / 60);
-  return h ? `${h}시간 ${m % 60}분 뒤` : `${m}분 뒤`;
+  return h ? `${h}시간 뒤` : `${m}분 뒤`;     // 짧게 (친구 줄이 좁아서)
 };
 async function showFriends() {
   const card = $('card');
@@ -189,8 +208,9 @@ async function showFriends() {
       if (f.me) return `<div class="friendRow me"><span>${rank}${esc(nickname)} <small>나 · ${unlocked}단계</small></span></div>`;
       const wait = f.nextGiftAt && f.nextGiftAt > t;
       return `<div class="friendRow"><span>${rank}${esc(f.nickname || '친구')} <small>${f.unlocked}단계</small></span>
-        <span class="friendBtns"><button class="btn mini ${wait ? 'alt' : ''}" data-id="${esc(f.id)}" ${wait ? 'disabled' : ''}>${wait ? fmtWait(f.nextGiftAt - t) : '💌 하트'}</button>
-        <button class="btn alt mini" data-letter="${esc(f.id)}" data-name="${esc(f.nickname || '친구')}">✉️ 쪽지</button></span></div>`;
+        <span class="friendBtns"><button class="btn mini ${wait ? 'alt' : ''}" data-id="${esc(f.id)}" ${wait ? 'disabled' : ''}>${wait ? fmtWait(f.nextGiftAt - t) : '하트'}</button>
+        <button class="btn alt mini" data-letter="${esc(f.id)}" data-name="${esc(f.nickname || '친구')}">쪽지</button>
+        <button class="btn alt mini more" data-more="${esc(f.id)}" data-name="${esc(f.nickname || '친구')}" aria-label="더보기">⋯</button></span></div>`;
     }).join('') : '<p><small>아직 친구가 없어요. 친구 코드를 서로 알려 주세요!</small></p>'}</div>
     <p><small>친구에게 6시간마다 하트 1개를 보낼 수 있어요</small></p>
     ${close}`;
@@ -206,6 +226,7 @@ async function showFriends() {
     catch (e) { toast(e.message && e.message.length < 40 ? e.message : '친구를 추가하지 못했어요', 2000); }
   };
   card.querySelectorAll('.friendRow button[data-letter]').forEach(b => b.onclick = () => writeLetter(b.dataset.letter, b.dataset.name, showFriends));
+  card.querySelectorAll('.friendRow button[data-more]').forEach(b => b.onclick = () => manageFriend(b.dataset.more, b.dataset.name));
   card.querySelectorAll('.friendRow button[data-id]').forEach(b => b.onclick = async () => {
     b.disabled = true;
     try { await api('/gift', { to: b.dataset.id }); toast('하트를 보냈어요! 💌', 1800); showFriends(); }

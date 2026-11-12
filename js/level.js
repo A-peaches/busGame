@@ -58,7 +58,10 @@ const TIERS = {
   4: { stars: 4, name: '매우 어려움' },
   5: { stars: 5, name: '최고 난이도' },
 };
+// 1~10단계는 적응 구간: 쉬움 위주에 어려움을 섞고, 10단계에서 처음 '매우 어려움'을 만나요 (너무 쉽지 않게)
+const EARLY_TIERS = [1, 1, 3, 1, 3, 1, 3, 1, 3, 4];
 function levelTier(n) {
+  if (n <= 10) return EARLY_TIERS[n - 1];
   if (n % 30 === 0) return 5;
   const pos = (n - 1) % 10 + 1;
   if (pos === 10) return 4;
@@ -76,7 +79,8 @@ function levelParams(n) {
   return {
     cols: Math.min(6 + Math.floor((e - 1) / 4), 10),
     rows: Math.min(8 + Math.floor((e - 1) / 3), 12),
-    colorCount: Math.min(3 + Math.floor((e - 1) / 3), COLORS.length),
+    // 색 수: 별이 적은 단계는 상한을 낮게 (쉬움 6색, 어려움 8색, 매우 어려움 이상 10색) → 쉬운 단계가 억울하게 막히지 않게
+    colorCount: Math.min(3 + Math.floor((e - 1) / 3), COLORS.length, { 1: 6, 3: 8 }[levelTier(n)] || COLORS.length),
     diagChance: Math.min(0.1 + e * 0.025, 0.35),
     hiddenChance: e >= 4 ? Math.min(0.08 + e * 0.012, 0.36) : 0,
     mix: Math.min(24 + e * 6, 260),  // 승객 순서가 섞이는 정도 (좌석이 많아진 만큼 크게)
@@ -190,6 +194,19 @@ function genLevel(n) {
   for (const v of order) for (let j = 0; j < v.cap; j++) q.push({ color: v.color, key: k++ });
   q.forEach(p => p.key += rng() * P.mix);
   q.sort((a, b) => a.key - b.key);
+  // 억울한 시작 막기: 줄 맨 앞 몇 명은 "처음부터 뺄 수 있는 버스" 색으로 맞춰요.
+  //   (색별 인원 수는 그대로라서 풀 수 있는지는 변하지 않고, 중반 이후 어려움도 그대로예요)
+  const parked = order.filter(v => !v.onRail);
+  const freeColors = new Set(parked.filter(v => !v.hidden && !parked.some(o => o !== v && overlap(sweepBox(v), o.body))).map(v => v.color));
+  const FRONT = Math.min(q.length, 10);
+  if (freeColors.size) {
+    for (let i = 0; i < FRONT; i++) {
+      if (freeColors.has(q[i].color)) continue;
+      const j = q.findIndex((p, x) => x > i && freeColors.has(p.color));
+      if (j < 0) break;
+      [q[i], q[j]] = [q[j], q[i]];
+    }
+  }
 
   return {
     cols, rows, vehicles: order, rail,

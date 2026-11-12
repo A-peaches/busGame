@@ -216,6 +216,24 @@ let nickname = store.get('busGame.nickname', '');
 function updateHello() {
   $('hello').textContent = nickname ? `${nickname}님 · ${unlocked}단계 여행 중` : '';
 }
+// ---- 출석 선물: 하루에 처음 들어오면 하트 +1 (5개를 넘어도 받아요) ----
+function checkDaily() {
+  if (!nickname) return;
+  const d = new Date(), today = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  if (store.get('busGame.daily', '') === today) return;
+  const first = store.get('busGame.daily', '') === '' && unlocked <= 1;   // 막 시작한 사람만 (원래 하던 사람은 오늘부터 받아요)
+  store.set('busGame.daily', today);
+  if (first) return;                         // 처음 시작한 날은 하트가 가득이라 다음 날부터
+  refreshHearts();
+  if (hearts.n >= HEART_MAX) hearts.t = Date.now();
+  hearts.n += 1;
+  store.set('busGame.hearts', hearts);
+  renderHearts();
+  setTimeout(() => toast('🐾 오늘의 출석 선물: 하트 +1', 2600), 900);
+  if (typeof syncSoon === 'function') syncSoon();
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !S) checkDaily(); });
+
 function showNickname(first) {
   const card = $('card');
   card.innerHTML = `<h2>${first ? '반가워요!' : '닉네임 바꾸기'}</h2>
@@ -266,6 +284,7 @@ function showSettings() {
     <div class="seasonPick" id="seasonPick">
       <button data-s="auto">지금 계절</button><button data-s="spring">봄</button><button data-s="summer">여름</button><button data-s="autumn">가을</button><button data-s="winter">겨울</button>
     </div>
+    <div class="setRow"><span>색 구분 도우미 <small>(버스·멍냥이에 모양 표시)</small></span><label class="switch"><input type="checkbox" id="cbOn"><span></span></label></div>
     <div class="setRow"><span>폰 알림 <small>(하트 · 쪽지 · 여행 알림)</small></span><label class="switch"><input type="checkbox" id="pushOn"><span></span></label></div>
     <div class="pushWhy" id="pushWhy"></div>
     <div class="setRow"><span>닉네임 · ${esc(nickname || '없음')}</span>
@@ -282,6 +301,8 @@ function showSettings() {
   markSeason();
   const q = s => card.querySelector(s);
   q('#bgmOn').checked = settings.bgmOn;
+  q('#cbOn').checked = !!settings.cb;
+  q('#cbOn').onchange = e => { settings.cb = e.target.checked; saveSettings(); };
   q('#sfxOn').checked = settings.sfxOn;
   q('#bgmVol').value = Math.round(settings.bgmVol * 100);
   q('#sfxVol').value = Math.round(settings.sfxVol * 100);

@@ -69,3 +69,11 @@ CREATE TABLE IF NOT EXISTS throttle (
   n      INTEGER NOT NULL,
   reset  INTEGER NOT NULL
 );
+
+-- 차단: a 가 b 를 차단했어요 (서로 친구 추가가 안 돼요)
+CREATE TABLE IF NOT EXISTS blocks (
+  a        TEXT NOT NULL,
+  b        TEXT NOT NULL,
+  created  INTEGER NOT NULL,
+  PRIMARY KEY (a, b)
+);

@@ -22,6 +22,26 @@ function drawSpeckles(x, y, w, h, n) {
   }
 }
 
+// ---- 색 구분 도우미: 색마다 다른 작은 모양 (색이 헷갈려도 모양으로 구분해요) ----
+//   0 동그라미 · 1 세모 · 2 네모 · 3 별 · 4 마름모 · 5 하트 · 6 더하기 · 7 엑스 · 8 반달
+function drawSymbol(i, x, y, s, fill = '#5a4a3a') {
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = fill; ctx.strokeStyle = fill; ctx.lineWidth = Math.max(1.2, s * 0.32); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  switch (i % 9) {
+    case 0: ctx.arc(0, 0, s * 0.62, 0, Math.PI * 2); ctx.fill(); break;
+    case 1: ctx.moveTo(0, -s * 0.72); ctx.lineTo(s * 0.7, s * 0.55); ctx.lineTo(-s * 0.7, s * 0.55); ctx.closePath(); ctx.fill(); break;
+    case 2: ctx.rect(-s * 0.55, -s * 0.55, s * 1.1, s * 1.1); ctx.fill(); break;
+    case 3: for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr2 = k % 2 ? s * 0.34 : s * 0.8; ctx.lineTo(Math.cos(a) * rr2, Math.sin(a) * rr2); } ctx.closePath(); ctx.fill(); break;
+    case 4: ctx.moveTo(0, -s * 0.78); ctx.lineTo(s * 0.6, 0); ctx.lineTo(0, s * 0.78); ctx.lineTo(-s * 0.6, 0); ctx.closePath(); ctx.fill(); break;
+    case 5: ctx.moveTo(0, s * 0.7); ctx.bezierCurveTo(-s * 1.1, -s * 0.1, -s * 0.45, -s * 0.95, 0, -s * 0.3); ctx.bezierCurveTo(s * 0.45, -s * 0.95, s * 1.1, -s * 0.1, 0, s * 0.7); ctx.fill(); break;
+    case 6: ctx.moveTo(-s * 0.62, 0); ctx.lineTo(s * 0.62, 0); ctx.moveTo(0, -s * 0.62); ctx.lineTo(0, s * 0.62); ctx.stroke(); break;
+    case 7: ctx.moveTo(-s * 0.5, -s * 0.5); ctx.lineTo(s * 0.5, s * 0.5); ctx.moveTo(s * 0.5, -s * 0.5); ctx.lineTo(-s * 0.5, s * 0.5); ctx.stroke(); break;
+    case 8: ctx.arc(0, 0, s * 0.62, Math.PI * 0.5, Math.PI * 1.5); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.arc(0, 0, s * 0.62, 0, Math.PI * 2); ctx.lineWidth = Math.max(1, s * 0.2); ctx.stroke(); break;
+  }
+  ctx.restore();
+}
+
 function drawVehicle(x, y, a, w, l, colorIdx, hidden, o = {}) {
   const C = hidden ? HIDDEN_COLOR : COLORS[colorIdx];
   ctx.save();
@@ -88,6 +108,17 @@ function drawVehicle(x, y, a, w, l, colorIdx, hidden, o = {}) {
     ctx.font = `700 ${w * (o.seats >= 10 ? 0.4 : 0.48)}px MaruBuri, serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(String(o.seats), 0, 1);
+  }
+  if (settings.cb && !hidden) {
+    // 색 구분 도우미: 뒤쪽 왼쪽 모서리에 하얀 배지 + 색 모양
+    ctx.save();
+    ctx.translate(-w * 0.46, l / 2 - w * 0.3);
+    ctx.rotate(-a);
+    const r = w * 0.3;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fillStyle = '#fffaf1'; ctx.fill(); ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
+    drawSymbol(colorIdx, 0, 0, r * 0.62);
+    ctx.restore();
   }
   if (o.turner && !hidden) {
     // U턴 버스: 앞쪽 모서리에 작은 노란 배지 + 다음 U턴까지 남은 턴 수 (화살표와 겹치지 않게)
@@ -436,6 +467,12 @@ function drawAnimalFast(x, y, r, colorIdx, kind, bob = 0, phase = 0, opts = {}) 
     animalSprites.set(key, spr);
   }
   ctx.drawImage(spr.cv, x - spr.ax, y - bob - spr.ay, spr.w, spr.h);
+  if (settings.cb) {          // 색 구분 도우미: 가슴에 하얀 동그라미 + 색 모양
+    const cx = x, cy = y - bob - r * 0.55, rr2 = r * 0.36;
+    ctx.beginPath(); ctx.arc(cx, cy, rr2, 0, Math.PI * 2);
+    ctx.fillStyle = '#fffaf1'; ctx.fill(); ctx.strokeStyle = LINE; ctx.lineWidth = 0.8; ctx.stroke();
+    drawSymbol(colorIdx, cx, cy, rr2 * 0.62);
+  }
 }
 
 // 작은 반짝이 별

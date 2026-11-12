@@ -52,7 +52,12 @@ export default {
   async fetch(req, env, ctx) {
     const cors = corsFor(req);
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
-    const res = await handle(req, env, ctx);
+    let res;
+    try { res = await handle(req, env, ctx); }
+    catch (e) {                                            // 어디서 생긴 오류든 여기서 잡아요 (내용은 숨기고)
+      console.log('error', new URL(req.url).pathname, e && e.stack || e);
+      res = json({ error: '서버에 문제가 생겼어요' }, 500);
+    }
     for (const [k, v] of Object.entries(cors)) res.headers.set(k, v);
     return res;
   },
@@ -88,6 +93,7 @@ async function handle(req, env, ctx) {
         if (await tooMany(env, 'add:' + user.id, 20, 3600000)) return slowDown();         // 한 시간에 20번까지
         return addFriend(env, ctx, user, body);
       }
+      if (path === '/friends/remove' && req.method === 'POST') return removeFriend(env, user, body);
       if (path === '/gift' && req.method === 'POST') return gift(env, ctx, user, body);
       if (path === '/gifts' && req.method === 'GET') return listGifts(env, user);
       if (path === '/gifts/claim' && req.method === 'POST') return claimGifts(env, user, body);
@@ -215,6 +221,9 @@ async function addFriend(env, ctx, user, body) {
   const other = await env.DB.prepare('SELECT * FROM users WHERE code = ?').bind(code.slice(0, 4) + '-' + code.slice(4)).first();
   if (!other) return json({ error: '그 코드를 가진 친구를 찾을 수 없어요' }, 404);
   if (other.id === user.id) return json({ error: '내 코드예요' }, 400);
+  // 둘 중 누구라도 차단했으면 친구가 될 수 없어요 (누가 차단했는지는 알려 주지 않아요)
+  const blocked = await env.DB.prepare('SELECT 1 FROM blocks WHERE (a = ?1 AND b = ?2) OR (a = ?2 AND b = ?1)').bind(user.id, other.id).first();
+  if (blocked) return json({ error: '친구를 추가할 수 없어요' }, 400);
   const t = now();
   await env.DB.batch([
     env.DB.prepare('INSERT OR IGNORE INTO friends (a, b, created) VALUES (?, ?, ?)').bind(user.id, other.id, t),
@@ -222,6 +231,18 @@ async function addFriend(env, ctx, user, body) {
   ]);
   ctx.waitUntil(notify(env, other, '🐾 새 친구', `${user.nickname || '누군가'}님과 친구가 되었어요!`));
   return json({ ok: true, friend: { id: other.id, nickname: other.nickname, unlocked: other.unlocked } });
+}
+
+// 친구 삭제(양쪽 다 끊어요) / 차단(삭제 + 다시 친구가 될 수 없게)
+async function removeFriend(env, user, body) {
+  const id = String(body.id || '');
+  if (!/^[0-9a-f]{16}$/.test(id)) return json({ error: '잘못된 요청이에요' }, 400);
+  const q = [
+    env.DB.prepare('DELETE FROM friends WHERE (a = ?1 AND b = ?2) OR (a = ?2 AND b = ?1)').bind(user.id, id),
+  ];
+  if (body.block) q.push(env.DB.prepare('INSERT OR IGNORE INTO blocks (a, b, created) VALUES (?, ?, ?)').bind(user.id, id, now()));
+  await env.DB.batch(q);
+  return json({ ok: true });
 }
 
 async function gift(env, ctx, user, body) {

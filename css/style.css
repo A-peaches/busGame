@@ -270,3 +270,9 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 /* 우편함 N 표시 (안 받은 하트·안 읽은 쪽지) */
 #mailBtn .dot { width: 16px; height: 16px; top: -2px; right: -2px; font-size: 10px; font-weight: 700; line-height: 15px; color: #fffaf1; text-align: center; font-family: inherit; }
 .btn.mini.claimAll { display: block; margin: 0 auto 8px; }
+.btn.mini.more { padding: 7px 8px; letter-spacing: 1px; }
+/* 친구 줄: 이름은 한 줄(길면 …), 단계는 아래 작은 글씨 */
+.friendRow > span:first-child { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.friendRow > span:first-child small { display: block; margin-left: 26px; }
+.friendRow .btn.mini { padding: 7px 9px; }
+.friendRow .btn.mini.more { padding: 7px 7px; }

@@ -25,6 +25,7 @@ else {
     if (!nickname) showNickname(true);                                  // 처음 온 사람에게 닉네임 받기
     else if (store.get('busGame.geo', null) === null) askLocation();    // 그다음 위치 동의
     else askPushIfNeeded();                                             // 알림 동의도 꼭
+    checkDaily();                                                       // 출석 선물 (하루 한 번 하트 +1)
   }
 }
 requestAnimationFrame(loop);

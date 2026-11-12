@@ -162,11 +162,9 @@ function walkRoute(p, v, s0) {
   const sp = slotPos(v.slot), top = sp.y - slotSize(v).l / 2;
   const qb = L.qTop + L.qH, T = L.ring.total;
   const sExit = L.ring.cum[L.exitIdx];
-  let d = ((sExit - s0) % T + T) % T;            // 앞으로 돌아가는 거리
-  const dir = d <= T / 2 ? 1 : -1;               // 더 가까운 쪽으로
-  if (dir < 0) d = T - d;
+  const d = ((sExit - s0) % T + T) % T;          // 하트 길이 도는 방향 그대로 출구까지 가는 거리 (뒤로 돌아가지 않아요)
   const pts = [[p.x, p.y]];
-  for (let u = 8; u < d; u += 8) { const q = pathPoint(L.ring, ((s0 + dir * u) % T + T) % T); pts.push([q.x, q.y]); }
+  for (let u = 8; u < d; u += 8) { const q = pathPoint(L.ring, (s0 + u) % T); pts.push([q.x, q.y]); }
   pts.push([L.exitX, L.exitY], [L.exitX, qb - 4], [L.exitX, L.walkY], [sp.x, L.walkY], [sp.x, top + 2]);
   return makePath(pts, false);
 }
@@ -407,10 +405,11 @@ function update(dt) {
   S.boardTimer -= dt;
   if (S.boardTimer <= 0) {
     let pick = null, best = Infinity;
+    const T = L.ring.total, sExit = L.ring.cum[L.exitIdx];
     S.ring.forEach((p, k) => {
       if (!p || p.x === undefined) return;
       const v = bestVehicleFor(p.color);
-      const d = (p.x - L.exitX) ** 2 + (p.y - L.exitY) ** 2;   // 출구에 가까운 친구부터
+      const d = ((sExit - ringS(k)) % T + T) % T;              // 도는 방향으로 출구에 가장 먼저 닿는 친구부터
       if (v && d < best) { best = d; pick = { k, p, v }; }
     });
     if (pick) {

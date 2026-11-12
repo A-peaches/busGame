@@ -76,13 +76,18 @@ function effectiveLevel(n) {
 
 function levelParams(n) {
   const e = effectiveLevel(n);
+  // 단계 진행도 0(1단계) → 1(100단계): 같은 별이라도 뒤 단계일수록 최대치가 조금씩 열려서 계속 어려워져요
+  const pr = (n - 1) / (MAX_LEVEL - 1);
   return {
-    cols: Math.min(6 + Math.floor((e - 1) / 4), 10),
+    // 주차장 크기: 10×12 가 꽉 차면 더는 버스가 안 들어가서, 뒤 단계일수록 가로를 넓혀요 (34단계 11칸 → 67단계 12칸)
+    //   화면은 세로가 더 빠듯해서 세로(12칸)는 그대로 → 칸이 너무 작아지지 않아요
+    cols: Math.min(6 + Math.floor((e - 1) / 4), 10 + Math.floor(pr * 2.99)),
     rows: Math.min(8 + Math.floor((e - 1) / 3), 12),
     // 색 수: 별이 적은 단계는 상한을 낮게 (쉬움 6색, 어려움 8색, 매우 어려움 이상 10색) → 쉬운 단계가 억울하게 막히지 않게
-    colorCount: Math.min(3 + Math.floor((e - 1) / 3), COLORS.length, { 1: 6, 3: 8 }[levelTier(n)] || COLORS.length),
-    diagChance: Math.min(0.1 + e * 0.025, 0.35),
-    hiddenChance: e >= 4 ? Math.min(0.08 + e * 0.012, 0.36) : 0,
+    //   (쉬움은 6색에서 뒤로 갈수록 8색까지, 어려움은 8색에서 9색까지)
+    colorCount: Math.min(3 + Math.floor((e - 1) / 3), COLORS.length, { 1: 6 + Math.floor(pr * 3), 3: 8 + Math.floor(pr * 2) }[levelTier(n)] || COLORS.length),
+    diagChance: Math.min(0.1 + e * 0.025, 0.35 + pr * 0.1),           // 대각선 버스: 뒤로 갈수록 45%까지
+    hiddenChance: e >= 4 ? Math.min(0.08 + e * 0.012, 0.36 + pr * 0.14) : 0,   // ❓ 버스: 뒤로 갈수록 50%까지
     mix: Math.min(24 + e * 6, 260),  // 승객 순서가 섞이는 정도 (좌석이 많아진 만큼 크게)
     target: e,
   };
@@ -137,7 +142,7 @@ function genLevel(n) {
   const rng = mulberry32(n * 7919 + 13);
   const P = levelParams(n);
   const { cols, rows } = P;
-  const target = Math.min(20 + 3 * (P.target - 1), Math.floor(cols * rows / 1.9));   // 버스 수 (전보다 많게)
+  const target = Math.min(20 + 3 * (P.target - 1), Math.floor(cols * rows / 1.9));   // 버스 수 (주차장이 꽉 찰 때까지)
 
   // 1) 빽빽하게 배치
   const placed = [];
@@ -153,7 +158,6 @@ function genLevel(n) {
     v.body = bodyBox(v);
     placed.push(v);
   }
-
   // 2) 빼낼 수 있는 순서와 방향 정하기 (꽉 막혀 아무도 못 나가면 버스 하나를 없애요)
   const order = extractOrder(placed, rng, true);
 

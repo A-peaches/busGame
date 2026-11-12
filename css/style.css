@@ -384,3 +384,6 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .chatMsg .lvTag { font-weight: 400; font-size: 10.5px; color: #b3a58e; margin-left: 5px; display: inline-flex; align-items: center; gap: 2px; }
 .chatMsg .lvTag .medal { vertical-align: -1px; }
 .chatMsg .meTag { display: block; text-align: right; margin: 0 2px 2px 0; }
+/* 친구 창: 찾기 칸과 "친구 N명" 사이를 가깝게 */
+.codeRow + .findList + .secTitle { margin-top: 0; }
+.codeRow:has(#findNick) { margin-bottom: 4px; }

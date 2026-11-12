@@ -295,7 +295,7 @@ async function showFriends() {
   const t = Date.now() + diff;
   // 많이 깬 순서대로 (나도 함께), 1·2·3등은 트로피
   const ranked = [...list, { me: true, unlocked }].sort((a, b) => b.unlocked - a.unlocked);
-  card.innerHTML = `<h2>친구</h2>
+  card.innerHTML = `<h2 class="tightTop">친구</h2>
     <div class="codeRow"><input class="nickInput" id="findNick" maxlength="10" placeholder="닉네임으로 친구 찾기"><button class="btn mini" id="findBtn">찾기</button></div>
     <div class="findList" id="findList"></div>
     ${reqs.length ? `<p class="secTitle">받은 친구 요청</p><div class="friendList reqList">${reqs.map(q =>

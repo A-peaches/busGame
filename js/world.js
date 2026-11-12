@@ -173,7 +173,8 @@ function makeParticles() {
   // 겨울엔 항상 눈이 내리고, 실제로 눈이 오는 날엔 더 펑펑 내려요. 비 오는 날엔 비.
   const realSnow = weather.kind === 'snow';
   const kind = weather.kind === 'rain' ? 'rain' : (realSnow || season === 'winter') ? 'snow' : season;
-  const n = kind === 'snow' ? (realSnow ? 70 : 40) : kind === 'rain' ? 70 : 20;
+  let n = kind === 'snow' ? (realSnow ? 70 : 40) : kind === 'rain' ? 70 : 20;
+  if (LITE) n = Math.ceil(n / 3);                    // 가벼운 모드: 입자 1/3
   for (let i = 0; i < n; i++) {
     const p = document.createElement('div');
     p.className = 'particle' + (kind === 'rain' ? ' rainy' : '');
@@ -284,6 +285,8 @@ function showSettings() {
     <div class="seasonPick" id="seasonPick">
       <button data-s="auto">지금 계절</button><button data-s="spring">봄</button><button data-s="summer">여름</button><button data-s="autumn">가을</button><button data-s="winter">겨울</button>
     </div>
+    <div class="setRow"><span>가벼운 모드 <small>(오래된 폰용)</small></span>
+      <span class="litePick" id="litePick"><button data-l="auto">자동</button><button data-l="on">켜기</button><button data-l="off">끄기</button></span></div>
     <div class="setRow"><span>폰 알림 <small>(하트 · 쪽지 · 여행 알림)</small></span><label class="switch"><input type="checkbox" id="pushOn"><span></span></label></div>
     <div class="pushWhy" id="pushWhy"></div>
     <div class="setRow"><span>닉네임 · ${esc(nickname || '없음')}</span>
@@ -299,6 +302,15 @@ function showSettings() {
   card.querySelectorAll('#seasonPick button').forEach(b => b.onclick = () => { setSeason(b.dataset.s); markSeason(); });
   markSeason();
   const q = s => card.querySelector(s);
+  // 가벼운 모드: 자동(느리면 저절로 켜짐) / 켜기 / 끄기
+  const markLite = () => card.querySelectorAll('#litePick button').forEach(b => b.classList.toggle('on', b.dataset.l === litePref));
+  card.querySelectorAll('#litePick button').forEach(b => b.onclick = () => {
+    litePref = b.dataset.l; store.set('busGame.lite', litePref);
+    if (litePref !== 'auto') store.set('busGame.liteAuto', false);
+    setLite(litePref === 'on' || (litePref === 'auto' && store.get('busGame.liteAuto', false)));
+    markLite();
+  });
+  markLite();
   q('#bgmOn').checked = settings.bgmOn;
   q('#sfxOn').checked = settings.sfxOn;
   q('#bgmVol').value = Math.round(settings.bgmVol * 100);

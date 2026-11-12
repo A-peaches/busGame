@@ -420,7 +420,7 @@ function drawAnimalFast(x, y, r, colorIdx, kind, bob = 0, phase = 0, opts = {}) 
   const dpr = DPR;
   const speed = kind === 'cat' ? (opts.sleep ? 0.8 : 2.6) : (opts.sleep ? 2 : opts.excited ? 22 : 14);
   const cyc = ((performance.now() / 1000 + phase) * speed / (Math.PI * 2)) % 1;
-  const frame = Math.floor(cyc * TAIL_FRAMES);
+  const frame = LITE ? 0 : Math.floor(cyc * TAIL_FRAMES);   // 가벼운 모드: 꼬리 흔들림 멈춤 (그림을 덜 만들어요)
   const key = `${kind}|${colorIdx}|${opts.ribbon || ''}|${opts.bag ? 1 : 0}|${opts.sleep ? 's' : opts.excited ? 'e' : 'n'}|${frame}|${r.toFixed(2)}|${dpr}`;
   let spr = animalSprites.get(key);
   if (spr) { animalSprites.delete(key); animalSprites.set(key, spr); }   // 방금 쓴 그림은 맨 뒤로 (오래 안 쓴 그림부터 정리하려고)

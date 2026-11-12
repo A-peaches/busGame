@@ -41,12 +41,13 @@ html, body, button, canvas, #app { touch-action: manipulation; }
 ::selection { background: transparent; }
 #menu .sky { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
 /* 흘러가는 뭉게구름 */
-.cloud { position: absolute; left: -260px; animation: drift linear infinite; }
-@keyframes drift { from { left: -280px; } to { left: 105%; } }
+.cloud { position: absolute; left: 0; animation: drift linear infinite; will-change: transform; }
+/* 위치(left)를 바꾸면 매번 하늘 전체를 다시 칠해서 무거워요 → transform 으로 GPU가 미끄러뜨리기만 해요 */
+@keyframes drift { from { transform: translateX(-280px); } to { transform: translateX(105vw); } }
 /* 계절 입자: 벚꽃잎 / 나뭇잎 / 단풍 / 눈 */
 .fx { position: absolute; inset: 0; z-index: 3; overflow: hidden; pointer-events: none; }
-.particle { position: absolute; top: -30px; animation: fall linear infinite; }
-.particle > * { display: block; animation: sway ease-in-out infinite alternate; }
+.particle { position: absolute; top: -30px; animation: fall linear infinite; will-change: transform; }
+.particle > * { display: block; animation: sway ease-in-out infinite alternate; will-change: transform; }
 @keyframes fall { to { transform: translateY(calc(100vh + 60px)); } }
 @keyframes sway { from { transform: translateX(-18px) rotate(-35deg); } to { transform: translateX(18px) rotate(45deg); } }
 /* 눈송이: 하얀 눈밭 위에서도 보이도록 아주 옅은 푸른 테두리 */
@@ -314,3 +315,8 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .friendRow .fName .rank { flex: none; margin-top: 1px; }
 .friendRow .fTxt { min-width: 0; word-break: break-all; }
 .friendRow .fTxt small { margin-left: 0 !important; }
+
+/* 설정: 가벼운 모드 고르기 (계절 고르기와 같은 모양) */
+.litePick { display: flex; gap: 3px; flex: none; }
+.litePick button { font: inherit; font-size: 12px; padding: 4px 8px; border-radius: 12px; border: 1px solid #c9b99c; background: #f3ead9; color: var(--muted); cursor: pointer; }
+.litePick button.on { background: #f6dd92; color: var(--ink); font-weight: 700; }

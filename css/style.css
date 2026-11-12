@@ -409,3 +409,6 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .card.wide .friendRow .btn.mini.ic { width: 32px; }
 /* 입력칸 안내 글씨(placeholder)는 작게 — 입력한 글씨는 16px 그대로라 아이폰에서 확대되지 않아요 */
 .nickInput::placeholder, .letterBox::placeholder { font-size: calc(13px + var(--fd)); }
+/* 멍냥이의 응원 팝업: 선물 상자 */
+.cheerGift { background: #fbf1d3; border: 1px dashed #e2bf5c; border-radius: 12px; padding: 8px 10px; margin: 8px 0 12px; }
+.cheerGift b { color: #8a6a2c; }

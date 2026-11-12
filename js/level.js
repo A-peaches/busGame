@@ -257,7 +257,8 @@ function startLevel(n) {
     ringOff: 0,         // 원이 돌아간 거리
     slots: new Array(MAX_SLOTS).fill(null), slotCount: BASE_SLOTS,
     flying: [], boardTimer: 0.6, liftMode: false, over: false, time: 0,
-    boost: { slot: levelTier(n) === 5 ? 2 : 1, lift: 1, mix: levelTier(n) >= 4 ? 1 : 0 },   // 색 섞기는 '매우 어려움'·'최고 난이도' 단계에서만   // 별 5개(최고 난이도) 단계는 자리 추가 2개
+    // 자리 추가: 기본 1개 (최고 난이도 2개), 10번 실패하면 멍냥이의 응원으로 +1 · 색 섞기: '매우 어려움'·'최고 난이도'에서만 1개
+    boost: { slot: (levelTier(n) === 5 ? 2 : 1) + (allTries[n] - 1 >= CHEER_AFTER ? 1 : 0), lift: 1, mix: levelTier(n) >= 4 ? 1 : 0 },
     tries: allTries[n], rush: 0, treeShake: 0,
     shuffle: n >= SHUFFLE_FROM ? { every: SHUFFLE_EVERY(n), left: SHUFFLE_EVERY(n), wait: 0, count: 0 } : null,
   };
@@ -281,6 +282,11 @@ function startLevel(n) {
   for (let k = 0; k < S.ring.length; k++) if (S.waiting.length) S.ring[k] = S.waiting.shift();
   hideOverlay();
   updateUI();
+  // 멍냥이의 응원: 이 단계에서 10번 넘게 실패했으면 들어올 때 한 번만 알려 줘요 (이미 본 단계는 다시 안 띄워요)
+  if (allTries[n] - 1 >= CHEER_AFTER) {
+    const seen = store.get('busGame.cheerSeen', {});
+    if (!seen[n]) { seen[n] = 1; store.set('busGame.cheerSeen', seen); showCheer(); return; }
+  }
   // 자리 바꾸기 이벤트를 처음 만나면 안내
   if (S.shuffle && !store.get('busGame.shuffleSeen', false)) {
     store.set('busGame.shuffleSeen', true);
@@ -312,7 +318,7 @@ function startLevel(n) {
     card.innerHTML = `<h2>새 이벤트! 레일 버스</h2>
       <p>주차장 아래 레일 위에도 버스가 있어요.<br>
       레일 버스는 <b>바로 위 같은 줄</b>의 버스들을<br>먼저 빼야 위로 나갈 수 있어요.<br>
-      그런데 버스를 <b>누를 때마다 레일이 한 칸씩</b> 움직여요!</p>
+      그런데 버스가 <b>빠져나갈 때마다 레일이 한 칸씩</b> 움직여요!</p>
       <button class="btn" id="ovOk">알겠어요</button>`;
     card.querySelector('#ovOk').onclick = () => hideOverlay();
     $('overlay').classList.add('show');

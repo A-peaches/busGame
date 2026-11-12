@@ -262,6 +262,72 @@ function drawTrumpeters(c, T) {
 
 
 // =====================================================================
+//  멍냥이의 응원: 한 단계에서 10번 실패하면 깰 때까지 자리 추가 +1 (팝업은 처음 한 번)
+// =====================================================================
+const CHEER_AFTER = 10;   // 이만큼 실패하면 응원해요
+// 응원 수술(폼폼): 가는 술이 동그랗게 퍼진 모양
+function drawPompom(c, x, y, r, col, T, ph) {
+  const n = 16;
+  c.save(); c.translate(x, y); c.rotate(Math.sin(T * 9 + ph) * 0.25);
+  for (let i = 0; i < n; i++) {
+    const a = i / n * Math.PI * 2, rr2 = r * (0.85 + 0.15 * Math.sin(i * 2.3 + T * 14 + ph));
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * rr2, Math.sin(a) * rr2);
+    c.strokeStyle = LINE; c.lineWidth = r * 0.28 + 2; c.lineCap = 'round'; c.stroke();
+  }
+  for (let i = 0; i < n; i++) {
+    const a = i / n * Math.PI * 2, rr2 = r * (0.85 + 0.15 * Math.sin(i * 2.3 + T * 14 + ph));
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * rr2, Math.sin(a) * rr2);
+    c.strokeStyle = i % 2 ? col[0] : col[1]; c.lineWidth = r * 0.28; c.stroke();
+  }
+  c.beginPath(); c.arc(0, 0, r * 0.32, 0, Math.PI * 2); c.fillStyle = col[0]; c.fill();
+  c.restore();
+}
+// 폼폼을 양손에 들고 번갈아 흔드는 고양이와 강아지
+function drawCheerleaders(c, T) {
+  const W = c.canvas.width, H = c.canvas.height;
+  c.clearRect(0, 0, W, H);
+  const saved = ctx, savedLW = LW_SCALE;
+  ctx = c; LW_SCALE = 2;
+  try {
+    const r = 40;
+    for (const [x, kind, col, ph, pc] of [[W * 0.3, 'cat', 6, 0, ['#f6d76b', '#fbe9a8']], [W * 0.7, 'dog', 1, 1.6, ['#f4a3bd', '#fbe0ea']]]) {
+      const bob = Math.abs(Math.sin(T * 6 + ph)) * 7;
+      const by = H - 22 - bob;
+      drawAnimal(x, H - 22, r, col, kind, bob, ph, { excited: true, ribbon: kind === 'cat' ? '#e8768e' : null });
+      for (const side of [-1, 1]) {
+        // 팔: 몸 옆에서 바깥 위로 쭉 뻗어요 (양팔이 번갈아 위아래로). 몸 위에 그려서 잘 보여요
+        const up = 0.5 + 0.5 * Math.sin(T * 6 + ph + (side > 0 ? Math.PI : 0));
+        const sx = x + side * r * 0.5, sy = by - r * 0.3;
+        const hx = x + side * r * (1.2 + up * 0.2), hy = by - r * (0.75 + up * 0.85);
+        // 테두리는 몸 밖으로 나온 부분에만 (몸 안쪽에는 선이 생기지 않게), 색은 어깨부터 꽉 채워요
+        c.lineCap = 'round';
+        const k = 0.45, ox = sx + (hx - sx) * k, oy = sy + (hy - sy) * k;
+        c.strokeStyle = LINE; c.lineWidth = r * 0.3 + 2.5; c.beginPath(); c.moveTo(ox, oy); c.lineTo(hx, hy); c.stroke();
+        c.strokeStyle = COLORS[col].c; c.lineWidth = r * 0.3; c.beginPath(); c.moveTo(sx, sy); c.lineTo(hx, hy); c.stroke();
+        drawPompom(c, hx, hy, r * 0.55, pc, T, ph + side);
+      }
+    }
+  } finally { ctx = saved; LW_SCALE = savedLW; }
+}
+function showCheer(onOk) {
+  stopCelebration();
+  const card = $('card');
+  card.innerHTML = `<canvas id="cheerCv" class="perch" width="600" height="250"></canvas>
+    <h2>멍냥이의 응원!</h2>
+    <p>이 단계에서 벌써 <b>${CHEER_AFTER}번</b>이나 도전했어요.<br>멍냥이들이 힘을 보태 줄게요!</p>
+    <p class="cheerGift"><b>+ 자리 추가 1개 더!</b><br><small>이 단계를 깰 때까지 자리 추가를 2개씩 써요</small></p>
+    <button class="btn" id="cheerOk">힘내서 출발!</button>`;
+  card.querySelector('#cheerOk').onclick = () => { stopCelebration(); hideOverlay(); if (onOk) onOk(); };
+  $('overlay').classList.add('show');
+  const c = $('cheerCv').getContext('2d'), t0 = performance.now();
+  const frame = () => {
+    drawCheerleaders(c, (performance.now() - t0) / 1000);
+    if ($('overlay').classList.contains('show')) celebRAF = requestAnimationFrame(frame);
+  };
+  celebRAF = requestAnimationFrame(frame);
+}
+
+// =====================================================================
 //  설명서 (메인 화면 오른쪽 아래 세로 버튼 맨 위 책 버튼)
 // =====================================================================
 const BOOK_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g fill="none" stroke="#4a3b2c" stroke-width="1.6" stroke-linejoin="round">

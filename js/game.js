@@ -335,7 +335,7 @@ $('liftBtn').onclick = () => {
   updateUI();
 };
 // ---- 색 섞기 ('매우 어려움' 단계에서만 1개) ----
-//   지금 꺼낼 수 있는 버스들의 색을, 기다리는 멍냥이들에게 가장 필요한 색으로 바꿔 줘요.
+//   지금 꺼낼 수 있는 버스들의 색을, 기다리는 멍냥이들에게 가장 필요한 색으로 바꿔 주고, 나머지 버스들은 무작위로 섞어요.
 //   같은 크기 버스끼리만 색을 맞바꿔서 색마다 태울 자리 수는 그대로예요 (풀 수 있는지는 변하지 않아요)
 function useMixBooster() {
   if (!S || S.over || S.boost.mix <= 0 || S.vehicles.some(v => v.move)) return;
@@ -371,13 +371,22 @@ function useMixBooster() {
       break;
     }
   }
+  // 나머지 버스들도 진짜로 섞어요: 같은 자리 수(8·16·24·32석)끼리라면 대각선이든 가로·세로든 레일이든 서로 색을 바꿔요
+  //   (자리 수별 색 개수는 그대로라 풀 수 있는지는 변하지 않아요)
+  const groups = {};
+  for (const x of S.vehicles) if (!done.has(x) && (x.state === 'parked' || x.state === 'rail')) (groups[x.cap] = groups[x.cap] || []).push(x);
+  for (const g of Object.values(groups)) {
+    const cols = g.map(x => x.color);
+    for (let i = cols.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [cols[i], cols[j]] = [cols[j], cols[i]]; }
+    g.forEach((x, i) => { if (x.color !== cols[i]) { x.color = cols[i]; changed++; } });
+  }
   // 알림 없이: 보이는 버스들이 잠깐 이 색 저 색으로 빙글빙글 바뀌다가 하나씩 제 색에 멈춰요
   const pool = [...new Set(S.vehicles.map(x => x.color))];
   for (const x of S.vehicles) {
     if (x.state !== 'parked' || x.hidden) continue;
     x.mixT = 0.55 + Math.random() * 0.45; x.mixTick = 0; x.mixPool = pool;
   }
-  if (changed) S.boost.mix--;                 // 이미 딱 맞았으면 아이템은 그대로 남아요
+  if (changed) S.boost.mix--;                 // 아무것도 안 바뀌었으면(버스가 거의 없을 때) 아이템은 그대로 남아요
   sfx('go');
   updateUI();
 }

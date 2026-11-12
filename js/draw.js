@@ -819,7 +819,7 @@ const parkedStill = v => !(v.bump || v.shake > 0 || v.spin > 0 || v.move || v.po
 let boardCache = null;
 function boardCacheKey() {
   let k = `${L.W}|${L.H}|${L.cs}|${DPR}|${S.level}|${S.liftMode ? 1 : 0}|${S.turnLeft}`;
-  for (const v of S.vehicles) if (v.state === 'parked' && parkedStill(v)) k += `|${v.id},${v.cx},${v.cy},${v.ang},${v.hidden ? 1 : 0}`;
+  for (const v of S.vehicles) if (v.state === 'parked' && parkedStill(v)) k += `|${v.id},${v.cx},${v.cy},${v.ang},${v.hidden ? 1 : 0},${v.color}`;
   return k;
 }
 function drawBoardCached() {

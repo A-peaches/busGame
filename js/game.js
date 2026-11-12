@@ -333,6 +333,51 @@ $('liftBtn').onclick = () => {
   if (S.liftMode) toast('꺼낼 버스를 아무거나 눌러 주세요', 2000);
   updateUI();
 };
+// ---- 색 섞기 ('매우 어려움' 단계에서만 1개) ----
+//   지금 꺼낼 수 있는 버스들의 색을, 기다리는 멍냥이들에게 가장 필요한 색으로 바꿔 줘요.
+//   같은 크기 버스끼리만 색을 맞바꿔서 색마다 태울 자리 수는 그대로예요 (풀 수 있는지는 변하지 않아요)
+function useMixBooster() {
+  if (!S || S.over || S.boost.mix <= 0 || S.vehicles.some(v => v.move)) return;
+  const parked = S.vehicles.filter(v => v.state === 'parked');
+  const free = parked.filter(v => !v.hidden && !v.bump && parkedBlockers(v).length === 0);
+  if (!free.length) { toast('지금 꺼낼 수 있는 버스가 없어요'); return; }
+  // 곧 탈 멍냥이 순서: 하트 길 위에서 출구에 가까운 순 → 줄 선 순
+  const T = L.ring.total, sExit = L.ring.cum[L.exitIdx];
+  const onRing = S.ring.map((p, k) => p && { p, d: ((sExit - ringS(k)) % T + T) % T }).filter(Boolean).sort((a, b) => a.d - b.d).map(o => o.p);
+  const people = onRing.concat(S.waiting).slice(0, 40);
+  // 대기 칸 버스가 이미 받아 줄 수 있는 자리는 빼고, 급한 색부터 차례로
+  const room = {};
+  for (const v of S.slots) if (v && v.state === 'slot') room[v.color] = (room[v.color] || 0) + (v.cap - v.filled - v.incoming);
+  const want = [];
+  for (const p of people) {
+    if (room[p.color] > 0) { room[p.color]--; continue; }
+    if (!want.includes(p.color)) want.push(p.color);
+  }
+  // 꺼낼 수 있는 버스가 이미 급한 색이면 그대로 두고, 나머지 버스를 남은 급한 색으로 바꿔요
+  const freeSet = new Set(free), done = new Set();
+  const todo = want.slice(0, free.length);
+  for (const v of free) { const i = todo.indexOf(v.color); if (i >= 0) { todo.splice(i, 1); done.add(v); } }
+  let changed = 0;
+  for (const v of free) {
+    if (done.has(v)) continue;
+    for (let i = 0; i < todo.length; i++) {
+      const c = todo[i];
+      // 같은 크기에, 그 색인 다른 버스(막힌 버스·레일 버스)와 색을 맞바꿔요
+      const o = S.vehicles.find(x => x !== v && !freeSet.has(x) && !done.has(x) && x.color === c && x.cap === v.cap && (x.state === 'parked' || x.state === 'rail'));
+      if (!o) continue;
+      o.color = v.color; v.color = c;
+      v.pop = 0; if (o.state === 'parked') o.pop = 0;
+      done.add(v); done.add(o); todo.splice(i, 1); changed++;
+      break;
+    }
+  }
+  if (!changed) { toast('이미 딱 맞는 색이에요!', 1600); return; }
+  S.boost.mix--;
+  sfx('go');
+  toast('버스 색을 멍냥이들에게 맞췄어요!', 1600);
+  updateUI();
+}
+$('mixBtn').onclick = () => useMixBooster();
 // 게임 도중 홈 버튼: 나가면 하트가 1개 줄어든다고 먼저 물어봐요
 // 지도 버튼 그림: 세 번 접힌 종이 지도 + 빨간 핀
 $('homeBtn').innerHTML = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g stroke="#4a3b2c" stroke-width="1.4" stroke-linejoin="round">

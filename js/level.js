@@ -257,7 +257,7 @@ function startLevel(n) {
     ringOff: 0,         // 원이 돌아간 거리
     slots: new Array(MAX_SLOTS).fill(null), slotCount: BASE_SLOTS,
     flying: [], boardTimer: 0.6, liftMode: false, over: false, time: 0,
-    boost: { slot: levelTier(n) === 5 ? 2 : 1, lift: 1 },   // 별 5개(최고 난이도) 단계는 자리 추가 2개
+    boost: { slot: levelTier(n) === 5 ? 2 : 1, lift: 1, mix: levelTier(n) === 4 ? 1 : 0 },   // 색 섞기는 '매우 어려움' 단계에서만   // 별 5개(최고 난이도) 단계는 자리 추가 2개
     tries: allTries[n], rush: 0, treeShake: 0,
     shuffle: n >= SHUFFLE_FROM ? { every: SHUFFLE_EVERY(n), left: SHUFFLE_EVERY(n), wait: 0, count: 0 } : null,
   };

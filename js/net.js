@@ -179,6 +179,68 @@ async function showMail() {
   setMailBadge(toClaim);
 }
 
+// ---- 공지사항 (개발자가 고칠 때마다 무엇이 바뀌었는지) + 개발자에게 문의하기 ----
+const NOTICE_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g stroke="#4a3b2c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M4 10 V14 H7 L14 18 V6 L7 10Z" fill="#f6dd92"/><path d="M7 14 L8.5 19.5 H10.5 L9.5 14.6" fill="#fbf3e2"/>
+  <path d="M17 9.5 Q18.6 12 17 14.5 M19.3 7.5 Q22.2 12 19.3 16.5" fill="none"/></g></svg>`;
+let noticeCache = [];
+const fmtDate = ms => { const d = new Date(ms); return `${d.getMonth() + 1}월 ${d.getDate()}일`; };
+async function checkNotices() {
+  try {
+    noticeCache = (await (await fetch(API + '/notices')).json()).notices || [];
+    const top = noticeCache[0] ? noticeCache[0].id : 0;
+    $('noticeBtn').classList.toggle('hasDot', top > store.get('busGame.noticeSeen', 0));
+  } catch (e) { /* 인터넷이 안 되면 다음에 */ }
+}
+async function showNotices() {
+  const card = $('card');
+  card.innerHTML = `<h2>공지사항</h2><div class="noticeList"><p><small>불러오는 중…</small></p></div>
+    <button class="btn" id="askDev">개발자에게 문의하기</button>
+    <button class="btn alt" id="ovClose">닫기</button>`;
+  card.querySelector('#ovClose').onclick = () => hideOverlay();
+  card.querySelector('#askDev').onclick = () => showInquiry(showNotices);
+  $('overlay').classList.add('show');
+  await checkNotices();
+  const box = card.querySelector('.noticeList'); if (!box) return;
+  box.innerHTML = noticeCache.length ? noticeCache.map(n => `<div class="notice"><b>${esc(n.title)}</b><small>${fmtDate(n.at)}</small>
+    <div class="nBody">${esc(n.body).replace(/\n/g, '<br>')}</div></div>`).join('') : '<p><small>아직 공지가 없어요</small></p>';
+  if (noticeCache[0]) { store.set('busGame.noticeSeen', noticeCache[0].id); $('noticeBtn').classList.remove('hasDot'); }
+}
+// 문의하기: 글을 보내면 개발자가 읽고 답을 달아요. 답이 달리면 폰 알림이 가고, 여기서 볼 수 있어요
+async function showInquiry(back) {
+  const card = $('card');
+  card.innerHTML = `<h2>개발자에게 문의하기</h2>
+    <textarea class="letterBox" id="inqText" maxlength="1000" placeholder="불편한 점, 버그, 바라는 점을 자유롭게 적어 주세요"></textarea>
+    <div class="letterCount"><span id="inqN">0</span> / 1000</div>
+    <button class="btn" id="inqSend">보내기</button>
+    <p class="secTitle">내 문의</p><div class="noticeList" id="myInq"><p><small>불러오는 중…</small></p></div>
+    <button class="btn alt" id="ovBack">돌아가기</button>`;
+  const ta = card.querySelector('#inqText');
+  ta.oninput = () => card.querySelector('#inqN').textContent = ta.value.length;
+  card.querySelector('#ovBack').onclick = () => back ? back() : hideOverlay();
+  $('overlay').classList.add('show');
+  const loadMine = async () => {
+    const box = card.querySelector('#myInq'); if (!box) return;
+    if (!nickname || !(await ensureAccount())) { box.innerHTML = '<p><small>닉네임을 정하고 인터넷에 연결하면 보낼 수 있어요.</small></p>'; return; }
+    try {
+      const list = (await api('/inquiry')).inquiries;
+      box.innerHTML = list.length ? list.map(q => `<div class="notice"><small>${fmtDate(q.at)}</small><div class="nBody">${esc(q.body).replace(/\n/g, '<br>')}</div>
+        ${q.reply ? `<div class="reply"><b>개발자 답변</b><br>${esc(q.reply).replace(/\n/g, '<br>')}</div>` : '<small class="wait">답변을 기다리는 중이에요</small>'}</div>`).join('')
+        : '<p><small>아직 보낸 문의가 없어요</small></p>';
+    } catch (e) { box.innerHTML = '<p><small>불러오지 못했어요</small></p>'; }
+  };
+  card.querySelector('#inqSend').onclick = async e => {
+    const text = ta.value.trim();
+    if (text.length < 2) { toast('문의 내용을 적어 주세요'); return; }
+    if (!nickname || !(await ensureAccount())) { toast('닉네임을 정하고 인터넷에 연결해 주세요', 2200); return; }
+    e.target.disabled = true;
+    try { await api('/inquiry', { text, ver: APP_VER, ua: navigator.userAgent }); ta.value = ''; card.querySelector('#inqN').textContent = '0'; toast('문의를 보냈어요! 답이 오면 알려 드릴게요 💌', 2200); loadMine(); }
+    catch (err) { toast(err.message && err.message.length < 40 ? err.message : '보내지 못했어요', 2200); }
+    e.target.disabled = false;
+  };
+  loadMine();
+}
+
 // ---- 친구 삭제 / 차단 ----
 function manageFriend(id, name) {
   const card = $('card');
@@ -590,6 +652,10 @@ const MAIL_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="t
   <path d="M12 13.2 C10.6 11.6 9.4 12.2 9.6 13.3 C9.8 14.4 12 15.8 12 15.8 C12 15.8 14.2 14.4 14.4 13.3 C14.6 12.2 13.4 11.6 12 13.2Z" fill="#e8768e" stroke-width="1"/></g></svg>`;
 $('mailBtn').innerHTML = MAIL_SVG + '<span class="dot">N</span>';   // 새 소식이 있으면 N
 $('mailBtn').onclick = () => showMail();
+$('noticeBtn').innerHTML = NOTICE_SVG + '<span class="dot"></span>';
+$('noticeBtn').onclick = () => showNotices();
+setTimeout(checkNotices, 2500);                       // 새 공지가 있으면 확성기 버튼에 빨간 점
+setInterval(checkNotices, 30 * 60 * 1000);
 const CHAT_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g stroke="#4a3b2c" stroke-width="1.5" stroke-linejoin="round">
   <path d="M4 5.5 H20 A1.5 1.5 0 0 1 21.5 7 V15 A1.5 1.5 0 0 1 20 16.5 H11 L6.5 20 V16.5 H4 A1.5 1.5 0 0 1 2.5 15 V7 A1.5 1.5 0 0 1 4 5.5Z" fill="#cfe6d6"/>
   <circle cx="8" cy="11" r="1.1" fill="#4a3b2c" stroke="none"/><circle cx="12" cy="11" r="1.1" fill="#4a3b2c" stroke="none"/><circle cx="16" cy="11" r="1.1" fill="#4a3b2c" stroke="none"/></g></svg>`;

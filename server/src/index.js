@@ -64,7 +64,7 @@ export default {
 
   // 5분마다: 하트가 가득 찬 사람에게 알림 + 여행 알림
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(notifyFullHearts(env).then(() => remindTravelers(env)).then(() => cleanUp(env)));
+    ctx.waitUntil(notifyFullHearts(env).then(() => remindTravelers(env)).then(() => notifyReplies(env)).then(() => cleanUp(env)));
   },
 };
 
@@ -74,6 +74,10 @@ async function handle(req, env, ctx) {
     try {
       const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
       if (path === '/' ) return json({ ok: true, name: 'meow-bus-api' });
+      if (path === '/notices' && req.method === 'GET') {                                  // 공지사항 (누구나 볼 수 있어요)
+        const { results } = await env.DB.prepare('SELECT id, at, title, body FROM notices ORDER BY id DESC LIMIT 30').all();
+        return json({ notices: results });
+      }
       if (path === '/nick/check' && req.method === 'GET') {                              // 닉네임 쓸 수 있는지 (중복 막기)
         if (await tooMany(env, 'nick:' + ipOf(req), 120, 3600000)) return slowDown();
         const me = await auth(req, env);
@@ -121,6 +125,11 @@ async function handle(req, env, ctx) {
         return requestFriend(env, ctx, user, body);
       }
       if (path === '/friends/respond' && req.method === 'POST') return respondFriend(env, ctx, user, body);
+      if (path === '/inquiry' && req.method === 'POST') {
+        if (await tooMany(env, 'inq:' + user.id, 5, 3600000)) return json({ error: '문의는 한 시간에 5번까지 보낼 수 있어요' }, 429);
+        return sendInquiry(env, user, body);
+      }
+      if (path === '/inquiry' && req.method === 'GET') return myInquiries(env, user);
       if (path === '/chat' && req.method === 'GET') return listChat(env, user, +url.searchParams.get('after') || 0);
       if (path === '/chat' && req.method === 'POST') {
         if (await tooMany(env, 'chat1:' + user.id, 1, 2000)) return json({ error: '조금 천천히 보내 주세요' }, 429);   // 2초에 1번
@@ -350,6 +359,30 @@ async function respondFriend(env, ctx, user, body) {
     await env.DB.prepare('DELETE FROM friend_requests WHERE from_id = ? AND to_id = ?').bind(id, user.id).run();
   }
   return json({ ok: true });
+}
+
+// ---- 개발자에게 문의하기 (개발자가 읽고 답을 달아요. 답이 달리면 폰 알림) ----
+async function sendInquiry(env, user, body) {
+  const text = String(body.text || '').trim().slice(0, 1000);
+  if (text.length < 2) return json({ error: '문의 내용을 적어 주세요' }, 400);
+  const cut = (v, n) => String(v == null ? '' : v).slice(0, n);
+  await env.DB.prepare('INSERT INTO inquiries (at, user_id, nickname, body, ver, ua) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind(now(), user.id, user.nickname || '', text, cut(body.ver, 10), cut(body.ua, 160)).run();
+  return json({ ok: true });
+}
+async function myInquiries(env, user) {
+  const { results } = await env.DB.prepare('SELECT id, at, body, reply, replied_at FROM inquiries WHERE user_id = ? ORDER BY id DESC LIMIT 20').bind(user.id).all();
+  return json({ inquiries: results });
+}
+
+// 개발자가 답을 달면(status = 'replied') 문의한 사람에게 폰 알림을 보내요
+async function notifyReplies(env) {
+  const { results } = await env.DB.prepare(
+    `SELECT q.id, u.* FROM inquiries q JOIN users u ON u.id = q.user_id WHERE q.status = 'replied' LIMIT 50`).all();
+  for (const r of results) {
+    await env.DB.prepare("UPDATE inquiries SET status = 'notified' WHERE id = ?").bind(r.id).run();
+    await notify(env, r, '💬 문의에 답이 왔어요', '공지사항 → 내 문의에서 확인해 보세요');
+  }
 }
 
 // ---- 전체 채팅 (모두가 보는 짧은 말, 사흘 뒤 지워져요) ----

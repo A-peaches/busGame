@@ -110,3 +110,26 @@ CREATE TABLE IF NOT EXISTS errors (
 
 -- 닉네임은 한 사람만 (대소문자 구분 없이, 빈 닉네임은 제외)
 CREATE UNIQUE INDEX IF NOT EXISTS users_nick_unique ON users(lower(nickname)) WHERE nickname != '';
+
+-- 공지사항 (개발자가 고칠 때마다 무엇이 바뀌었는지 올려요)
+CREATE TABLE IF NOT EXISTS notices (
+  id     INTEGER PRIMARY KEY AUTOINCREMENT,
+  at     INTEGER NOT NULL,
+  title  TEXT NOT NULL,
+  body   TEXT NOT NULL
+);
+
+-- 개발자에게 문의 (답이 달리면 reply 에 적고 폰 알림)
+CREATE TABLE IF NOT EXISTS inquiries (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  at          INTEGER NOT NULL,
+  user_id     TEXT NOT NULL,
+  nickname    TEXT,
+  body        TEXT NOT NULL,
+  ver         TEXT,
+  ua          TEXT,
+  reply       TEXT,
+  replied_at  INTEGER,
+  status      TEXT NOT NULL DEFAULT 'new'
+);
+CREATE INDEX IF NOT EXISTS inquiries_user ON inquiries(user_id);

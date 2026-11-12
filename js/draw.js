@@ -578,7 +578,7 @@ function drawQueueArea() {
     const imgH = iry * 1.55, baseY = L.rcy + iry * 0.42;   // 하트 섬 안에 들어가는 크기
     const sh = S.treeShake > 0 ? Math.sin(S.treeShake * 40) * 0.06 * S.treeShake : 0;   // 누르면 살랑 흔들려요
     ctx.save(); ctx.translate(L.rcx, baseY); ctx.rotate(sh); ctx.translate(-L.rcx, -baseY);
-    ctx.drawImage(islandTree, L.rcx - imgH / 2, baseY - imgH * (110 / 120), imgH, imgH);
+    ctx.drawImage(treeBitmap(imgH), L.rcx - imgH / 2, baseY - imgH * (110 / 120), imgH, imgH);
     ctx.restore();
   }
 
@@ -880,3 +880,19 @@ function cachedLayer(name, key, y0, h, fn) {
   ctx.drawImage(c.cv, 0, c.y0, L.W, c.h);
 }
 document.fonts && document.fonts.ready.then(() => { for (const k in layerCache) delete layerCache[k]; });
+
+// 가운데 큰 나무: 잎사귀 수백 개짜리 그림(SVG)을 매번 붙이면 폰이 그때마다 다시 그려서 무거워요 (가을 나무 한 번에 약 3ms).
+// 처음에 한 번만 보통 그림(비트맵)으로 구워 두고 그걸 붙여요. 계절·크기가 바뀌면 다시 구워요.
+let treeBmp = null;
+function treeBitmap(size) {
+  const px = Math.ceil(size * DPR), key = islandTree.src.length + '|' + islandTree.src.slice(-40) + '|' + px;
+  if (!treeBmp || treeBmp.key !== key) {
+    const cv = (treeBmp && treeBmp.cv) || document.createElement('canvas');
+    cv.width = cv.height = px;
+    const c = cv.getContext('2d');
+    c.clearRect(0, 0, px, px);
+    c.drawImage(islandTree, 0, 0, px, px);
+    treeBmp = { cv, key };
+  }
+  return treeBmp.cv;
+}

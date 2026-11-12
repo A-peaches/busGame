@@ -95,7 +95,7 @@ function updateUI() {
   $('slotBtn').disabled = S.boost.slot <= 0 || S.slotCount >= MAX_SLOTS;
   $('liftBtn').disabled = S.boost.lift <= 0;
   $('liftBtn').classList.toggle('active', S.liftMode);
-  $('mixBtn').hidden = levelTier(S.level) !== 4;
+  $('mixBtn').hidden = levelTier(S.level) < 4;
   $('mixCnt').textContent = S.boost.mix;
   $('mixBtn').disabled = S.boost.mix <= 0;
 }
@@ -288,7 +288,7 @@ const HELP_PAGES = [
       <li>대기 칸이 꽉 찼는데 하트 길의 누구도 탈 수 없으면 <b>꽉 막혀요</b>.</li>
       <li><b>자리 추가</b>: 대기 칸이 한 칸 늘어나요. 단계마다 1개 (별 5개 단계는 2개).</li>
       <li><b>크레인</b>: 막혀 있는 버스도 아무거나 하나 바로 꺼내요. 단계마다 1개.</li>
-      <li><b>색 섞기</b>: 지금 꺼낼 수 있는 버스들의 색을 기다리는 멍냥이들 색으로 바꿔 줘요. <b>매우 어려움</b> 단계에서만 1개.</li>
+      <li><b>색 섞기</b>: 지금 꺼낼 수 있는 버스들의 색을 기다리는 멍냥이들 색으로 바꿔 줘요. <b>매우 어려움</b>·<b>최고 난이도</b> 단계에서만 1개.</li>
       <li>꽉 막혔을 때 [아이템 사용]으로 자리를 늘려 이어서 할 수도 있어요.</li>
     </ul>`],
   ['❤️ 하트', '하트', `<ul>

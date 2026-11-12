@@ -96,3 +96,14 @@ CREATE TABLE IF NOT EXISTS chat (
   at       INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS users_nick ON users(nickname);
+
+-- 게임 오류 기록 (멈춤 원인 찾기용, 개인정보 없이 · 2주 뒤 삭제)
+CREATE TABLE IF NOT EXISTS errors (
+  id     INTEGER PRIMARY KEY AUTOINCREMENT,
+  at     INTEGER NOT NULL,
+  ver    TEXT,
+  level  INTEGER,
+  msg    TEXT,
+  stack  TEXT,
+  ua     TEXT
+);

@@ -78,6 +78,13 @@ async function handle(req, env, ctx) {
         if (await tooMany(env, 'reg:' + ipOf(req), 20, 3600000)) return slowDown();      // 한 시간에 20개까지
         return register(env, body);
       }
+      if (path === '/log' && req.method === 'POST') {                                     // 게임 오류 기록 (개인정보 없이)
+        if (await tooMany(env, 'log:' + ipOf(req), 30, 3600000)) return json({ ok: true });
+        const cut = (v, n) => String(v == null ? '' : v).slice(0, n);
+        await env.DB.prepare('INSERT INTO errors (at, ver, level, msg, stack, ua) VALUES (?, ?, ?, ?, ?, ?)')
+          .bind(now(), cut(body.ver, 10), body.level | 0, cut(body.msg, 300), cut(body.stack, 1200), cut(body.ua, 160)).run();
+        return json({ ok: true });
+      }
       if (path === '/restore' && req.method === 'POST') {
         if (await tooMany(env, 'rst:' + ipOf(req), 10, 3600000)) return slowDown();      // 한 시간에 10번까지
         return restore(env, body);
@@ -428,6 +435,7 @@ async function cleanUp(env) {
     env.DB.prepare('DELETE FROM notes WHERE seen = 1 AND at < ?').bind(now() - 7 * DAY),
     env.DB.prepare('DELETE FROM throttle WHERE reset < ?').bind(now()),
     env.DB.prepare('DELETE FROM chat WHERE at < ?').bind(now() - 3 * DAY),
+    env.DB.prepare('DELETE FROM errors WHERE at < ?').bind(now() - 14 * DAY),
   ]);
 }
 

@@ -7,12 +7,14 @@ let last = performance.now(), skip = false;
 const busy = () => S && (S.rush > 0 || S.holding || S.flying.length > 0 ||
   S.vehicles.some(v => v.move || v.spin > 0 || v.bump || v.shake > 0 || v.pop < 1 || ['exiting', 'toSlot', 'departing'].includes(v.state)));
 function loop(now) {
+  requestAnimationFrame(loop);              // 먼저 다음 프레임을 예약해요 → 아래에서 오류가 나도 게임이 얼지 않아요
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
-  update(dt);
-  skip = !skip;
-  if (S && (busy() || !skip)) draw();
-  requestAnimationFrame(loop);
+  try {
+    update(dt);
+    skip = !skip;
+    if (S && (busy() || !skip)) draw();
+  } catch (e) { reportError(e); }
 }
 
 // 테스트용 주소: ?level=10 (그 단계로 바로), ?season=winter (계절 미리 보기), ?test (닉네임 묻지 않기)

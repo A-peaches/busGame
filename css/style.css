@@ -273,7 +273,7 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .letterBox { width: 100%; box-sizing: border-box; min-height: 84px; resize: none; font: inherit; font-size: 16px; padding: 10px; border: 1px solid #c9b99c; border-radius: 10px; background: #fffaf0; color: var(--ink); }
 .letterCount { text-align: right; font-size: calc(11px + var(--fd)); color: var(--muted); margin: 2px 2px 8px; }
 /* 친구 창 */
-.codeRow { display: flex; gap: 6px; align-items: center; justify-content: center; margin: 4px 0 8px; }
+.codeRow { display: flex; gap: 6px; align-items: stretch; justify-content: center; margin: 4px 0 8px; }
 .codeRow .nickInput { margin: 0; padding: 8px 10px; font-size: 16px; }
 .myCode { font-size: calc(20px + var(--fd)); letter-spacing: 2px; color: var(--ink); }
 .btn.mini { width: auto; margin: 0; padding: 7px 12px; font-size: calc(13px + var(--fd)); white-space: nowrap; flex: none; }

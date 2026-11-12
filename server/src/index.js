@@ -103,7 +103,8 @@ async function handle(req, env, ctx) {
       const user = await auth(req, env);
       if (!user) return json({ error: 'unauthorized' }, 401);
       // 접속 중 표시: 1분에 한 번만 마지막 접속 시각을 새로 적어요
-      if (now() - (user.last_seen || 0) > 60000) {
+      // (폰 알림을 받을 때 서비스 워커가 부르는 /inbox는 접속이 아니에요)
+      if (path !== '/inbox' && now() - (user.last_seen || 0) > 60000) {
         user.last_seen = now();
         ctx.waitUntil(env.DB.prepare('UPDATE users SET last_seen = ? WHERE id = ?').bind(user.last_seen, user.id).run());
       }

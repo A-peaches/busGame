@@ -429,7 +429,7 @@ async function showChat() {
   };
   const poll = async () => {
     if (!chatOpen || !$('overlay').classList.contains('show') || !card.contains(box)) { stop(); return; }
-    try { add((await api('/chat?after=' + chatLast)).messages); } catch (e) { /* 잠깐 끊겨도 다음에 다시 */ }
+    if (!document.hidden) try { add((await api('/chat?after=' + chatLast)).messages); } catch (e) { /* 잠깐 끊겨도 다음에 다시 */ }
     if (chatOpen) chatTimer = setTimeout(poll, document.hidden ? 15000 : 4000);   // 4초마다 새 글 확인
   };
   await poll();
@@ -662,7 +662,7 @@ $('mailBtn').onclick = () => showMail();
 $('noticeBtn').innerHTML = NOTICE_SVG + '<span class="dot"></span>';
 $('noticeBtn').onclick = () => showNotices();
 setTimeout(checkNotices, 2500);                       // 새 공지가 있으면 확성기 버튼에 빨간 점
-setInterval(checkNotices, 30 * 60 * 1000);
+setInterval(() => { if (!document.hidden) checkNotices(); }, 30 * 60 * 1000);   // 화면을 안 보고 있으면 쉬어요
 const CHAT_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g stroke="#4a3b2c" stroke-width="1.5" stroke-linejoin="round">
   <path d="M4 5.5 H20 A1.5 1.5 0 0 1 21.5 7 V15 A1.5 1.5 0 0 1 20 16.5 H11 L6.5 20 V16.5 H4 A1.5 1.5 0 0 1 2.5 15 V7 A1.5 1.5 0 0 1 4 5.5Z" fill="#cfe6d6"/>
   <circle cx="8" cy="11" r="1.1" fill="#4a3b2c" stroke="none"/><circle cx="12" cy="11" r="1.1" fill="#4a3b2c" stroke="none"/><circle cx="16" cy="11" r="1.1" fill="#4a3b2c" stroke="none"/></g></svg>`;
@@ -672,5 +672,5 @@ if (acct) saveAuthForSW();
 // 서비스 워커는 늘 등록해요 (폰 알림 + 앱처럼 설치하기)
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 setTimeout(syncNow, 1500);
-setInterval(syncNow, 2 * 60 * 1000);
+setInterval(() => { if (!document.hidden) syncNow(); }, 2 * 60 * 1000);   // 앱을 내려 두면 서버에 안 물어봐요 → '접속 중'으로 안 보여요
 document.addEventListener('visibilitychange', () => { if (!document.hidden) syncNow(); });

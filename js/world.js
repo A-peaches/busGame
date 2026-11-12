@@ -196,8 +196,17 @@ function makeParticles() {
         ? `<svg width="16" height="16" viewBox="0 0 20 20"><path d="M10 1 L12 6 L17 4 L15 9 L19 11 L14 12 L15 17 L10 14 L5 17 L6 12 L1 11 L5 9 L3 4 L8 6Z" fill="${pick(R, ['#d9653f', '#e8913f', '#c9472f'])}" stroke="rgba(112,80,60,.5)" stroke-width=".5"/><path d="M10 14 L10 19" stroke="#8a5a3a" stroke-width=".8"/></svg>`
         : `<svg width="14" height="14" viewBox="0 0 20 20"><path d="M10 18 L3 6 Q10 0 17 6Z" fill="${pick(R, GINKGO)}" stroke="rgba(150,110,40,.5)" stroke-width=".5"/><path d="M10 18 L10 20" stroke="#8a6a3a"/></svg>`;
     }
-    p.innerHTML = inner;
-    if (kind !== 'rain') p.firstElementChild.style.animationDuration = (2 + R() * 2.5) + 's';
+    if (kind === 'rain') p.innerHTML = inner;
+    else {
+      // 떨어지면서 흔들리기를 움직임 하나로 합치고, 잎 모양은 한 번 구운 그림으로 → 움직이는 층이 절반, 다시 칠하기 없음
+      p.classList.add('sway');
+      if (inner.startsWith('<svg')) {
+        const img = document.createElement('img');
+        img.alt = ''; img.draggable = false;
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(inner.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '));
+        p.appendChild(img);
+      } else p.innerHTML = inner;
+    }
     fx.appendChild(p);
   }
 }

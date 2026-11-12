@@ -47,7 +47,16 @@ html, body, button, canvas, #app { touch-action: manipulation; }
 /* 계절 입자: 벚꽃잎 / 나뭇잎 / 단풍 / 눈 */
 .fx { position: absolute; inset: 0; z-index: 3; overflow: hidden; pointer-events: none; }
 .particle { position: absolute; top: -30px; animation: fall linear infinite; will-change: transform; }
-.particle > * { display: block; animation: sway ease-in-out infinite alternate; will-change: transform; }
+.particle > * { display: block; }
+/* 나뭇잎·꽃잎·눈: 떨어지면서 좌우로 흔들리고 빙글 도는 움직임을 하나로 (가벼워요) */
+.particle.sway { animation-name: fallsway; animation-timing-function: ease-in-out; }
+@keyframes fallsway {
+  0%   { transform: translate(-14px, 0) rotate(-30deg); }
+  25%  { transform: translate(14px, 25vh) rotate(40deg); }
+  50%  { transform: translate(-14px, 50vh) rotate(-30deg); }
+  75%  { transform: translate(14px, 75vh) rotate(40deg); }
+  100% { transform: translate(-14px, calc(100vh + 60px)) rotate(-30deg); }
+}
 @keyframes fall { to { transform: translateY(calc(100vh + 60px)); } }
 @keyframes sway { from { transform: translateX(-18px) rotate(-35deg); } to { transform: translateX(18px) rotate(45deg); } }
 /* 눈송이: 하얀 눈밭 위에서도 보이도록 아주 옅은 푸른 테두리 */

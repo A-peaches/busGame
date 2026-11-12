@@ -180,10 +180,22 @@ const BUS = { x: 222, y0: 372, w: 120, h: 44, windows: 6, doorX: 244, gap: 13, e
 const busLive = { dx: 0, phase: 'arrive', t: 0, faces: [], queue: [], walker: null, timer: 2.5, last: 0 };
 const OUTL = 'rgba(112,104,96,.75)';
 const RIBBONS = ['#e8768e', '#7fb4d6', '#f2c35a', '#b9a2d8'];
-const randFriend = () => ({
+const newFriend = () => ({
   kind: Math.random() < 0.5 ? 'cat' : 'dog', c: Math.floor(Math.random() * COLORS.length),
   ribbon: Math.random() < 0.18 ? RIBBONS[Math.floor(Math.random() * 4)] : null, bag: Math.random() < 0.16,
 });
+// 정류장 멍냥이는 미리 정한 12마리 중에서 골라요. 그림은 한가할 때 하나씩 미리 그려 둬요
+//   (새 친구가 줄에 처음 나타나는 순간 그림을 그리면 오래된 폰에서 덜컥거려요)
+const FRIEND_POOL = Array.from({ length: 12 }, newFriend);
+const randFriend = () => ({ ...FRIEND_POOL[Math.floor(Math.random() * FRIEND_POOL.length)] });
+(function warmFriends(i = 0) {
+  if (i >= FRIEND_POOL.length) return;
+  const idle = window.requestIdleCallback || (f => setTimeout(f, 120));
+  idle(() => {
+    try { animalSpriteId(FRIEND_POOL[i]); if (typeof faceImg === 'function') faceImg(FRIEND_POOL[i]); } catch (e) { /* 나중에 그려도 돼요 */ }
+    warmFriends(i + 1);
+  });
+})();
 
 // 줄 서 있는 작은 멍냥이 (발 위치 = 0,0)
 function miniAnimalSVG(a, sleep = false) {
@@ -253,16 +265,12 @@ function animalSpriteId(a, lying = false) {
     else drawAnimal(64, 108, 26, a.c, a.kind, 0, 0, { ribbon: a.ribbon, bag: a.bag });
   } finally { ctx = saved; LW_SCALE = savedLW; }
   const id = 'spr-' + key;
-  const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-  img.setAttribute('id', id);
-  img.setAttribute('href', cv.toDataURL());
-  img.setAttribute('width', f1(W / SPR_PX)); img.setAttribute('height', f1(H / SPR_PX));
-  // 발 위치가 (0,0)에 오도록
-  img.setAttribute('x', f1(-W / 2 / SPR_PX)); img.setAttribute('y', f1(-(lying ? H - 14 : 108) / SPR_PX));
-  $('busDefs').appendChild(img);
+  // 발 위치가 (0,0)에 오도록 그릴 자리와 크기를 같이 기억해요
   spriteIds.set(key, id);
+  spriteCv.set(id, { cv, x: -W / 2 / SPR_PX, y: -(lying ? H - 14 : 108) / SPR_PX, w: W / SPR_PX, h: H / SPR_PX });
   return id;
 }
+const spriteCv = new Map();
 
 // 엎드려서 자는 멍냥이 (앞발 위에 턱을 괴고). x=가운데, y=바닥
 function drawLyingAnimal(x, y, r, colorIdx, kind, ribbon) {
@@ -328,28 +336,69 @@ function drawLyingAnimal(x, y, r, colorIdx, kind, ribbon) {
   }
 }
 
+// 메인 화면 정류장 장면은 캔버스에 그려요: 버스 몸체는 한 번 구운 그림, 멍냥이·창문 얼굴은 구워 둔 그림을 붙이기만
+//   (예전엔 1초에 14번 장면 전체를 SVG 글자로 새로 만들어서 오래된 폰에서 가끔 크게 멈칫했어요)
+const svgBitmap = (() => {
+  const cache = new Map();
+  return (key, svg, w, h) => {
+    let e = cache.get(key);
+    if (!e) {
+      if (cache.size > 60) cache.clear();
+      const img = new Image();
+      img.src = URL.createObjectURL(new Blob([`<svg xmlns="http://www.w3.org/2000/svg" ${svg.slice(4)}`], { type: 'image/svg+xml' }));
+      e = { img, w, h };
+      cache.set(key, e);
+    }
+    return e.img.complete && e.img.naturalWidth ? e.img : null;
+  };
+})();
+const BUS_VB = [-3, -2, BUS.w + 6, BUS.h + 14];
+const busBodyImg = () => svgBitmap('body', `<svg viewBox="${BUS_VB.join(' ')}" width="${BUS_VB[2] * 4}" height="${BUS_VB[3] * 4}">${busBodySVG([])}</svg>`);
+const faceKey = a => `${a.kind}${a.c}`;
+const faceImg = a => svgBitmap('face' + faceKey(a), `<svg viewBox="0 0 13.5 15" width="54" height="60">${windowFaceSVG(a, 0, 0)}</svg>`);
 function renderBusLive() {
   const el = $('busLive');
-  if (!el) return;
-  if (!$('busDyn')) el.innerHTML = `<defs id="busDefs"></defs><g transform="${SCENE_T}" id="busDyn"></g>`;
-  const B = busLive, by = BUS.y0 - 6 - BUS.h;
-  let s = `<g transform="translate(${f1(BUS.x + B.dx)} ${by})">${busBodySVG(B.faces)}</g>`;
-  // 줄 선 친구들 (인게임과 똑같은 그림, 크기만 작게)
-  B.queue.forEach(a => {
-    s += `<use href="#${animalSpriteId(a)}" transform="translate(${f1(a.x)} ${BUS.y0 + 7})" opacity="${f1(a.op)}"/>`;
-  });
-  if (B.walker) {
-    const w = B.walker;
-    s += `<use href="#${animalSpriteId(w)}" transform="translate(${f1(w.x)} ${f1(w.y)}) scale(${f1(w.k)})" opacity="${f1(w.op)}"/>`;
+  if (!el || !el.getContext) return;
+  const W = el.clientWidth, H = el.clientHeight;
+  if (!W || !H) return;
+  const pw = Math.round(W * DPR), ph = Math.round(H * DPR);
+  if (el.width !== pw || el.height !== ph) { el.width = pw; el.height = ph; }
+  const c = el.getContext('2d');
+  // viewBox 0 0 400 800 · xMidYMid slice + SCENE_T(42.7,372 기준 1.15배) 와 똑같이 맞춰요
+  const sc = Math.max(W / 400, H / 800), ox = (W - 400 * sc) / 2, oy = (H - 800 * sc) / 2, k = 1.15;
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.clearRect(0, 0, pw, ph);
+  c.setTransform(DPR * sc * k, 0, 0, DPR * sc * k, DPR * (ox + sc * 42.7 * (1 - k)), DPR * (oy + sc * 372 * (1 - k)));
+  const B = busLive, by = BUS.y0 - 6 - BUS.h, bx = BUS.x + B.dx;
+  // 버스 몸체 + 창문 얼굴 + 유리 반사
+  const body = busBodyImg();
+  if (body) c.drawImage(body, bx + BUS_VB[0], by + BUS_VB[1], BUS_VB[2], BUS_VB[3]);
+  for (let i = 0; i < BUS.windows; i++) {
+    const a = B.faces[i]; if (!a) continue;
+    const wx = bx + 30 + i * 15, wy = by + 11, f = faceImg(a);
+    if (f) c.drawImage(f, wx, wy, 13.5, 15);
+    c.fillStyle = 'rgba(200,225,235,.18)'; c.fillRect(wx, wy, 13.5, 15);
   }
+  const put = (a, x, y, s = 1, op = 1, lying = false) => {
+    const sp = spriteCv.get(animalSpriteId(a, lying)); if (!sp) return;
+    c.globalAlpha = op;
+    c.drawImage(sp.cv, x + sp.x * s, y + sp.y * s, sp.w * s, sp.h * s);
+    c.globalAlpha = 1;
+  };
+  // 줄 선 친구들 (인게임과 똑같은 그림, 크기만 작게)
+  B.queue.forEach(a => put(a, a.x, BUS.y0 + 7, 1, a.op));
+  if (B.walker) put(B.walker, B.walker.x, B.walker.y, B.walker.k, B.walker.op);
   // 정류장 벤치에 엎드려 쿨쿨 자는 친구 + 둥실 떠오르는 z
   const tz = performance.now() / 1000;
-  s += `<use href="#${animalSpriteId(benchSleeper, true)}" transform="translate(54 ${f1(BUS.y0 - 14 + Math.sin(tz * 1.6) * 0.25)}) scale(.72)"/>`;
+  put(benchSleeper, 54, BUS.y0 - 14 + Math.sin(tz * 1.6) * 0.25, 0.72, 1, true);
+  c.fillStyle = '#8f9bb3'; c.textAlign = 'left'; c.textBaseline = 'alphabetic';
   for (let i = 0; i < 3; i++) {
-    const k = (tz / 2.4 + i / 3) % 1;
-    s += `<text x="${f1(48 + k * 8)}" y="${f1(BUS.y0 - 24 - k * 12)}" font-size="${f1(3 + k * 3)}" font-family="MaruBuri, serif" font-weight="700" fill="#8f9bb3" opacity="${f1(Math.sin(k * Math.PI) * 0.9)}">z</text>`;
+    const q = (tz / 2.4 + i / 3) % 1;
+    c.globalAlpha = Math.sin(q * Math.PI) * 0.9;
+    c.font = `700 ${3 + q * 3}px MaruBuri, serif`;
+    c.fillText('z', 48 + q * 8, BUS.y0 - 24 - q * 12);
   }
-  $('busDyn').innerHTML = s;
+  c.globalAlpha = 1;
 }
 const benchSleeper = { kind: 'cat', c: 3, ribbon: '#e8768e', bag: false };
 function tickBusLive() {

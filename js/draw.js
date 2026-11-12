@@ -41,13 +41,13 @@ function drawVehicle(x, y, a, w, l, colorIdx, hidden, o = {}) {
 
   // 차체: 무광, 양옆이 살짝 어두워 둥근 부피감 + 얇은 갈색 테두리
   const g = ctx.createLinearGradient(-w / 2, 0, w / 2, 0);
-  g.addColorStop(0, C.d); g.addColorStop(0.24, C.c); g.addColorStop(0.76, C.c); g.addColorStop(1, C.d);
+  g.addColorStop(0, shadeOf(C)); g.addColorStop(0.18, C.c); g.addColorStop(0.82, C.c); g.addColorStop(1, shadeOf(C));   // 멍냥이 털색과 똑같은 색이 넓게
   ctx.fillStyle = g;
   rr(-w / 2, -l / 2, w, l, R); ctx.fill();
   ctx.strokeStyle = LINE; ctx.lineWidth = lw; ctx.stroke();
 
   // 옛날 시골버스 같은 투톤 지붕
-  ctx.fillStyle = 'rgba(250,240,222,.3)';
+  ctx.fillStyle = 'rgba(255,250,240,.12)';           // 지붕은 아주 옅게만 (색이 바래 보이지 않게)
   rr(-w * 0.31, -l / 2 + w * 0.46, w * 0.62, l - w * 0.9, w * 0.14); ctx.fill();
   ctx.strokeStyle = 'rgba(112,104,96,.4)'; ctx.lineWidth = lw * 0.7; ctx.stroke();
 
@@ -752,21 +752,21 @@ function drawRail() {
   // 레일 칸 나눔선 (위의 주차장 세로줄과 딱 맞아요)
   ctx.strokeStyle = 'rgba(246,232,190,.35)'; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
   ctx.beginPath();
-  for (let k = 0; k <= R.K; k++) { const x = L.bx + L.railW * k; ctx.moveTo(x, y0 + 4); ctx.lineTo(x, y0 + h - 4); }
+  for (let k = 0; k <= R.K; k++) { const x = L.rx0 + L.railW * k; ctx.moveTo(x, y0 + 4); ctx.lineTo(x, y0 + h - 4); }
   ctx.stroke(); ctx.setLineDash([]);
   ctx.restore();
   };
   if (R.anim > 0) drawBase();
-  else cachedLayer('rail', `${L.W}|${L.H}|${DPR}|${R.K}|${L.railW}`, y0 - 1, h + 2, drawBase);
+  else cachedLayer('rail', `${L.W}|${L.H}|${DPR}|${R.K}|${L.railW}|${L.rx0}`, y0 - 1, h + 2, drawBase);
   ctx.save();
   rr(8, y0, L.W - 16, h, 14); ctx.clip();
   // 레일 위 버스들 (위를 보고 서 있어요. 위가 비면 위로 쭉 나가요)
-  ctx.beginPath(); ctx.rect(L.bx, y0, L.railW * R.K, h); ctx.clip();
+  ctx.beginPath(); ctx.rect(L.rx0, y0, L.railW * R.K, h); ctx.clip();
   R.items.forEach((v, i) => {
     if (!v) return;
     const c = railCenter(i), s = railSize(v);
     let x = c.x - off;
-    if (x < L.bx - L.railW * 0.5) x += L.railW * R.K;
+    if (x < L.rx0 - L.railW * 0.5) x += L.railW * R.K;
     const sh = v.shake > 0 ? Math.sin(v.shake * 60) * 2.5 : 0;
     drawVehicle(x + sh, c.y, 0, s.w, s.l, v.color, false, { arrow: true, capLabel: v.cap });
   });

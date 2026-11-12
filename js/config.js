@@ -20,6 +20,7 @@ const MAX_SLOTS = 7;    // 대기 칸 최대
 const BASE_SLOTS = 4;   // 처음 열린 대기 칸
 const BODY_W = 0.74;    // 버스 폭 (칸 단위)
 const GAP = 0.03;       // 버스 사이 최소 간격의 절반
+const CS_MIN = 24;      // 주차장 한 칸의 최소 크기(px): 이보다 작으면 다른 구역을 줄여서라도 지켜요
 
 const canvas = document.getElementById('cv');
 let ctx = canvas.getContext('2d');      // (작은 그림 이미지를 만들 때 잠깐 다른 그림판으로 바꿔 써요)
@@ -47,7 +48,7 @@ const BUS_SVG = `<svg class="busIcon" viewBox="0 0 42 28" aria-hidden="true"><g 
 
 // 저장 (브라우저에 진행 상황 기억)
 // 지금 쓰는 파일 버전 (index.html 의 ?v= 와 같게). 설정 창 맨 아래에 보여서 폰이 새 파일을 받았는지 알 수 있어요
-const APP_VER = 71;
+const APP_VER = 72;
 // 화면 해상도 상한: 폰 화면이 아주 촘촘해도(3배) 2배까지만 그려요 → 그릴 점이 절반 이하, 발열·배터리 절약
 // 가벼운 모드: 오래된 폰에서 버벅이지 않게 그림을 조금 단순하게 해요.
 //   설정값 'auto'(느리면 자동으로 켜짐) / 'on' / 'off'. 자동으로 켜진 적이 있으면 기억해 둬요.

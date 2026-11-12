@@ -17,6 +17,18 @@ function layout() {
   L.laneW = L.pr * 2.9;
   L.sp = L.pr * 2.15;
   L.qTop = 2; L.qH = clamp(H * 0.27, 130, 250);
+  // 주차장 버스가 너무 작아지지 않게: 화면이 낮으면 승객 구역·정류장·레일을 조금씩 줄여 주차장 높이를 확보해요
+  let sH = clamp(H * 0.11, 56, 100), railH = S.rail ? clamp(H * 0.085, 50, 76) : 0;
+  {
+    const fixed = L.qTop + 8 + L.pr * 2.2 + L.pr * 2.8 + 12 + pad + (S.rail ? 8 : 0);
+    const want = CS_MIN * (S.rows + 0.4) + 16;                       // 이만큼은 있어야 버스가 적당한 크기
+    const fitW = (W - 2 * pad - 16) / (S.cols + 0.4);                 // 가로가 먼저 모자라면 줄여도 소용없어요
+    let need = Math.min(want, fitW * (S.rows + 0.4) + 16) - (H - fixed - L.qH - sH - railH);
+    const take = (cur, min) => { const d = Math.max(0, Math.min(need, cur - min)); need -= d; return cur - d; };
+    if (need > 0) L.qH = take(L.qH, 96);
+    if (need > 0) sH = take(sH, 44);
+    if (need > 0 && S.rail) railH = take(railH, 40);
+  }
   L.headRoom = L.pr * 2.3;
   L.ry = Math.max(20, (L.qH - L.laneW - L.headRoom - 12) / 2);
   L.rx = Math.min((W - 28) * 0.34, L.ry * 1.2);      // 하트가 옆으로 늘어나지 않게
@@ -34,7 +46,7 @@ function layout() {
   L.sTop = L.qTop + L.qH + 8;
   L.swH = L.pr * 2.2;                                         // 보도 높이
   L.walkY = L.sTop + L.swH * 0.55;
-  L.sH = clamp(H * 0.11, 56, 100);
+  L.sH = sH;
   L.roadH = L.pr * 2.8;
   L.sw = Math.min((W - 2 * pad) / MAX_SLOTS, L.sH * 0.62);
   L.sx0 = (W - L.sw * MAX_SLOTS) / 2;
@@ -45,7 +57,7 @@ function layout() {
   let bH = H - bTop - pad;
   // 레일 버스 이벤트: 주차장 아래에 레일 자리를 만들어요
   if (S.rail) {
-    L.railH = clamp(H * 0.085, 50, 76);
+    L.railH = railH;
     bH -= L.railH + 8;
     L.railTop = bTop + bH + 8;
   }
@@ -53,7 +65,7 @@ function layout() {
   L.cs = Math.floor(Math.min((W - 2 * pad - 16) / (S.cols + 0.4), (bH - 16) / (S.rows + 0.4)));
   L.bx = (W - L.cs * S.cols) / 2;
   L.by = bTop + (bH - L.cs * S.rows) / 2;
-  if (S.rail) L.railW = L.cs;                   // 레일 칸은 주차장 세로줄과 딱 맞아요
+  if (S.rail) { L.railW = L.cs; L.rx0 = L.bx + (S.rail.off || 0) * L.cs; }   // 레일 칸은 주차장 세로줄과 딱 맞아요 (돌린 판에서는 가운데 줄들)
 
   syncRing();
 }
@@ -199,7 +211,7 @@ canvas.addEventListener('pointerdown', e => {
 
   // 레일 버스
   if (S.rail && py >= L.railTop && py <= L.railTop + L.railH) {
-    const i = Math.floor((px - L.bx) / L.railW);
+    const i = Math.floor((px - L.rx0) / L.railW);
     if (i >= 0 && i < S.rail.K) tapRail(i);
     return;
   }

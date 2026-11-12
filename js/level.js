@@ -224,6 +224,26 @@ function genLevel(n) {
 // =====================================================================
 //  게임 시작
 // =====================================================================
+// 주차장이 화면에 비해 세로로 길면 통째로 90도 돌려서 버스를 더 크게 보여 줘요.
+//   (모든 버스를 같이 돌리니 어떤 버스가 막히는지는 그대로예요. 레일은 그대로 아래에 있어요)
+function fitBoardTurn() {
+  layout();
+  if (!(L.W > 0 && L.bH > 0)) return;
+  const aw = L.W - 36, ah = L.bH - 16;
+  const now = Math.min(aw / (S.cols + 0.4), ah / (S.rows + 0.4));
+  const turned = Math.min(aw / (S.rows + 0.4), ah / (S.cols + 0.4));
+  if (turned < now * 1.08) return;
+  const R = S.rows;
+  for (const v of S.vehicles) {
+    if (v.state !== 'parked') continue;
+    [v.cx, v.cy] = [R - v.cy, v.cx];
+    v.ang = normAng(v.ang + Math.PI / 2);
+    v.body = bodyBox(v);
+  }
+  [S.cols, S.rows] = [S.rows, S.cols];
+  if (S.rail) S.rail.off = Math.floor((S.cols - S.rail.K) / 2);   // 레일은 넓어진 주차장 가운데 줄들 아래에
+  S.turned = true;
+}
 function startLevel(n) {
   const g = genLevel(n);
   // 이 단계 도전 횟수 세기 (클리어하면 "N번의 시도로 성공!")
@@ -255,6 +275,7 @@ function startLevel(n) {
   // U턴 버스는 정해진 턴(버스를 누른 횟수)마다 한꺼번에 방향을 바꿔요
   S.turnEvery = 3; S.turnLeft = S.turnEvery;
   showScreen('game');
+  fitBoardTurn();
   revealCheck(true);
   layout();
   for (let k = 0; k < S.ring.length; k++) if (S.waiting.length) S.ring[k] = S.waiting.shift();
@@ -306,11 +327,11 @@ function railStep() {
   it.unshift(it.pop());
   S.rail.anim = 1;
 }
-const railCenter = i => ({ x: L.bx + L.railW * (i + 0.5), y: L.railTop + L.railH / 2 });   // 레일 칸 = 주차장 세로줄
+const railCenter = i => ({ x: L.rx0 + L.railW * (i + 0.5), y: L.railTop + L.railH / 2 });   // 레일 칸 = 주차장 세로줄
 const railSize = v => ({ w: v.w * L.cs, l: Math.min(L.railH * 0.88, v.l * L.cs) });
 // 레일 버스를 누르면: 바로 위 같은 세로줄이 비어 있을 때만 위로 쭉 빠져나가요. 어느 쪽이든 한 턴이 지나요.
 function railToBoard(v, i) {
-  v.cx = i + 0.5;
+  v.cx = i + 0.5 + (S.rail.off || 0);
   v.cy = (L.railTop + L.railH / 2 - L.by) / L.cs;
   v.ang = 0; v.off = 0; v.fromRail = true;
   v.body = bodyBox(v);

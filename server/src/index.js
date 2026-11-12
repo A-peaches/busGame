@@ -90,7 +90,7 @@ async function handle(req, env, ctx) {
       }
       if (path === '/gift' && req.method === 'POST') return gift(env, ctx, user, body);
       if (path === '/gifts' && req.method === 'GET') return listGifts(env, user);
-      if (path === '/gifts/claim' && req.method === 'POST') return claimGifts(env, user);
+      if (path === '/gifts/claim' && req.method === 'POST') return claimGifts(env, user, body);
       if (path === '/push' && req.method === 'POST') return savePush(env, user, body);
       if (path === '/inbox') return inbox(env, user);
       if (path === '/backup' && req.method === 'POST') return makeBackup(env, user);
@@ -180,9 +180,9 @@ async function sendLetter(env, ctx, user, body) {
 async function listMail(env, user) {
   const { results } = await env.DB.prepare(
     `SELECT * FROM (
-       SELECT 'heart' AS kind, g.from_id, g.to_id, '' AS body, g.at, 1 AS read FROM gifts g WHERE g.to_id = ?1 OR g.from_id = ?1
+       SELECT 'heart' AS kind, g.id, g.from_id, g.to_id, '' AS body, g.at, g.claimed AS read FROM gifts g WHERE g.to_id = ?1 OR g.from_id = ?1
        UNION ALL
-       SELECT 'letter' AS kind, l.from_id, l.to_id, l.body, l.at, l.read FROM letters l WHERE l.to_id = ?1 OR l.from_id = ?1
+       SELECT 'letter' AS kind, l.id, l.from_id, l.to_id, l.body, l.at, l.read FROM letters l WHERE l.to_id = ?1 OR l.from_id = ?1
      ) m ORDER BY m.at DESC LIMIT 80`).bind(user.id).all();
   const ids = [...new Set(results.flatMap(r => [r.from_id, r.to_id]))];
   const names = {};
@@ -192,7 +192,9 @@ async function listMail(env, user) {
   }
   return json({ mail: results.map(r => {
     const mine = r.from_id === user.id, other = mine ? r.to_id : r.from_id;
-    return { kind: r.kind, dir: mine ? 'out' : 'in', friendId: other, nickname: names[other] || '친구', body: r.body, at: r.at, unread: !mine && !r.read };
+    const m = { kind: r.kind, dir: mine ? 'out' : 'in', friendId: other, nickname: names[other] || '친구', body: r.body, at: r.at, unread: !mine && !r.read };
+    if (r.kind === 'heart' && !mine && !r.read) m.giftId = r.id;     // 아직 안 받은 하트: 우편함에서 [받기]
+    return m;
   }), now: now() });
 }
 async function readMail(env, user) {
@@ -244,12 +246,13 @@ async function listGifts(env, user) {
   return json({ gifts: results });
 }
 
-async function claimGifts(env, user) {
-  const { results } = await env.DB.prepare(
-    `SELECT g.id, u.nickname FROM gifts g LEFT JOIN users u ON u.id = g.from_id WHERE g.to_id = ? AND g.claimed = 0`).bind(user.id).all();
-  if (!results.length) return json({ count: 0, from: [] });
-  await env.DB.prepare('UPDATE gifts SET claimed = 1 WHERE to_id = ? AND claimed = 0').bind(user.id).run();
-  return json({ count: results.length, from: results.map(r => r.nickname || '친구') });
+// 하트 받기: id 를 주면 그 하트 하나만, 없으면 모두. (내 앞으로 온 것만, 한 번만 받을 수 있어요)
+async function claimGifts(env, user, body) {
+  const one = Number.isInteger(body && body.id) ? body.id : null;
+  const r = one !== null
+    ? await env.DB.prepare('UPDATE gifts SET claimed = 1 WHERE id = ? AND to_id = ? AND claimed = 0').bind(one, user.id).run()
+    : await env.DB.prepare('UPDATE gifts SET claimed = 1 WHERE to_id = ? AND claimed = 0').bind(user.id).run();
+  return json({ count: (r.meta && r.meta.changes) || 0 });
 }
 
 async function savePush(env, user, body) {

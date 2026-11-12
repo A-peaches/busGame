@@ -51,66 +51,31 @@ async function syncOnce() {
       unlocked = r.unlocked; store.set('busGame.unlocked', unlocked);
       if (!S) renderMap();
     }
-    setGiftBadge(r.gifts || 0);
-    setMailBadge(r.letters || 0);
-    if (r.gifts > 0) checkGifts();
+    setMailBadge((r.gifts || 0) + (r.letters || 0));   // 안 받은 하트 + 안 읽은 쪽지 → 우편함에 N
   } catch (e) {
     if (e.status === 401) { acct = null; store.set('busGame.acct', null); }
   }
 }
 
+// 우편함 버튼의 N 표시: 안 받은 하트나 안 읽은 쪽지가 있을 때
 function setMailBadge(n) {
+  pendingGifts = n;
   const b = $('mailBtn');
   if (b) b.classList.toggle('hasDot', n > 0);
 }
-function setGiftBadge(n) {
-  pendingGifts = n;
-  const b = $('friendsBtn');
-  if (b) b.classList.toggle('hasDot', n > 0);
-}
 
-// ---- 하트 선물 받기 ----
-let giftPopupOpen = false, giftChecking = false;
-const toldGifts = new Set();                       // 이미 알려 준 하트 (같은 하트를 또 알리지 않아요)
-async function checkGifts() {
-  if (giftPopupOpen || giftChecking) return;       // 확인 중이거나 창이 떠 있으면 또 하지 않아요
-  giftChecking = true;
-  let list;
-  try { list = (await api('/gifts')).gifts; } catch (e) { list = []; }
-  giftChecking = false;
-  if (!list.length || giftPopupOpen) return;
-  const names = [...new Set(list.map(g => g.nickname || '친구'))];
-  if (S || $('overlay').classList.contains('show')) {      // 게임 중이면 살짝만 알려 주고, 지도에서 받아요
-    const fresh = list.filter(g => !toldGifts.has(g.id));
-    if (fresh.length) {
-      fresh.forEach(g => toldGifts.add(g.id));
-      toast(`💌 ${names[0]}님${names.length > 1 ? ' 외 ' + (names.length - 1) + '명' : ''}이 하트를 보냈어요!`, 2400);
-    }
-    return;
+// ---- 하트 선물: 팝업 없이 우편함에서 원할 때 [받기] ----
+async function claimHeart(id) {
+  const c = await api('/gifts/claim', id === undefined ? {} : { id });
+  if (c.count > 0) {
+    refreshHearts();
+    if (hearts.n >= HEART_MAX) hearts.t = Date.now();
+    hearts.n += c.count;
+    store.set('busGame.hearts', hearts);
+    renderHearts();
+    toast(`하트 ${c.count}개를 받았어요!`, 1600);
   }
-  list.forEach(g => toldGifts.add(g.id));
-  giftPopupOpen = true;
-  const card = $('card');
-  card.innerHTML = `<h2>💌 하트 도착!</h2>
-    <p><b>${names.map(esc).join(', ')}</b>님이 하트를 보냈어요!</p>
-    <p><span class="heartNow">${HEART_SVG} × ${list.length}</span></p>
-    <button class="btn" id="ovClaim">받기</button>`;
-  card.querySelector('#ovClaim').onclick = async () => {
-    try {
-      const c = await api('/gifts/claim', {});
-      refreshHearts();
-      if (hearts.n >= HEART_MAX) hearts.t = Date.now();
-      hearts.n += c.count;
-      store.set('busGame.hearts', hearts);
-      renderHearts();
-      toast(`하트 ${c.count}개를 받았어요!`, 1800);
-    } catch (e) { toast('다시 시도해 주세요'); }
-    giftPopupOpen = false;
-    setGiftBadge(0);
-    hideOverlay();
-    syncSoon();
-  };
-  $('overlay').classList.add('show');
+  return c.count;
 }
 
 // ---- 트로피 (1등 금, 2등 은, 3등 동) ----
@@ -164,13 +129,17 @@ async function showMail() {
   let r;
   try { r = await api('/mail'); } catch (e) { card.innerHTML = '<h2>' + MAIL_TITLE + '</h2><p>우편함을 불러오지 못했어요.</p>' + close; bindClose(); return; }
   const t = r.now;
+  const toClaim = r.mail.filter(m => m.giftId).length;
   card.innerHTML = `<h2>${MAIL_TITLE}</h2>
+    ${toClaim > 1 ? `<button class="btn mini claimAll" id="claimAll">하트 모두 받기 (${toClaim})</button>` : ''}
     <div class="mailList">${r.mail.length ? r.mail.map(m => {
       const who = `<b>${esc(m.nickname)}</b>님`;
       const what = m.kind === 'heart'
         ? (m.dir === 'in' ? `${who}이 하트를 보냈어요` : `${who}에게 하트를 보냈어요`)
         : (m.dir === 'in' ? `${who}의 쪽지` : `${who}에게 보낸 쪽지`);
-      const reply = m.kind === 'letter' && m.dir === 'in'
+      const reply = m.giftId
+        ? `<button class="btn mini" data-claim="${m.giftId}">받기</button>`
+        : m.kind === 'letter' && m.dir === 'in'
         ? `<button class="btn alt mini" data-reply="${esc(m.friendId)}" data-name="${esc(m.nickname)}">답장</button>` : '';
       return `<div class="mailRow${m.unread ? ' unread' : ''}"><span class="mi">${m.kind === 'heart' ? HEART_SVG : '✉️'}</span>
         <span class="mb">${what} <small>· ${fmtAgo(t - m.at)}</small>${m.kind === 'letter' ? `<span class="letter">${esc(m.body)}</span>` : ''}</span>${reply}</div>`;
@@ -179,7 +148,17 @@ async function showMail() {
     ${close}`;
   bindClose();
   card.querySelectorAll('button[data-reply]').forEach(b => b.onclick = () => writeLetter(b.dataset.reply, b.dataset.name, showMail));
-  if (r.mail.some(m => m.unread)) { api('/mail/read', {}).catch(() => {}); setMailBadge(0); }
+  const afterClaim = () => { showMail(); syncSoon(); };
+  card.querySelectorAll('button[data-claim]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try { await claimHeart(+b.dataset.claim); } catch (e) { toast('다시 시도해 주세요'); }
+    afterClaim();
+  });
+  const all = card.querySelector('#claimAll');
+  if (all) all.onclick = async () => { all.disabled = true; try { await claimHeart(); } catch (e) { toast('다시 시도해 주세요'); } afterClaim(); };
+  // 쪽지는 열어 보면 읽음. 안 받은 하트가 남아 있으면 N 표시는 그대로예요
+  if (r.mail.some(m => m.unread && m.kind === 'letter')) api('/mail/read', {}).catch(() => {});
+  setMailBadge(toClaim);
 }
 
 // ---- 친구 창 ----
@@ -445,7 +424,7 @@ $('friendsBtn').onclick = () => showFriends();
 const MAIL_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g stroke="#4a3b2c" stroke-width="1.5" stroke-linejoin="round">
   <rect x="3" y="6" width="18" height="13" rx="2.5" fill="#fbf3e2"/><path d="M3.8 7 L12 13.2 L20.2 7" fill="none"/>
   <path d="M12 13.2 C10.6 11.6 9.4 12.2 9.6 13.3 C9.8 14.4 12 15.8 12 15.8 C12 15.8 14.2 14.4 14.4 13.3 C14.6 12.2 13.4 11.6 12 13.2Z" fill="#e8768e" stroke-width="1"/></g></svg>`;
-$('mailBtn').innerHTML = MAIL_SVG + '<span class="dot"></span>';
+$('mailBtn').innerHTML = MAIL_SVG + '<span class="dot">N</span>';   // 새 소식이 있으면 N
 $('mailBtn').onclick = () => showMail();
 if (acct) saveAuthForSW();
 // 서비스 워커는 늘 등록해요 (폰 알림 + 앱처럼 설치하기)

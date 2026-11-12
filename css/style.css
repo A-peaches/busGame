@@ -267,3 +267,6 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .pushWhy:empty { display: none; }
 .verLine { font-size: 10.5px; color: #b3a58e; margin: 6px 0 0; }
 .weather .wIc { display: inline-flex; } .weather .wIc svg { display: block; } .weather .wDot { opacity: .6; }
+/* 우편함 N 표시 (안 받은 하트·안 읽은 쪽지) */
+#mailBtn .dot { width: 16px; height: 16px; top: -2px; right: -2px; font-size: 10px; font-weight: 700; line-height: 15px; color: #fffaf1; text-align: center; font-family: inherit; }
+.btn.mini.claimAll { display: block; margin: 0 auto 8px; }

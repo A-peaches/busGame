@@ -395,8 +395,9 @@ function update(dt) {
   if (S.rail && S.rail.anim > 0) S.rail.anim = Math.max(0, S.rail.anim - dt / 0.25);
   // 빈자리가 있고 기다리는 친구가 있으면 하트 길이 조금 더 빨리 돌아서 금방 채워져요 (듬성듬성하지 않게)
   const gaps = S.waiting.length ? S.ring.reduce((a, p) => a + (p ? 0 : 1), 0) : 0;
-  const fast = S.rush > 0 ? 3.5 : 1 + Math.min(2.2, gaps * 0.35);
-  S.ringOff = (S.ringOff + dt * L.pr * 3.2 * fast) % L.ring.total;
+  // 꾹 누르면 약 3배속 (하트 길 5배, 걷기·탑승도 더 빠르게)
+  const fast = S.rush > 0 ? 5.2 : 1 + Math.min(2.2, gaps * 0.35);
+  S.ringOff = (S.ringOff + dt * L.pr * 4.5 * fast) % L.ring.total;   // 기본 속도 조금 올림 (출구 차례대로 타니까)
   for (let k = 0; k < S.ring.length; k++) {
     if (!S.ring[k] && S.waiting.length && ringS(k) < L.ringSp * 0.7) S.ring[k] = S.waiting.shift();
   }
@@ -409,8 +410,9 @@ function update(dt) {
     S.ring.forEach((p, k) => {
       if (!p || p.x === undefined) return;
       const v = bestVehicleFor(p.color);
-      const d = ((sExit - ringS(k)) % T + T) % T;              // 도는 방향으로 출구에 가장 먼저 닿는 친구부터
-      if (v && d < best) { best = d; pick = { k, p, v }; }
+      const d = ((sExit - ringS(k)) % T + T) % T;              // 출구까지 남은 거리 (도는 방향)
+      // 새치기 금지: 자기 차례(출구에 도착)가 된 친구만 내려서 버스를 타러 가요
+      if (v && d < L.ringSp * 0.6 && d < best) { best = d; pick = { k, p, v }; }
     });
     if (pick) {
       const { k, p, v } = pick;
@@ -426,14 +428,14 @@ function update(dt) {
 
   let landed = false;
   for (const f of S.flying) {
-    f.s += dt * L.pr * 14 * (S.rush > 0 ? 2.5 : 1);   // 꾹 누르는 동안엔 버스까지 더 빨리 걸어가요
+    f.s += dt * L.pr * 14 * (S.rush > 0 ? 3.8 : 1);   // 꾹 누르는 동안엔 버스까지 더 빨리 걸어가요
     if (f.s >= f.path.total) { f.v.filled++; f.v.incoming--; landed = true; f.done = true; }
   }
   S.flying = S.flying.filter(f => !f.done);
   if (landed) updateUI();
 
   // 승객들이 자기 자리로 걸어가기
-  const k = Math.min(1, dt * 10 * (S.rush > 0 ? 3 : 1));
+  const k = Math.min(1, dt * 10 * (S.rush > 0 ? 4.5 : 1));
   const walkTo = (p, t) => {
     if (p.x === undefined) { p.x = t.x; p.y = t.y; }
     const dx = t.x - p.x, dy = t.y - p.y;

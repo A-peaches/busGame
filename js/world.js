@@ -284,7 +284,6 @@ function showSettings() {
     <div class="seasonPick" id="seasonPick">
       <button data-s="auto">지금 계절</button><button data-s="spring">봄</button><button data-s="summer">여름</button><button data-s="autumn">가을</button><button data-s="winter">겨울</button>
     </div>
-    <div class="setRow"><span>색 구분 도우미 <small>(버스·멍냥이에 모양 표시)</small></span><label class="switch"><input type="checkbox" id="cbOn"><span></span></label></div>
     <div class="setRow"><span>폰 알림 <small>(하트 · 쪽지 · 여행 알림)</small></span><label class="switch"><input type="checkbox" id="pushOn"><span></span></label></div>
     <div class="pushWhy" id="pushWhy"></div>
     <div class="setRow"><span>닉네임 · ${esc(nickname || '없음')}</span>
@@ -301,8 +300,6 @@ function showSettings() {
   markSeason();
   const q = s => card.querySelector(s);
   q('#bgmOn').checked = settings.bgmOn;
-  q('#cbOn').checked = !!settings.cb;
-  q('#cbOn').onchange = e => { settings.cb = e.target.checked; saveSettings(); };
   q('#sfxOn').checked = settings.sfxOn;
   q('#bgmVol').value = Math.round(settings.bgmVol * 100);
   q('#sfxVol').value = Math.round(settings.sfxVol * 100);

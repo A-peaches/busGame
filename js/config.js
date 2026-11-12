@@ -47,14 +47,14 @@ const BUS_SVG = `<svg class="busIcon" viewBox="0 0 42 28" aria-hidden="true"><g 
 
 // 저장 (브라우저에 진행 상황 기억)
 // 지금 쓰는 파일 버전 (index.html 의 ?v= 와 같게). 설정 창 맨 아래에 보여서 폰이 새 파일을 받았는지 알 수 있어요
-const APP_VER = 26;
+const APP_VER = 27;
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
 };
 let unlocked = Math.max(store.get('busGame.unlocked', 1), store.get('busGameLevel', 1));
 // 소리 설정 (설정 창에서 바꿈)
-const settings = Object.assign({ bgmOn: true, bgmVol: 0.6, sfxOn: true, sfxVol: 0.8, cb: false }, store.get('busGame.settings', {}));
+const settings = Object.assign({ bgmOn: true, bgmVol: 0.6, sfxOn: true, sfxVol: 0.8 }, store.get('busGame.settings', {}));
 const saveSettings = () => store.set('busGame.settings', settings);
 
 let S = null;  // 게임 상태 (메인 화면에서는 null)

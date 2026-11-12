@@ -22,6 +22,7 @@ function loop(now) {
   probeLite(now, now - lastDraw);
   const dt = Math.min(0.1, (now - last) / 1000);   // 화면이 잠깐 느려져도 게임 속도는 그대로 (0.1초까지 따라잡아요)
   last = now; lastDraw = now;
+  if (S && S.paused) return;                        // 일시정지: 아무것도 움직이지 않아요
   try {
     update(dt);
     if (S) draw();

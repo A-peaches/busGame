@@ -50,7 +50,7 @@
 <meta name="theme-color" content="#f6dd92">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="css/style.css?v=52">
+<link rel="stylesheet" href="css/style.css?v=53">
 </head>
 <body>
 <div id="app">
@@ -80,7 +80,10 @@
   <!-- ================= 게임 화면 ================= -->
   <section class="screen hidden" id="game">
     <header>
-      <button class="round" id="homeBtn" title="지도로">⌂</button>
+      <div class="hbtns left">
+        <button class="round" id="homeBtn" title="지도로 이동"></button>
+        <button class="round" id="pauseBtn" title="잠깐 쉬기"></button>
+      </div>
       <div id="title">
         <div id="levelLabel">1단계</div>
         <div id="leftLabel">남은 승객 0명</div>
@@ -96,20 +99,41 @@
     </footer>
   </section>
 
+  <div id="pauseCover" aria-hidden="true">
+    <div class="sleepers">
+      <svg class="cushion" viewBox="0 0 240 110" aria-hidden="true">
+        <defs>
+          <radialGradient id="cushG" cx="50%" cy="30%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#f4f0e9"/><stop offset="1" stop-color="#d8d0c3"/></radialGradient>
+          <radialGradient id="cushIn" cx="50%" cy="40%" r="65%"><stop offset="0" stop-color="#fbf9f5"/><stop offset="1" stop-color="#e6dfd3"/></radialGradient>
+        </defs>
+        <ellipse cx="120" cy="100" rx="104" ry="8" fill="rgba(0,0,0,.35)"/>
+        <!-- 도톰한 바깥 테두리 (동그란 방석) -->
+        <ellipse cx="120" cy="58" rx="112" ry="46" fill="url(#cushG)" stroke="rgba(150,140,128,.75)" stroke-width="1.2"/>
+        <!-- 폭 들어간 가운데 -->
+        <ellipse cx="120" cy="54" rx="80" ry="27" fill="url(#cushIn)" stroke="rgba(170,160,146,.55)" stroke-width="1"/>
+        <path d="M44 46 Q120 20 196 46" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="3" stroke-linecap="round"/>
+        <path d="M30 70 Q120 104 210 70" fill="none" stroke="rgba(190,180,166,.45)" stroke-width="1.2"/>
+      </svg>
+      <div class="sleeper dog"><img id="sleepDog" alt=""><span class="zz">z</span><span class="zz">z</span><span class="zz">Z</span></div>
+      <div class="sleeper cat"><img id="sleepCat" alt=""><span class="zz">z</span><span class="zz">z</span><span class="zz">Z</span></div>
+    </div>
+    <div class="dozeText">잠깐 조는 중<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>
+    <div class="dozeHint">화면을 누르면 다시 깨어나요</div>
+  </div>
   <div id="toast"></div>
   <div id="overlay"><div class="card" id="card"></div></div>
   <canvas id="confetti" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:7"></canvas>
 </div>
 
-<script src="js/config.js?v=52"></script>
-<script src="js/level.js?v=52"></script>
-<script src="js/game.js?v=52"></script>
-<script src="js/draw.js?v=52"></script>
-<script src="js/ui.js?v=52"></script>
-<script src="js/scene.js?v=52"></script>
-<script src="js/world.js?v=52"></script>
-<script src="js/net.js?v=52"></script>
-<script src="js/audio.js?v=52"></script>
-<script src="js/main.js?v=52"></script>
+<script src="js/config.js?v=53"></script>
+<script src="js/level.js?v=53"></script>
+<script src="js/game.js?v=53"></script>
+<script src="js/draw.js?v=53"></script>
+<script src="js/ui.js?v=53"></script>
+<script src="js/scene.js?v=53"></script>
+<script src="js/world.js?v=53"></script>
+<script src="js/net.js?v=53"></script>
+<script src="js/audio.js?v=53"></script>
+<script src="js/main.js?v=53"></script>
 </body>
 </html>

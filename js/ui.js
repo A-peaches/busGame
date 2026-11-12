@@ -3,6 +3,7 @@
 //  메인 화면 (단계 지도)
 // =====================================================================
 function showScreen(name) {
+  if (typeof clearPause === 'function') clearPause();      // 화면이 바뀌면 일시정지 덮개는 걷어요
   $('menu').classList.toggle('hidden', name !== 'game' ? false : true);
   $('game').classList.toggle('hidden', name !== 'game');
 }
@@ -113,7 +114,7 @@ function showOverlay(kind) {
     card.innerHTML = `<canvas id="celebCv" class="perch" width="600" height="250"></canvas>
       <h2>축하드립니다!</h2><p><b>${tries}번</b>의 시도로 성공했습니다!<br><small>${HEART_SVG} 시작할 때 낸 하트를 돌려받았어요</small></p>
       ${S.level < MAX_LEVEL ? `<button class="btn" id="ovNext">${S.level + 1}단계로</button>` : '<p><b>100단계를 모두 깼어요! 최고의 버스 기사님!</b></p>'}
-      <button class="btn alt" id="ovMap">메인 메뉴로</button>`;
+      <button class="btn alt" id="ovMap">지도로 이동</button>`;
     if (S.level < MAX_LEVEL) card.querySelector('#ovNext').onclick = () => { stopCelebration(); tryStart(S.level + 1); };
     card.querySelector('#ovMap').onclick = () => { stopCelebration(); showMenu(); };
     $('overlay').classList.add('show');
@@ -128,7 +129,7 @@ function showOverlay(kind) {
       <span class="heartNow">${HEART_SVG}지금 하트 ${hearts.n}개</span></p>
       <button class="btn" id="ovSlot" ${canSlot ? '' : 'disabled'}>아이템 사용${canSlot ? ' (자리 +1)' : ' (없음)'}</button>
       <button class="btn alt" id="ovRetry">다시 하기</button>
-      <button class="btn alt" id="ovMap">지도 보기</button>`;
+      <button class="btn alt" id="ovMap">지도로 이동</button>`;
     if (canSlot) card.querySelector('#ovSlot').onclick = () => { stopCelebration(); useSlotBooster(); S.over = false; hideOverlay(); };
     card.querySelector('#ovRetry').onclick = () => {
       if (!useHeart()) { toast(`하트가 없어요 · ${heartLeft()} 뒤에 1개 충전`, 2200); return; }
@@ -142,6 +143,7 @@ function showOverlay(kind) {
   card.querySelector('#ovMap').onclick = () => showMenu();
   $('overlay').classList.add('show');
 }
+function clearPause() { const c = document.getElementById('pauseCover'); if (c) c.classList.remove('show'); }
 function hideOverlay() { $('overlay').classList.remove('show'); $('card').classList.remove('help'); stopCelebration(); }
 
 // =====================================================================
@@ -276,6 +278,7 @@ const HELP_PAGES = [
       <li>버스가 다 차면 신나게 출발하고, 대기 칸이 비어요.</li>
       <li>멍냥이들은 하트 길을 돌다가 <b>출구에 도착한 차례대로</b> 같은 색 버스를 타러 내려가요. 새치기는 없어요!</li>
       <li>화면을 <b>꾹 누르고 있으면</b> 약 3배속 빨리감기! 손을 떼면 원래대로 돌아와요.</li>
+      <li>왼쪽 위 <b>⏸ 버튼</b>을 누르면 잠깐 쉬어요. 멍냥이들이 쿠션 위에서 졸다가, 화면을 누르면 다시 깨어나요. 옆의 <b>지도 버튼</b>은 지도로 이동이에요.</li>
       <li>멍냥이를 모두 태워 보내면 <b>클리어!</b></li>
     </ul>`],
   ['🧰 실패와 아이템', '아이템', `<ul>

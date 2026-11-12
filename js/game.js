@@ -322,6 +322,13 @@ $('liftBtn').onclick = () => {
   updateUI();
 };
 // 게임 도중 홈 버튼: 나가면 하트가 1개 줄어든다고 먼저 물어봐요
+// 지도 버튼 그림: 세 번 접힌 종이 지도 + 빨간 핀
+$('homeBtn').innerHTML = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g stroke="#4a3b2c" stroke-width="1.4" stroke-linejoin="round">
+  <path d="M3 6.5 L8.5 4.5 L15.5 6.5 L21 4.5 V17.5 L15.5 19.5 L8.5 17.5 L3 19.5Z" fill="#fbf3e2"/>
+  <path d="M8.5 4.5 V17.5 M15.5 6.5 V19.5" fill="none"/>
+  <path d="M4.6 15.6 Q7 12.2 10.2 13.4 T15 10.4 Q17 9.6 19.2 8.2" fill="none" stroke="#c9a45c" stroke-width="1.3" stroke-dasharray="1.8 1.6"/>
+  <path d="M17.6 4.2 C15.9 4.2 15 5.4 15 6.6 C15 8.4 17.6 10.8 17.6 10.8 C17.6 10.8 20.2 8.4 20.2 6.6 C20.2 5.4 19.3 4.2 17.6 4.2Z" fill="#e8768e" stroke-width="1.1"/>
+  <circle cx="17.6" cy="6.6" r=".9" fill="#fbf3e2" stroke="none"/></g></svg>`;
 $('homeBtn').onclick = () => {
   if (!S || S.over) { showMenu(); return; }
   refreshHearts();
@@ -336,6 +343,25 @@ $('homeBtn').onclick = () => {
   $('overlay').classList.add('show');
 };
 $('settingsBtn').onclick = $('settingsBtn2').onclick = () => showSettings();
+
+// ---- 일시정지: 버튼을 누르면 모든 움직임이 멈추고, 멍냥이들이 엎드려 잠깐 조는 화면 (누르면 다시 시작) ----
+const PAUSE_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><g fill="#fbf3e2" stroke="#4a3b2c" stroke-width="1.4" stroke-linejoin="round">
+  <rect x="6" y="5" width="4.2" height="14" rx="1.4"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.4"/></g></svg>`;
+$('pauseBtn').innerHTML = PAUSE_SVG;
+function setPaused(on) {
+  if (!S) return;
+  S.paused = on;
+  if (on) {
+    S.holding = false;
+    // 엎드려 자는 고양이·강아지 (메인 화면 벤치 친구와 같은 그림)
+    const pic = (id, a) => { const el = $(id); if (!el.src) { const sp = spriteCv.get(animalSpriteId(a, true)); if (sp) el.src = sp.cv.toDataURL(); } };
+    pic('sleepCat', { kind: 'cat', c: 6, ribbon: '#7fb4d6', bag: false });
+    pic('sleepDog', { kind: 'dog', c: 3, ribbon: null, bag: false });
+  }
+  $('pauseCover').classList.toggle('show', on);
+}
+$('pauseBtn').onclick = () => { if (S && !S.over) setPaused(true); };
+$('pauseCover').onclick = () => setPaused(false);
 document.querySelectorAll('.settingsBtn').forEach(b => b.innerHTML = GEAR_SVG);
 // 꾹 누르기(길게 터치) 메뉴, 페이지 전체가 선택되는 현상, 두 번 탭 확대 막기
 document.addEventListener('contextmenu', e => { if (!e.target.closest('input')) e.preventDefault(); });

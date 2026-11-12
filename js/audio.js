@@ -45,16 +45,21 @@ function piano(m, t, dur, vel, bus) {
   const lp = AC.createBiquadFilter();
   lp.type = 'lowpass';
   lp.frequency.setValueAtTime(Math.min(9000, f * 8), t);
-  lp.frequency.exponentialRampToValueAtTime(Math.max(500, f * 2.2), t + 0.9);
+  lp.frequency.exponentialRampToValueAtTime(Math.max(420, f * 1.8), t + 0.6);
   out.connect(lp).connect(bus);
   const end = t + Math.max(0.45, Math.min(dur + 0.6, clamp(3.4 - (m - 48) * 0.045, 0.8, 3.6)));
   out.gain.setValueAtTime(0.0001, t);
   out.gain.exponentialRampToValueAtTime(vel, t + 0.008);
   out.gain.exponentialRampToValueAtTime(vel * 0.35, t + 0.35);
   out.gain.exponentialRampToValueAtTime(0.0001, end);
-  for (const [h, amp, det] of [[1, 1, 0], [2, 0.45, 2], [3, 0.2, -3], [4, 0.08, 4]]) {
+  // 피아노처럼: 높은 배음은 치는 순간만 밝고 금방 사라지고, 기음은 오래 남아요 (실로폰·오르골처럼 맑게만 울리지 않게)
+  //   줄이 살짝 뻣뻣해서 높은 배음이 조금씩 높게 울리는 것도 흉내 내요
+  for (const [h, amp, det] of [[1, 1, 0], [2, 0.5, 3], [3, 0.24, -4], [4, 0.12, 7]]) {
     const o = AC.createOscillator(), g = AC.createGain();
-    o.frequency.value = f * h; o.detune.value = det; g.gain.value = amp;
+    o.type = h === 1 ? 'triangle' : 'sine';
+    o.frequency.value = f * h * (1 + 0.0004 * h * h); o.detune.value = det;
+    g.gain.setValueAtTime(amp, t);
+    if (h > 1) g.gain.setTargetAtTime(amp * 0.12, t + 0.02, 0.18 / h);
     o.connect(g).connect(out);
     o.start(t); o.stop(end + 0.05);
   }
@@ -122,7 +127,7 @@ function scheduleBgm() {
   if (bgmNext < AC.currentTime) bgmNext = AC.currentTime + 0.1;
   while (bgmNext < AC.currentTime + 1.2) {
     const [arp, mel] = SONG[bgmBar % SONG.length], t0 = bgmNext;
-    const high = Math.floor(bgmBar / SONG.length) % 2 === 1;   // 두 번째 반복은 한 옥타브 위 오르골 느낌
+    const high = false;   // (예전: 두 번째 반복은 한 옥타브 위 오르골 → 실로폰처럼 들려서 같은 높이 피아노로)
     [0, 1, 2, 3, 4, 3, 2, 1].forEach((k, i) =>
       piano(arp[k], t0 + i * BEAT / 2 + hum(), BEAT * 0.9, (i === 0 ? 0.06 : 0.032) * vary(), bgmBus));
     mel.forEach(([s, d, m]) =>

@@ -3,7 +3,9 @@
 //  그리기
 // =====================================================================
 function rr(x, y, w, h, r) {
-  r = Math.min(r, w / 2, h / 2);
+  // 크기가 0 이하(가로 화면 등)여도 오류 없이 넘어가요
+  w = Math.max(0, w); h = Math.max(0, h);
+  r = Math.max(0, Math.min(r, w / 2, h / 2));
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);

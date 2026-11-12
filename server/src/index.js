@@ -379,9 +379,9 @@ async function myInquiries(env, user) {
 // 개발자가 답을 달면(status = 'replied') 문의한 사람에게 폰 알림을 보내요
 async function notifyReplies(env) {
   const { results } = await env.DB.prepare(
-    `SELECT q.id, u.* FROM inquiries q JOIN users u ON u.id = q.user_id WHERE q.status = 'replied' LIMIT 50`).all();
+    `SELECT u.*, q.id AS qid FROM inquiries q JOIN users u ON u.id = q.user_id WHERE q.status = 'replied' LIMIT 50`).all();
   for (const r of results) {
-    await env.DB.prepare("UPDATE inquiries SET status = 'notified' WHERE id = ?").bind(r.id).run();
+    await env.DB.prepare("UPDATE inquiries SET status = 'notified' WHERE id = ?").bind(r.qid).run();
     await notify(env, r, '💬 문의에 답이 왔어요', '공지사항 → 내 문의에서 확인해 보세요');
   }
 }
@@ -529,10 +529,11 @@ async function notify(env, user, title, body) {
       method: 'POST',
       headers: { TTL: '86400', Urgency: 'high', Authorization: `vapid t=${jwt}, k=${env.VAPID_PUBLIC}` },
     });
+    if (r.status >= 300) console.log('push fail', r.status, new URL(sub.endpoint).host, (await r.text()).slice(0, 200));
     if (r.status === 404 || r.status === 410) {      // 구독이 만료됐으면 지워요
       await env.DB.prepare('UPDATE users SET push = NULL WHERE id = ?').bind(user.id).run();
     }
-  } catch (e) { /* 알림 실패는 게임에 영향 없게 */ }
+  } catch (e) { console.log('push error', String(e && e.message || e).slice(0, 200)); }   // 알림 실패는 게임에 영향 없게
 }
 
 // ---- VAPID 서명 (ES256 JWT) ----

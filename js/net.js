@@ -60,7 +60,7 @@ async function syncOnce() {
     const r = await api('/sync', { nickname, unlocked, hearts: { n: hearts.n, t: hearts.t } });
     if (r.code && acct.code !== r.code) { acct.code = r.code; store.set('busGame.acct', acct); }
     if (r.nickTaken && r.nickname) {               // 바꾸려던 닉네임이 이미 있어서 서버가 원래 닉네임을 지켰어요
-      nickname = r.nickname; store.set('busGame.nickname', nickname); updateHello();
+      nickname = r.nickname; store.set('busGame.nickname', nickname); if (typeof updateHello === 'function') updateHello();
       toast('이미 있는 닉네임이라 바꾸지 못했어요', 2400);
     }
     if (r.unlocked > unlocked) {               // 다른 곳에서 더 많이 깼다면 이어서
@@ -434,6 +434,7 @@ async function showChat() {
     if (chatOpen) chatTimer = setTimeout(poll, document.hidden ? 15000 : 4000);   // 4초마다 새 글 확인
   };
   await poll();
+  if (!card.contains(box)) return;   // 불러오는 사이 창을 닫았으면 그만
   box.scrollTop = box.scrollHeight;
   const send = async () => {
     const text = inp.value.trim();
@@ -508,12 +509,22 @@ async function swReady() {
   ]);
   return reg;
 }
+// 지금 구독이 이 게임의 알림 열쇠로 만들어졌는지 (열쇠를 바꾼 뒤에는 다시 구독해야 해요)
+function sameKey(sub) {
+  try {
+    const k = sub.options && sub.options.applicationServerKey;
+    if (k) return btoa(String.fromCharCode(...new Uint8Array(k))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') === VAPID_PUBLIC;
+  } catch (e) { /* 모르면 아래 기록으로 */ }
+  return store.get('busGame.pushKey', '') === VAPID_PUBLIC;
+}
 async function pushState() {
   if (!pushSupported()) { setWhy('이 브라우저는 웹 알림을 지원하지 않아요'); return false; }
   if (Notification.permission !== 'granted') { setWhy('알림 권한: ' + ({ default: '아직 안 정함', denied: '차단됨' }[Notification.permission] || Notification.permission)); return false; }
   try {
     const reg = await swReady();
-    const sub = await reg.pushManager.getSubscription();
+    let sub = await reg.pushManager.getSubscription();
+    // 서버 알림 열쇠가 바뀌었으면 예전 구독을 지우고 새 열쇠로 다시 연결해요 (권한은 이미 있어서 묻지 않아요)
+    if (sub && !sameKey(sub)) { try { await sub.unsubscribe(); } catch (e) { /* 그래도 다시 구독 */ } sub = null; }
     if (sub) {
       store.set('busGame.push', true);
       if (await ensureAccount()) { await saveAuthForSW(); api('/push', { subscription: sub.toJSON() }).catch(e => setWhy('서버 저장 실패 · ' + errText(e))); }
@@ -536,7 +547,9 @@ async function enablePush(permP, silent) {
     const reg = await swReady();
     step = '구독';
     let sub = await reg.pushManager.getSubscription();
+    if (sub && !sameKey(sub)) { try { await sub.unsubscribe(); } catch (e) { /* 그래도 다시 구독 */ } sub = null; }
     if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToU8(VAPID_PUBLIC) });
+    store.set('busGame.pushKey', VAPID_PUBLIC);
     step = '서버 저장';
     await saveAuthForSW();
     await api('/push', { subscription: sub.toJSON() });

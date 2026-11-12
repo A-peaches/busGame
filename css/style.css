@@ -298,3 +298,8 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .chatMsg.mine { text-align: right; }
 .chatMsg.mine .bubble { background: #f6dd92; border-color: #e3c56e; border-radius: 12px 12px 4px 12px; text-align: left; }
 .chatInput { margin-top: 0; }
+
+/* 지도 위 친구 이름표 (친구가 지금 있는 단계 옆) */
+.fMark { position: absolute; transform: translateY(-50%); z-index: 2; white-space: nowrap; cursor: pointer;
+  padding: 3px 9px; border-radius: 12px; font-size: 11.5px; color: var(--ink);
+  background: rgba(255, 250, 240, .92); border: 1px solid var(--line); box-shadow: 0 2px 4px rgba(70, 50, 30, .12); }

@@ -53,6 +53,7 @@ async function syncOnce() {
     }
     setMailBadge((r.gifts || 0) + (r.letters || 0));   // 안 받은 하트 + 안 읽은 쪽지 → 우편함에 N
     setFriendBadge(r.requests || 0);                   // 받은 친구 요청 → 친구 버튼에 빨간 점
+    if (!S) refreshFriendMarks();                      // 지도 위 친구 이름표 (2분에 한 번)
   } catch (e) {
     if (e.status === 401) { acct = null; store.set('busGame.acct', null); }
   }
@@ -207,6 +208,7 @@ async function showFriends() {
   try { const r = await api('/friends'); list = r.friends; reqs = r.requests || []; diff = r.now - Date.now(); }
   catch (e) { card.innerHTML = '<h2>친구</h2><p>친구 목록을 불러오지 못했어요.</p>' + close; bindClose(); return; }
   setFriendBadge(reqs.length);
+  friendMarks = list.map(f => ({ nickname: f.nickname || '친구', unlocked: f.unlocked })); friendMarksAt = Date.now(); renderFriendMarks();
   const t = Date.now() + diff;
   // 많이 깬 순서대로 (나도 함께), 1·2·3등은 트로피
   const ranked = [...list, { me: true, unlocked }].sort((a, b) => b.unlocked - a.unlocked);
@@ -270,6 +272,36 @@ async function showFriends() {
     catch (e) { toast(e.status === 429 ? '아직 보낼 수 없어요' : '보내지 못했어요', 1800); showFriends(); }
   });
 }
+// ---- 지도에 친구 이름표: 친구가 지금 있는 단계 옆에 "🐾 이름" (여러 명이면 "이름 외 N명") ----
+let friendMarks = [], friendMarksAt = 0;
+async function refreshFriendMarks(force) {
+  if (!acct || (!force && Date.now() - friendMarksAt < 2 * 60 * 1000)) return;
+  friendMarksAt = Date.now();
+  try { friendMarks = (await api('/friends')).friends.map(f => ({ nickname: f.nickname || '친구', unlocked: f.unlocked })); }
+  catch (e) { return; }
+  renderFriendMarks();
+}
+function renderFriendMarks() {
+  const inner = $('mapInner');
+  if (!inner || !mapPts) return;
+  inner.querySelectorAll('.fMark').forEach(n => n.remove());
+  const at = {};
+  for (const f of friendMarks) { const n = Math.min(MAX_LEVEL, Math.max(1, f.unlocked)); (at[n] = at[n] || []).push(f.nickname); }
+  for (const n in at) {
+    const p = mapPts[n - 1], names = at[n];
+    if (!p) continue;
+    const el = document.createElement('div');
+    const left = p.x > mapW / 2;                               // 길이 오른쪽이면 이름표는 왼쪽에
+    el.className = 'fMark' + (left ? ' left' : '');
+    el.style.top = p.y + 'px';
+    el.style[left ? 'right' : 'left'] = (left ? mapW - p.x : p.x) + 44 + 'px';
+    const short = s => s.length > 6 ? s.slice(0, 6) + '…' : s;
+    el.textContent = `🐾 ${short(names[0])}${names.length > 1 ? ` 외 ${names.length - 1}명` : ''}`;
+    el.onclick = () => toast(`${n}단계: ${names.join(', ')}`, 2600);
+    inner.appendChild(el);
+  }
+}
+
 // 친구 버튼의 빨간 점: 받은 친구 요청이 있을 때
 function setFriendBadge(n) {
   const b = $('friendsBtn');

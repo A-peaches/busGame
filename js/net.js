@@ -139,7 +139,7 @@ const fmtAgo = ms => {
 };
 async function showMail() {
   const card = $('card');
-  const close = '<button class="btn alt" id="ovClose">닫기</button>';
+  const close = X_BTN;
   const bindClose = () => { const c = card.querySelector('#ovClose'); if (c) c.onclick = () => hideOverlay(); };
   card.innerHTML = '<h2>' + MAIL_TITLE + '</h2><p>불러오는 중…</p>' + close; bindClose();
   $('overlay').classList.add('show');
@@ -196,7 +196,7 @@ async function showNotices() {
   const card = $('card');
   card.innerHTML = `<h2>공지사항</h2><div class="noticeList"><p><small>불러오는 중…</small></p></div>
     <button class="btn" id="askDev">개발자에게 문의하기</button>
-    <button class="btn alt" id="ovClose">닫기</button>`;
+    ${X_BTN}`;
   card.querySelector('#ovClose').onclick = () => hideOverlay();
   card.querySelector('#askDev').onclick = () => showInquiry(showNotices);
   $('overlay').classList.add('show');
@@ -281,7 +281,7 @@ const seenText = (ls, t) => {
 };
 async function showFriends() {
   const card = $('card');
-  const close = '<button class="btn alt" id="ovClose">닫기</button>';
+  const close = X_BTN;
   const bindClose = () => { const c = card.querySelector('#ovClose'); if (c) c.onclick = () => hideOverlay(); };
   card.innerHTML = '<h2>친구</h2><p>불러오는 중…</p>' + close; bindClose();
   $('overlay').classList.add('show');
@@ -405,7 +405,7 @@ async function showChat() {
     <div class="chatList" id="chatList"><p><small>불러오는 중…</small></p></div>
     <div class="codeRow chatInput"><input class="nickInput" id="chatText" maxlength="100" placeholder="모두에게 한마디 (100자)" autocomplete="off"><button class="btn mini" id="chatSend">보내기</button></div>
     <p><small>모두가 보는 곳이에요. 고운 말을 써 주세요 · 사흘 지난 글은 사라져요</small></p>
-    <button class="btn alt" id="ovClose">닫기</button>`;
+    ${X_BTN}`;
   $('overlay').classList.add('show');
   const box = card.querySelector('#chatList'), inp = card.querySelector('#chatText');
   const stop = () => { chatOpen = false; clearTimeout(chatTimer); };

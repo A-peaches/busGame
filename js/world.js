@@ -318,7 +318,7 @@ function showSettings() {
     <div class="setRow"><span>개발자에게 문의</span><button class="btn alt mini" id="askBtn">문의하기</button></div>
     <div class="setRow"><span>백업 코드</span>
       <span style="display:flex;gap:6px"><button class="btn alt mini" id="backupBtn">만들기</button><button class="btn alt mini" id="restoreBtn">불러오기</button></span></div>
-    <button class="btn alt" id="ovClose">닫기</button>
+    ${X_BTN}
     <p class="verLine">버전 ${APP_VER}${typeof appMode === 'function' ? ' · ' + appMode() : ''}</p>`;
   card.querySelector('#nickBtn').onclick = () => showNickname(false);
   card.querySelector('#backupBtn').onclick = () => showBackup();
@@ -368,7 +368,7 @@ function showLevelPopup(n) {
     <div class="stars">${'★'.repeat(tier.stars)}<span class="off">${'★'.repeat(5 - tier.stars)}</span></div>
     <p>난이도 · ${tier.name}${n >= RAIL_FROM ? '<br>이벤트 · 레일 버스' + (n >= TURN_FROM ? ' + U턴 버스' : '') + (n >= SHUFFLE_FROM ? ' + 자리 바꾸기' : '') : ''}${n < unlocked ? '<br>이미 깬 단계예요' : ''}</p>
     <button class="btn" id="ovStart">시작하기</button>
-    <button class="btn alt" id="ovClose">닫기</button>`;
+    ${X_BTN}`;
   card.querySelector('#ovStart').onclick = () => tryStart(n);
   card.querySelector('#ovClose').onclick = () => hideOverlay();
   $('overlay').classList.add('show');

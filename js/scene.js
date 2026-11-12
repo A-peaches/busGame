@@ -370,25 +370,13 @@ function renderBusLive() {
   c.clearRect(0, 0, pw, ph);
   c.setTransform(DPR * sc * k, 0, 0, DPR * sc * k, DPR * (ox + sc * 42.7 * (1 - k)), DPR * (oy + sc * 372 * (1 - k)));
   const B = busLive, by = BUS.y0 - 6 - BUS.h, bx = BUS.x + B.dx;
-  // 버스 몸체 + 창문 얼굴 + 유리 반사
-  const body = busBodyImg();
-  if (body) c.drawImage(body, bx + BUS_VB[0], by + BUS_VB[1], BUS_VB[2], BUS_VB[3]);
-  for (let i = 0; i < BUS.windows; i++) {
-    const a = B.faces[i]; if (!a) continue;
-    const wx = bx + 30 + i * 15, wy = by + 11, f = faceImg(a);
-    if (f) c.drawImage(f, wx, wy, 13.5, 15);
-    c.fillStyle = 'rgba(200,225,235,.18)'; c.fillRect(wx, wy, 13.5, 15);
-  }
   const put = (a, x, y, s = 1, op = 1, lying = false) => {
     const sp = spriteCv.get(animalSpriteId(a, lying)); if (!sp) return;
     c.globalAlpha = op;
     c.drawImage(sp.cv, x + sp.x * s, y + sp.y * s, sp.w * s, sp.h * s);
     c.globalAlpha = 1;
   };
-  // 줄 선 친구들 (인게임과 똑같은 그림, 크기만 작게)
-  B.queue.forEach(a => put(a, a.x, BUS.y0 + 7, 1, a.op));
-  if (B.walker) put(B.walker, B.walker.x, B.walker.y, B.walker.k, B.walker.op);
-  // 정류장 벤치에 엎드려 쿨쿨 자는 친구 + 둥실 떠오르는 z
+  // 정류장 벤치에 엎드려 쿨쿨 자는 친구 + z (버스보다 먼저 그려서, 떠나는 버스가 앞을 지나가요)
   const tz = performance.now() / 1000;
   put(benchSleeper, 54, BUS.y0 - 14 + Math.sin(tz * 1.6) * 0.25, 0.72, 1, true);
   c.fillStyle = '#8f9bb3'; c.textAlign = 'left'; c.textBaseline = 'alphabetic';
@@ -399,6 +387,18 @@ function renderBusLive() {
     c.fillText('z', 48 + q * 8, BUS.y0 - 24 - q * 12);
   }
   c.globalAlpha = 1;
+  // 버스 몸체 + 창문 얼굴 + 유리 반사
+  const body = busBodyImg();
+  if (body) c.drawImage(body, bx + BUS_VB[0], by + BUS_VB[1], BUS_VB[2], BUS_VB[3]);
+  for (let i = 0; i < BUS.windows; i++) {
+    const a = B.faces[i]; if (!a) continue;
+    const wx = bx + 30 + i * 15, wy = by + 11, f = faceImg(a);
+    if (f) c.drawImage(f, wx, wy, 13.5, 15);
+    c.fillStyle = 'rgba(200,225,235,.18)'; c.fillRect(wx, wy, 13.5, 15);
+  }
+  // 줄 선 친구들 (인게임과 똑같은 그림, 크기만 작게)
+  B.queue.forEach(a => put(a, a.x, BUS.y0 + 7, 1, a.op));
+  if (B.walker) put(B.walker, B.walker.x, B.walker.y, B.walker.k, B.walker.op);
 }
 const benchSleeper = { kind: 'cat', c: 3, ribbon: '#e8768e', bag: false };
 function tickBusLive() {

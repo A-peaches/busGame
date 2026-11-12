@@ -35,7 +35,13 @@ async function ensureAccount() {
 // ---- 단계·하트 저장 (조금 모아서 보내요) ----
 let syncTimer = 0;
 function syncSoon() { clearTimeout(syncTimer); syncTimer = setTimeout(syncNow, 800); }
-async function syncNow() {
+// 동시에 여러 번 불려도(앱으로 돌아오기 + 주기 확인 등) 한 번만 실행해요 → 하트 알림이 두 번 뜨지 않게
+let syncing = null;
+function syncNow() {
+  if (!syncing) syncing = syncOnce().finally(() => { syncing = null; });
+  return syncing;
+}
+async function syncOnce() {
   if (!(await ensureAccount())) return;
   try {
     refreshHearts();
@@ -64,17 +70,25 @@ function setGiftBadge(n) {
 }
 
 // ---- 하트 선물 받기 ----
-let giftPopupOpen = false;
+let giftPopupOpen = false, giftChecking = false;
+const toldGifts = new Set();                       // 이미 알려 준 하트 (같은 하트를 또 알리지 않아요)
 async function checkGifts() {
-  if (giftPopupOpen) return;
+  if (giftPopupOpen || giftChecking) return;       // 확인 중이거나 창이 떠 있으면 또 하지 않아요
+  giftChecking = true;
   let list;
-  try { list = (await api('/gifts')).gifts; } catch (e) { return; }
-  if (!list.length) return;
+  try { list = (await api('/gifts')).gifts; } catch (e) { list = []; }
+  giftChecking = false;
+  if (!list.length || giftPopupOpen) return;
   const names = [...new Set(list.map(g => g.nickname || '친구'))];
   if (S || $('overlay').classList.contains('show')) {      // 게임 중이면 살짝만 알려 주고, 지도에서 받아요
-    toast(`💌 ${names[0]}님${names.length > 1 ? ' 외 ' + (names.length - 1) + '명' : ''}이 하트를 보냈어요!`, 2400);
+    const fresh = list.filter(g => !toldGifts.has(g.id));
+    if (fresh.length) {
+      fresh.forEach(g => toldGifts.add(g.id));
+      toast(`💌 ${names[0]}님${names.length > 1 ? ' 외 ' + (names.length - 1) + '명' : ''}이 하트를 보냈어요!`, 2400);
+    }
     return;
   }
+  list.forEach(g => toldGifts.add(g.id));
   giftPopupOpen = true;
   const card = $('card');
   card.innerHTML = `<h2>💌 하트 도착!</h2>

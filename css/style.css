@@ -407,3 +407,5 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .card.wide { width: min(94%, 372px); padding-left: 14px; padding-right: 14px; }
 .card.wide .friendRow { gap: 6px; }
 .card.wide .friendRow .btn.mini.ic { width: 32px; }
+/* 입력칸 안내 글씨(placeholder)는 작게 — 입력한 글씨는 16px 그대로라 아이폰에서 확대되지 않아요 */
+.nickInput::placeholder, .letterBox::placeholder { font-size: calc(13px + var(--fd)); }

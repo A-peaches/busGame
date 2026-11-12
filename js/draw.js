@@ -414,7 +414,7 @@ function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, opts = {}) {
 // ---- 인게임 멍냥이를 미리 그린 그림(스프라이트)으로 빠르게 ----
 //   소품(보따리·리본)과 표정(평소/쿨쿨/초롱초롱)별로 한 번씩만 그려 두고,
 //   꼬리는 8단계 그림을 돌려 써서 지금처럼 살랑살랑 움직여요. (폰 배터리·발열이 훨씬 줄어요)
-const TAIL_FRAMES = 8;
+const TAIL_FRAMES = 6;   // 꼬리 흔들림 그림 수 (적을수록 새로 그릴 그림이 줄어 가벼워요)
 const animalSprites = new Map();
 function drawAnimalFast(x, y, r, colorIdx, kind, bob = 0, phase = 0, opts = {}) {
   const dpr = DPR;
@@ -423,8 +423,13 @@ function drawAnimalFast(x, y, r, colorIdx, kind, bob = 0, phase = 0, opts = {}) 
   const frame = Math.floor(cyc * TAIL_FRAMES);
   const key = `${kind}|${colorIdx}|${opts.ribbon || ''}|${opts.bag ? 1 : 0}|${opts.sleep ? 's' : opts.excited ? 'e' : 'n'}|${frame}|${r.toFixed(2)}|${dpr}`;
   let spr = animalSprites.get(key);
-  if (!spr) {
-    if (animalSprites.size > 1500) animalSprites.clear();     // 화면 크기가 바뀌면 옛 그림은 비워요
+  if (spr) { animalSprites.delete(key); animalSprites.set(key, spr); }   // 방금 쓴 그림은 맨 뒤로 (오래 안 쓴 그림부터 정리하려고)
+  else {
+    // 한꺼번에 다 지우면 그 순간 수십 마리를 새로 그리느라 덜컥거려요 → 가장 오래 안 쓴 그림부터 조금씩 정리
+    if (animalSprites.size > 900) {
+      let n = 120;
+      for (const k of animalSprites.keys()) { animalSprites.delete(k); if (--n <= 0) break; }
+    }
     const ax = r * 1.95, ay = r * 2.5, w = r * 3.9, h = r * 3.4;
     const cv = document.createElement('canvas');
     cv.width = Math.ceil(w * dpr); cv.height = Math.ceil(h * dpr);

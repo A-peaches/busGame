@@ -7,7 +7,7 @@ let last = performance.now(), lastDraw = 0;
 function loop(now) {
   requestAnimationFrame(loop);              // 먼저 다음 프레임을 예약해요 → 아래에서 오류가 나도 게임이 얼지 않아요
   if (now - lastDraw < 14) return;          // 너무 잦은 프레임(120Hz)은 건너뛰어요
-  const dt = Math.min(0.05, (now - last) / 1000);
+  const dt = Math.min(0.1, (now - last) / 1000);   // 화면이 잠깐 느려져도 게임 속도는 그대로 (0.1초까지 따라잡아요)
   last = now; lastDraw = now;
   try {
     update(dt);

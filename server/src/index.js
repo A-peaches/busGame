@@ -203,7 +203,7 @@ async function sync(env, user, body, ctx) {
   let nickname = body.nickname !== undefined ? cleanName(body.nickname) : user.nickname;
   let nickTakenNow = false;
   if (nickname !== user.nickname && await nickTaken(env, nickname, user.id)) { nickname = user.nickname; nickTakenNow = true; }   // 이미 있는 닉네임이면 바꾸지 않아요
-  const unlocked = Math.min(100, user.unlocked + 5, Math.max(user.unlocked, body.unlocked | 0));   // 한 번에 5단계 넘게 뛰지 않게
+  const unlocked = Math.min(150, user.unlocked + 5, Math.max(user.unlocked, body.unlocked | 0));   // 한 번에 5단계 넘게 뛰지 않게
   let { hearts, hearts_t, full_at, full_notified } = user;
   if (body.hearts && Number.isFinite(body.hearts.n) && Number.isFinite(body.hearts.t)) {
     hearts = Math.max(0, Math.min(99, body.hearts.n | 0));

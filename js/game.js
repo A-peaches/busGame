@@ -260,6 +260,7 @@ function tapParked(v) {
     for (const o of blockers) d = Math.min(d, proj(o.body, a.ux, a.uy)[0] - front);
     d = Math.max(0, d);
     v.bump = { d, t: 0, T: 0.22 + d * 0.05 };
+    loseLife();
     sfx('block');
     return;
   }
@@ -474,6 +475,8 @@ function update(dt) {
     S.shuffle.wait -= dt;
     if (S.shuffle.wait <= 0) { S.shuffle.wait = 0; doShuffle(); updateUI(); }
   }
+  for (const f of S.lifeFx) f.t += dt;          // 깨진 하트 조각
+  if (S.lifeFx.length && S.lifeFx.every(f => f.t > 1.2)) S.lifeFx.length = 0;
   // 풍선 버스: 주차장이 다 비었는데 하늘에 남아 있으면 바로 내려와요
   if (S.balloon && S.vehicles.some(v => v.state === 'sky') && !S.vehicles.some(v => v.state === 'parked' || v.state === 'landing')) landBalloon();
   for (const v of S.vehicles) {
@@ -588,6 +591,17 @@ function update(dt) {
   checkLose();
 }
 
+// 목숨 하트 (101단계부터): 막힌 버스에 부딪히면 하나씩 깨져요. 다 깨지면 실패
+function loseLife() {
+  if (!S || !S.lives || S.over) return;
+  S.lives--;
+  S.lifeFx.push({ i: S.lives, t: 0 });
+  if (S.lives <= 0) {
+    S.over = true; S.lostByLives = true;
+    sfx('lose');
+    setTimeout(() => showOverlay('lose'), 700);
+  }
+}
 function checkWin() {
   if (S.over) return;
   if (remainingCount() === 0 && S.vehicles.every(v => v.state === 'gone')) {

@@ -634,6 +634,7 @@ function drawQueueArea() {
   }
 
   if (S.cloud) drawQueueCloud();
+  if (S.lives || S.lostByLives) drawLives();
   const hiddenN = S.waiting.length - Math.min(S.waiting.length, L.waitMax);
   if (hiddenN > 0) {
     const t = `+${hiddenN}`;
@@ -644,6 +645,46 @@ function drawQueueArea() {
     ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(t, L.W - 16 - tw / 2, L.qTop + 17);
   }
+}
+
+// ---- 목숨 하트 (101단계부터): 승객 구역 왼쪽 아래에 하트 3개, 부딪히면 쩍 갈라져 떨어져요 ----
+function heartPath(x, y, r) {
+  ctx.beginPath();
+  ctx.moveTo(x, y + r * 0.9);
+  ctx.bezierCurveTo(x - r * 1.3, y + r * 0.1, x - r * 1.1, y - r * 1.0, x, y - r * 0.35);
+  ctx.bezierCurveTo(x + r * 1.1, y - r * 1.0, x + r * 1.3, y + r * 0.1, x, y + r * 0.9);
+  ctx.closePath();
+}
+function drawLives() {
+  const r = 8, gap = 22, x0 = 26, y0 = L.qTop + L.qH - 18;
+  ctx.save();
+  // 바탕: 작은 크림색 알약
+  ctx.fillStyle = 'rgba(251,243,226,.88)'; rr(x0 - 16, y0 - 13, gap * LIVES + 10, 26, 13); ctx.fill();
+  ctx.strokeStyle = 'rgba(96,90,84,.5)'; ctx.lineWidth = 1; ctx.stroke();
+  for (let i = 0; i < LIVES; i++) {
+    const x = x0 + i * gap, alive = i < S.lives;
+    heartPath(x, y0, r);
+    ctx.fillStyle = alive ? '#e9899b' : 'rgba(200,190,180,.45)'; ctx.fill();
+    ctx.strokeStyle = alive ? LINE : 'rgba(150,140,130,.6)'; ctx.lineWidth = 1; ctx.stroke();
+    if (alive) { ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.ellipse(x - r * 0.45, y0 - r * 0.25, r * 0.22, r * 0.14, -0.6, 0, Math.PI * 2); ctx.fill(); }
+  }
+  // 깨지는 하트: 반쪽 두 개가 갈라져 떨어지며 사라져요
+  for (const f of S.lifeFx) {
+    if (f.t > 1.2) continue;
+    const x = x0 + f.i * gap, k = Math.min(1, f.t / 1.2), a = 1 - k;
+    for (const s of [-1, 1]) {
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.translate(x + s * (2 + k * 10), y0 + k * k * 30);
+      ctx.rotate(s * k * 0.9);
+      ctx.beginPath(); ctx.rect(s < 0 ? -r * 1.5 : 0, -r * 1.5, r * 1.5, r * 3); ctx.clip();
+      heartPath(0, 0, r * (1 + (1 - k) * 0.2));
+      ctx.fillStyle = '#e9899b'; ctx.fill(); ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, -r * 0.35); ctx.lineTo(s * r * 0.25, 0); ctx.lineTo(0, r * 0.3); ctx.lineTo(s * r * 0.2, r * 0.9); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  ctx.restore();
 }
 
 // ---- 구름 이벤트: 메인 화면 하늘에 떠다니는 뭉게구름 두 덩이가 대기 줄 뒤쪽 절반 위에 둥실 떠 있어요 ----

@@ -51,15 +51,24 @@ function renderMap() {
   // 흙길: 얇은 회색 테두리 + 바퀴 자국 (겨울엔 눈길)
   // 길과 나무는 한 번만 그림(이미지)으로 만들어 두어, 스크롤해도 다시 그리지 않아요
   const road = season === 'winter' ? ['#eef1f4', '#dfe5ea'] : ['#ead6b0', '#d6bf96'];
-  const img = $('mapRoad');
-  img.style.width = W + 'px'; img.style.height = H + 'px';
-  setSvgImage(img, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+  // 길 그림은 3000px 높이 조각들로 나눠 그려요 (아주 긴 그림 한 장은 아이폰에서 안 그려질 수 있어요)
+  $('mapRoad').style.display = 'none';
+  inner.querySelectorAll('.roadSeg').forEach(e => e.remove());
+  const SEG = 3000;
+  for (let y0 = 0; y0 < H; y0 += SEG) {
+    const sh = Math.min(SEG, H - y0);
+    const img = document.createElement('img');
+    img.className = 'roadSeg'; img.alt = ''; img.draggable = false;
+    img.style.cssText = `position:absolute;left:0;top:${y0}px;width:${W}px;height:${sh}px;pointer-events:none`;
+    inner.insertBefore(img, inner.firstChild);
+  setSvgImage(img, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 ${y0} ${W} ${sh}" width="${W}" height="${sh}">
     <defs><filter id="wash" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter></defs>
     <path d="${d}" fill="none" stroke="#a8a097" stroke-width="29.5" stroke-linecap="round"/>
     <path d="${d}" fill="none" stroke="${road[0]}" stroke-width="27.5" stroke-linecap="round"/>
     <path d="${d}" fill="none" stroke="${road[1]}" stroke-width="12" stroke-linecap="round" opacity=".55"/>
     <path d="${d}" fill="none" stroke="${road[0]}" stroke-width="7" stroke-linecap="round"/>
     ${deco}</svg>`);
+  }
   updateHello();
 
   inner.querySelectorAll('.node').forEach(n => n.remove());
@@ -116,7 +125,7 @@ function showOverlay(kind) {
     const all = store.get('busGame.tries', {}); all[S.level] = 0; store.set('busGame.tries', all);   // 다음 도전은 새로 세요
     card.innerHTML = `<canvas id="celebCv" class="perch" width="600" height="250"></canvas>
       <h2>축하드립니다!</h2><p><b>${tries}번</b>의 시도로 성공했습니다!<br><small>${HEART_SVG} 시작할 때 낸 하트를 돌려받았어요</small></p>
-      ${S.level < MAX_LEVEL ? `<button class="btn" id="ovNext">${S.level + 1}단계로</button>` : '<p><b>100단계를 모두 깼어요! 최고의 버스 기사님!</b></p>'}
+      ${S.level < MAX_LEVEL ? `<button class="btn" id="ovNext">${S.level + 1}단계로</button>` : '<p><b>150단계를 모두 깼어요! 최고의 버스 기사님!</b></p>'}
       <button class="btn alt" id="ovMap">지도로 이동</button>`;
     if (S.level < MAX_LEVEL) card.querySelector('#ovNext').onclick = () => { stopCelebration(); tryStart(S.level + 1); };
     card.querySelector('#ovMap').onclick = () => { stopCelebration(); showMenu(); };
@@ -124,13 +133,13 @@ function showOverlay(kind) {
     celebrate();
     return;
   } else {
-    const canSlot = S.boost.slot > 0 && S.slotCount < MAX_SLOTS;
+    const canSlot = !S.lostByLives && S.boost.slot > 0 && S.slotCount < MAX_SLOTS;
     refreshHearts();
     card.innerHTML = `<canvas id="sadCv" class="perch" width="600" height="250"></canvas>
-      <h2>꽉 막혔어요</h2><p>대기 칸이 가득 차서 더 태울 수 없어요.<br>
+      ${S.lostByLives ? `<h2>하트가 다 깨졌어요</h2><p>막힌 버스에 ${LIVES}번 부딪혔어요.<br>` : `<h2>꽉 막혔어요</h2><p>대기 칸이 가득 차서 더 태울 수 없어요.<br>`}
       <small>다시 하기는 하트 1개가 들어요</small><br>
       <span class="heartNow">${HEART_SVG}지금 하트 ${hearts.n}개</span></p>
-      <button class="btn" id="ovSlot" ${canSlot ? '' : 'disabled'}>아이템 사용${canSlot ? ' (자리 +1)' : ' (없음)'}</button>
+      ${S.lostByLives ? '' : `<button class="btn" id="ovSlot" ${canSlot ? '' : 'disabled'}>아이템 사용${canSlot ? ' (자리 +1)' : ' (없음)'}</button>`}
       <button class="btn alt" id="ovRetry">다시 하기</button>
       <button class="btn alt" id="ovMap">지도로 이동</button>`;
     if (canSlot) card.querySelector('#ovSlot').onclick = () => { stopCelebration(); useSlotBooster(); S.over = false; hideOverlay(); };
@@ -369,7 +378,8 @@ const HELP_PAGES = [
       <li><b>출석 선물</b>: 하루에 처음 들어오면 하트 1개를 더 받아요.</li>
     </ul>`],
   ['⭐ 단계와 이벤트', '단계', `<ul>
-      <li>모두 <b>100단계</b>예요. 한 단계를 깨면 다음 단계가 열려요.</li>
+      <li>모두 <b>150단계</b>예요. 한 단계를 깨면 다음 단계가 열려요.</li>
+      <li><b>101단계부터는 목숨 하트 ❤️ 3개</b>: 막힌 버스를 눌러 부딪히면 하나씩 깨지고, 다 깨지면 실패예요.</li>
       <li>10단계마다 <b>쉬움 → 어려움 → 매우 어려움</b>이 반복되고, 갈수록 조금씩 어려워져요.</li>
       <li><b>별 5개(최고 난이도)</b>는 30단계마다 나와요.</li>
       <li><b>5단계부터</b>는 한 단계에 이벤트가 하나씩, <b>풍선 버스 → U턴 버스 → 레일 버스 → 자리 바꾸기</b> 순서로 번갈아 나와요. <b>61단계부터는 두 개씩</b> 겹쳐 나와요. 지도에서 단계를 누르면 어떤 이벤트인지 보여요.</li>

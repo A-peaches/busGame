@@ -47,8 +47,10 @@ function insideBoard(v, cols, rows) {
 // =====================================================================
 // 난이도 주기: 10단계마다 [쉬움 → 어려움 → 매우 어려움]이 반복되고, 10번째 단계는 "매우 어려움".
 //   별 5개(최고 난이도)는 30단계마다 한 번만 (30, 60, 90단계).
-// 10단계 묶음이 넘어갈 때마다 전체 난이도가 조금씩 올라가요. 단계는 100단계까지.
-const MAX_LEVEL = 100;
+// 10단계 묶음이 넘어갈 때마다 전체 난이도가 조금씩 올라가요. 단계는 150단계까지 (101단계부터는 목숨 하트).
+const MAX_LEVEL = 150;
+const LIVES_FROM = 101;        // 이 단계부터 '목숨 하트' 3개: 막힌 버스를 눌러 부딪히면 하나씩 깨지고, 다 깨지면 실패
+const LIVES = 3;
 // 이벤트: 5단계부터 한 단계에 하나씩, 풍선 버스 → U턴 버스 → 레일 버스 → 자리 바꾸기 순서로 번갈아 나와요 (난이도 별은 그대로)
 const EVENT_FROM = 5;
 const EVENTS = ['balloon', 'turn', 'rail', 'shuffle'];
@@ -91,7 +93,7 @@ function effectiveLevel(n) {
 function levelParams(n) {
   const e = effectiveLevel(n);
   // 단계 진행도 0(1단계) → 1(100단계): 같은 별이라도 뒤 단계일수록 최대치가 조금씩 열려서 계속 어려워져요
-  const pr = (n - 1) / (MAX_LEVEL - 1);
+  const pr = Math.min(1, (n - 1) / 99);   // 100단계에서 최대치 (101단계부터는 주차장 크기 등은 그대로, 목숨 하트로 어려워져요)
   return {
     // 주차장 크기: 10×12 가 꽉 차면 더는 버스가 안 들어가서, 뒤 단계일수록 가로를 넓혀요 (34단계 11칸 → 67단계 12칸)
     //   화면은 세로가 더 빠듯해서 세로(12칸)는 그대로 → 칸이 너무 작아지지 않아요
@@ -287,6 +289,7 @@ function startLevel(n) {
     boost: { slot: (levelTier(n) === 5 ? 2 : 1) + cheerLevel(allTries[n] - 1), lift: 1, mix: levelTier(n) >= 4 ? 1 : 0 },
     tries: allTries[n], rush: 0, treeShake: 0,
     balloon: hasEvent(n, 'balloon') ? { left: BALLOON_EVERY } : null,
+    lives: n >= LIVES_FROM ? LIVES : 0, lifeFx: [],
     cloud: hasEvent(n, 'cloud'),
     shuffle: hasEvent(n, 'shuffle') ? { every: SHUFFLE_EVERY(n), left: SHUFFLE_EVERY(n), wait: 0, count: 0 } : null,
   };
@@ -314,6 +317,19 @@ function startLevel(n) {
   {
     const step = cheerLevel(allTries[n] - 1), seen = store.get('busGame.cheerSeen', {});
     if (step > (seen[n] || 0)) { seen[n] = step; store.set('busGame.cheerSeen', seen); showCheer(step); return; }
+  }
+  // 목숨 하트를 처음 만나면 안내 (처음 한 번만)
+  if (S.lives && !store.get('busGame.livesSeen', false)) {
+    store.set('busGame.livesSeen', true);
+    const card = $('card');
+    card.innerHTML = `<h2>새 규칙! 목숨 하트 ❤️</h2>
+      <p>101단계부터는 왼쪽 아래에 <b>하트 ${LIVES}개</b>가 있어요.<br>
+      막힌 버스를 눌러 <b>부딪히면 하트가 하나씩 깨져요</b>.<br>
+      다 깨지면 실패예요. 잘 보고 눌러 주세요!</p>
+      <button class="btn" id="ovOk">알겠어요</button>`;
+    card.querySelector('#ovOk').onclick = () => hideOverlay();
+    $('overlay').classList.add('show');
+    return;
   }
   // 구름 이벤트를 처음 만나면 안내 (처음 한 번만)
   if (S.cloud && !store.get('busGame.cloudSeen', false)) {
@@ -405,6 +421,7 @@ function tapRail(i) {
       launch(v, si, true); updateUI(); left = true;
     } else if (parkedBlockers(v).length) {
       v.shake = 0.35; v.state = 'rail';                 // 위가 막혀 있어요: 부르르
+      loseLife();
     } else if (si < 0) {
       v.shake = 0.35; toast('대기 칸이 꽉 찼어요!');
     } else {

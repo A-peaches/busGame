@@ -49,9 +49,20 @@ function insideBoard(v, cols, rows) {
 //   별 5개(최고 난이도)는 30단계마다 한 번만 (30, 60, 90단계).
 // 10단계 묶음이 넘어갈 때마다 전체 난이도가 조금씩 올라가요. 단계는 100단계까지.
 const MAX_LEVEL = 100;
-const RAIL_FROM = 31;          // 이 단계부터 "레일 버스" 이벤트가 나와요
-const TURN_FROM = 61;          // 이 단계부터 "U턴 버스" 이벤트가 나와요
-const SHUFFLE_FROM = 81;       // 이 단계부터 "자리 바꾸기" 이벤트: 버스를 몇 대 뺄 때마다 남은 버스가 새로 주차해요
+// 이벤트: 5단계부터 한 단계에 하나씩, 풍선 버스 → U턴 버스 → 레일 버스 → 자리 바꾸기 순서로 번갈아 나와요 (난이도 별은 그대로)
+const EVENT_FROM = 5;
+const EVENTS = ['balloon', 'turn', 'rail', 'shuffle'];
+const EVENT_NAMES = { balloon: '풍선 버스', turn: 'U턴 버스', rail: '레일 버스', shuffle: '자리 바꾸기' };
+const EVENT_DOUBLE_FROM = 61;  // 이 단계부터는 이벤트가 두 개씩 겹쳐 나와요 (뒤 단계 난이도 유지)
+// 이 단계의 이벤트들: 5~60단계는 하나, 61단계부터는 바로 다음 순서 이벤트까지 두 개 (풍선+U턴, U턴+레일, 레일+자리 바꾸기, 자리 바꾸기+풍선)
+const levelEvents = n => {
+  if (n < EVENT_FROM) return [];
+  const i = (n - EVENT_FROM) % EVENTS.length;
+  return n >= EVENT_DOUBLE_FROM ? [EVENTS[i], EVENTS[(i + 1) % EVENTS.length]] : [EVENTS[i]];
+};
+const hasEvent = (n, e) => levelEvents(n).includes(e);
+const BALLOON_COUNT = 3;       // 풍선 버스: 한 단계에 3대가
+const BALLOON_EVERY = 5;       //   버스가 5대 빠질 때마다 한 대씩 하늘에서 내려와요
 const TIERS = {
   1: { stars: 1, name: '쉬움' },
   3: { stars: 3, name: '어려움' },
@@ -171,16 +182,16 @@ function genLevel(n) {
     v.hidden = rng() < P.hiddenChance;
     // U턴 버스 (61단계부터): 버스를 누를 때마다 앞뒤 방향이 휙 바뀌어요.
     //   빼낼 순서를 정할 때 앞·뒤 어느 쪽으로든 나갈 수 있게 골랐으니, 한 번 더 누르면 언제든 풀 수 있어요.
-    v.turner = n >= TURN_FROM && rng() < Math.min(0.16 + (n - TURN_FROM) * 0.004, 0.3);
+    v.turner = hasEvent(n, 'turn') && rng() < Math.min(0.16 + n * 0.0015, 0.3);
     if (v.turner) v.hidden = false;
   });
 
   // 새 이벤트 "레일 버스" (31단계부터): 주차장 아래 레일 위에 버스들이 있어요.
   //   버스를 누를 때마다 레일이 한 칸씩 움직이고, 노란 출구 칸에 온 버스만 출발할 수 있어요.
   let rail = null;
-  if (n >= RAIL_FROM) {
+  if (hasEvent(n, 'rail')) {
     // 레일 칸 = 주차장 세로줄. 레일 버스는 바로 위 같은 줄의 버스들을 먼저 빼야 위로 나갈 수 있어요
-    const K = cols, cnt = Math.min(8, 5 + Math.floor((n - RAIL_FROM) / 15), K - 2);
+    const K = cols, cnt = Math.min(8, 3 + Math.floor(n / 15), K - 2);   // 초반 3대 → 뒤로 갈수록 8대까지
     const items = new Array(K).fill(null), free = [...Array(K).keys()];
     for (let i = 0; i < cnt; i++) {
       const len = rng() < 0.6 ? 2 : 3;
@@ -192,6 +203,18 @@ function genLevel(n) {
     rail = { K, items };
   }
 
+  // 새 이벤트 "풍선 버스": 버스 3대가 하늘에 있다가, 버스를 5대 뺄 때마다 한 대씩 풍선을 달고 주차장 빈자리에 내려와요.
+  //   (내려앉을 자리는 그때 고르는데, 그 뒤에도 반드시 다 뺄 수 있는 자리만 골라요)
+  if (hasEvent(n, 'balloon')) {
+    for (let i = 0; i < BALLOON_COUNT; i++) {
+      const len = rng() < 0.6 ? 2 : 3;
+      const v = { cx: -100, cy: -100, ang: 0, len, l: len - 0.14, w: BODY_W, sky: true,
+        color: palette[Math.floor(rng() * P.colorCount)], cap: (len - 1) * 8, hidden: false };
+      const lo = Math.floor(order.length * 0.3);       // 승객은 조금 뒤쪽에 섞어 넣어요 (내려온 뒤에 탈 수 있게)
+      order.splice(lo + Math.floor(rng() * (order.length - lo + 1)), 0, v);
+    }
+  }
+
   // 승객 줄: 빼낼 순서대로 만든 뒤 단계가 오를수록 더 섞기
   const q = [];
   let k = 0;
@@ -200,7 +223,7 @@ function genLevel(n) {
   q.sort((a, b) => a.key - b.key);
   // 억울한 시작 막기: 줄 맨 앞 몇 명은 "처음부터 뺄 수 있는 버스" 색으로 맞춰요.
   //   (색별 인원 수는 그대로라서 풀 수 있는지는 변하지 않고, 중반 이후 어려움도 그대로예요)
-  const parked = order.filter(v => !v.onRail);
+  const parked = order.filter(v => !v.onRail && !v.sky);
   const freeColors = new Set(parked.filter(v => !v.hidden && !parked.some(o => o !== v && overlap(sweepBox(v), o.body))).map(v => v.color));
   const FRONT = Math.min(q.length, 10);
   if (freeColors.size) {
@@ -260,13 +283,14 @@ function startLevel(n) {
     // 자리 추가: 기본 1개 (최고 난이도 2개), 10번 실패하면 멍냥이의 응원으로 +1, 30번이면 +2 · 색 섞기: '매우 어려움'·'최고 난이도'에서만 1개
     boost: { slot: (levelTier(n) === 5 ? 2 : 1) + cheerLevel(allTries[n] - 1), lift: 1, mix: levelTier(n) >= 4 ? 1 : 0 },
     tries: allTries[n], rush: 0, treeShake: 0,
-    shuffle: n >= SHUFFLE_FROM ? { every: SHUFFLE_EVERY(n), left: SHUFFLE_EVERY(n), wait: 0, count: 0 } : null,
+    balloon: hasEvent(n, 'balloon') ? { left: BALLOON_EVERY } : null,
+    shuffle: hasEvent(n, 'shuffle') ? { every: SHUFFLE_EVERY(n), left: SHUFFLE_EVERY(n), wait: 0, count: 0 } : null,
   };
   g.vehicles.forEach((v, i) => {
     const o = {
       id: i, cx: v.cx, cy: v.cy, ang: v.ang, len: v.len, l: v.l, w: v.w, body: bodyBox(v),
       color: v.color, cap: v.cap, hidden: v.hidden, turner: !!v.turner, spin: 0,
-      state: v.onRail ? 'rail' : 'parked', off: 0, bump: null, shake: 0, filled: 0, incoming: 0, pop: 1, t: 0,
+      state: v.onRail ? 'rail' : v.sky ? 'sky' : 'parked', off: 0, bump: null, shake: 0, filled: 0, incoming: 0, pop: 1, t: 0,
     };
     v._rt = o;
     S.vehicles.push(o);
@@ -287,8 +311,19 @@ function startLevel(n) {
     const step = cheerLevel(allTries[n] - 1), seen = store.get('busGame.cheerSeen', {});
     if (step > (seen[n] || 0)) { seen[n] = step; store.set('busGame.cheerSeen', seen); showCheer(step); return; }
   }
+  // 풍선 버스 이벤트를 처음 만나면 안내 (처음 한 번만)
+  if (S.balloon && !store.get('busGame.balloonSeen', false)) {
+    store.set('busGame.balloonSeen', true);
+    const card = $('card');
+    card.innerHTML = `<h2>새 이벤트! 풍선 버스 🎈</h2>
+      <p>버스를 <b>${BALLOON_EVERY}대 뺄 때마다</b> 풍선을 단 버스가<br>하늘에서 <b>주차장 빈자리에 내려와요</b>.<br>
+      빼려던 버스 앞을 막을 수도 있으니 잘 보세요!<br><small>한 단계에 ${BALLOON_COUNT}대가 내려와요</small></p>
+      <button class="btn" id="ovOk">알겠어요</button>`;
+    card.querySelector('#ovOk').onclick = () => hideOverlay();
+    $('overlay').classList.add('show');
+  }
   // 자리 바꾸기 이벤트를 처음 만나면 안내
-  if (S.shuffle && !store.get('busGame.shuffleSeen', false)) {
+  else if (S.shuffle && !store.get('busGame.shuffleSeen', false)) {
     store.set('busGame.shuffleSeen', true);
     const card = $('card');
     card.innerHTML = `<h2>새 이벤트! 자리 바꾸기</h2>
@@ -366,6 +401,50 @@ function tapRail(i) {
   if (v) turnStep();
 }
 
+// ---- 풍선 버스 ----
+// 방향 그대로 하나씩 빼서 모두 뺄 수 있는지 (나갈 수 있는 버스부터 계속 빼 봐요)
+function canClearAll(list) {
+  let rem = list.slice();
+  while (rem.length) {
+    const clear = (v, ang) => !rem.some(o => o !== v && overlap(sweepBox({ ...v, ang }), o.body));
+    const i = rem.findIndex(v => clear(v, v.ang) || (v.turner && clear(v, v.ang + Math.PI)));   // U턴 버스는 앞뒤 어느 쪽이든
+    if (i < 0) return false;
+    rem.splice(i, 1);
+  }
+  return true;
+}
+// 버스가 빠져나갈 때마다 불러요: 5대마다 풍선 버스 한 대가 내려와요
+function countBalloon() {
+  const B = S.balloon;
+  if (!B || !S.vehicles.some(v => v.state === 'sky')) return;
+  if (--B.left <= 0) B.left = landBalloon() ? BALLOON_EVERY : 1;   // 자리가 없으면 다음 버스 뒤에 다시
+}
+// 하늘의 풍선 버스 한 대를 내려앉힐 자리를 골라요. 빼려던 버스 앞을 막는 자리를 조금 더 좋아해요.
+function landBalloon(instant, rng = Math.random) {
+  const v = S.vehicles.find(x => x.state === 'sky');
+  if (!v) return false;
+  const board = S.vehicles.filter(x => x.state === 'parked' || x.state === 'landing');
+  const free = board.filter(x => x.state === 'parked' && !x.hidden && parkedBlockers(x).length === 0);
+  const good = [], blocking = [];
+  for (let k = 0; k < 500 && good.length < 30; k++) {
+    const c = randomPose(v.len, S.cols, S.rows, rng, 0.15);
+    if (rng() < 0.5) c.ang = normAng(c.ang + Math.PI);
+    if (!insideBoard(c, S.cols, S.rows)) continue;
+    c.pack = bodyBox(c, GAP); c.body = bodyBox(c);
+    if (board.some(o => overlap(c.pack, bodyBox(o, GAP)))) continue;
+    if (!canClearAll(board.concat([c]))) continue;
+    good.push(c);
+    if (free.some(o => overlap(sweepBox(o), c.body))) blocking.push(c);
+  }
+  if (!good.length) return false;
+  const p = blocking.length && rng() < 0.65 ? blocking[Math.floor(rng() * blocking.length)] : good[Math.floor(rng() * good.length)];
+  v.cx = p.cx; v.cy = p.cy; v.ang = p.ang; v.body = bodyBox(v);
+  v.off = 0; v.bump = null; v.pop = 1;
+  if (instant) { v.state = 'parked'; return true; }
+  v.state = 'landing'; v.fall = 0;
+  return true;
+}
+
 // ---- 자리 바꾸기 ----
 // 별이 많은 단계일수록 더 자주 (어려움 7대, 매우 어려움 이상 6대, 쉬움 8대마다)
 const SHUFFLE_EVERY = n => levelTier(n) >= 4 ? 6 : levelTier(n) === 3 ? 7 : 8;
@@ -400,6 +479,7 @@ function rearrange(vs, cols, rows, rng) {
   return null;
 }
 function doShuffle() {
+  for (const v of S.vehicles) if (v.state === 'landing') { v.state = 'parked'; v.fall = 1; v.away = 0; }   // 내려오던 풍선 버스는 먼저 내려앉혀요
   const vs = S.vehicles.filter(v => v.state === 'parked');
   if (vs.length < 2) return;
   const rng = mulberry32((S.level * 7919 + S.shuffle.count * 104729 + (Date.now() & 0xffff)) >>> 0);

@@ -24,6 +24,26 @@ function drawSpeckles(x, y, w, h, n) {
   }
 }
 
+// 풍선 세 개 (분홍·노랑·하늘). rise: 0 = 버스에 매달림, 1 = 하늘로 날아가 사라짐
+function drawBalloons(x, y, k, rise, seed) {
+  const t = performance.now() / 1000, up = rise * rise * k * 6, al = 1 - rise;
+  if (al <= 0) return;
+  ctx.save(); ctx.globalAlpha = al;
+  const B = [[-0.55, -2.1, '#f6b3c8'], [0, -2.55, '#f6dd92'], [0.55, -2.1, '#b3d4ef']];
+  B.forEach(([dx, dy, col], i) => {
+    const sway = Math.sin(t * 2 + seed + i * 1.7) * k * 0.08;
+    const bx = x + dx * k + sway, by = y + dy * k - up, r = k * 0.42;
+    // 줄 (내려앉은 뒤에는 줄도 같이 올라가요)
+    ctx.strokeStyle = 'rgba(96,90,84,.7)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, y - up); ctx.quadraticCurveTo(bx + sway * 2, (y - up + by) / 2, bx, by + r * 1.1); ctx.stroke();
+    // 풍선
+    ctx.beginPath(); ctx.ellipse(bx, by, r * 0.86, r, 0, 0, Math.PI * 2);
+    ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx - r * 0.12, by + r * 1.12); ctx.lineTo(bx + r * 0.12, by + r * 1.12); ctx.lineTo(bx, by + r * 0.96); ctx.closePath(); ctx.fillStyle = col; ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(bx - r * 0.3, by - r * 0.35, r * 0.16, r * 0.26, -0.5, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fill();
+  });
+  ctx.restore();
+}
 function drawVehicle(x, y, a, w, l, colorIdx, hidden, o = {}) {
   const C = hidden ? HIDDEN_COLOR : COLORS[colorIdx];
   ctx.save();
@@ -471,6 +491,11 @@ function vehiclePose(v) {
       a: m.a + normAng(v.ang - m.a) * e, w: v.w * L.cs, l: v.l * L.cs, scale: up,
     };
   }
+  if (v.state === 'landing') {                       // 풍선 버스: 화면 위에서 흔들흔들 내려와요
+    const e = 1 - Math.pow(1 - v.fall, 3), x0 = L.bx + v.cx * L.cs, y0 = L.by + v.cy * L.cs;
+    return { x: x0 + Math.sin(v.fall * 9) * (1 - e) * L.cs * 0.4, y: y0 - (1 - e) * (y0 + L.cs * 2), a: v.ang + Math.sin(v.fall * 7) * (1 - e) * 0.25,
+      w: v.w * L.cs, l: v.l * L.cs, scale: 1 + (1 - e) * 0.15 };
+  }
   if (v.state === 'parked' || v.state === 'exiting') {
     const a = axes(v.ang);
     const shake = v.shake > 0 ? Math.sin(v.shake * 60) * 3 : 0;
@@ -707,7 +732,7 @@ function draw() {
       { bag: f.bag, ribbon: f.ribbon, excited: true });
   }
 
-  const order = { parked: 0, slot: 1, departing: 1, exiting: 2, toSlot: 2 };
+  const order = { parked: 0, slot: 1, departing: 1, exiting: 2, toSlot: 2, landing: 3 };
   const list = S.vehicles.filter(v => v.state in order).sort((a, b) => order[a.state] - order[b.state]);
   for (const v of list) {
     if (v.state === 'parked' && parkedStill(v)) continue;     // 주차장 그림에 이미 있어요
@@ -723,6 +748,13 @@ function draw() {
       alpha: P.alpha, scale: P.scale,
     });
     if (clip) ctx.restore();
+  }
+  // 풍선 버스: 내려오는 동안 풍선 세 개, 내려앉으면 풍선은 하늘로 둥실
+  for (const v of S.vehicles) {
+    const away = v.state === 'parked' && v.away !== undefined && v.away < 1 ? v.away : -1;
+    if (v.state !== 'landing' && away < 0) continue;
+    const P = vehiclePose(v);
+    drawBalloons(P.x, P.y, L.cs, away < 0 ? 0 : away, v.id);
   }
   // 떠나는 버스: 신나는 음표 말풍선
   for (const v of S.vehicles) {

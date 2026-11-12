@@ -264,6 +264,7 @@ function tapParked(v) {
 
 function launch(v, si, lifted) {
   countShuffle();
+  countBalloon();
   S.slots[si] = v;
   v.slot = si;
   v.bump = null;
@@ -465,7 +466,14 @@ function update(dt) {
     S.shuffle.wait -= dt;
     if (S.shuffle.wait <= 0) { S.shuffle.wait = 0; doShuffle(); updateUI(); }
   }
+  // 풍선 버스: 주차장이 다 비었는데 하늘에 남아 있으면 바로 내려와요
+  if (S.balloon && S.vehicles.some(v => v.state === 'sky') && !S.vehicles.some(v => v.state === 'parked' || v.state === 'landing')) landBalloon();
   for (const v of S.vehicles) {
+    if (v.state === 'landing') {                 // 풍선을 달고 둥실둥실 내려와요
+      v.fall += dt / 1.4;
+      if (v.fall >= 1) { v.state = 'parked'; v.fall = 1; v.pop = 0; v.away = 0; revealCheck(false); }
+    }
+    if (v.away !== undefined && v.away < 1) v.away = Math.min(1, v.away + dt / 1.6);   // 내려앉으면 풍선은 하늘로
     if (v.move) { v.move.t += dt * 1.6; if (v.move.t >= 1) { v.move = null; revealCheck(false); } }
     if (v.pop < 1) v.pop = Math.min(1, v.pop + dt * 4);
     if (v.mixT > 0) {                           // 색 섞기: 짧게 이 색 저 색 → 제 색에 멈추며 통!

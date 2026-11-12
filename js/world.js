@@ -375,7 +375,7 @@ function showLevelPopup(n) {
   const card = $('card');
   card.innerHTML = `<h2>${n}단계</h2>
     <div class="stars">${'★'.repeat(tier.stars)}<span class="off">${'★'.repeat(5 - tier.stars)}</span></div>
-    <p>난이도 · ${tier.name}${n >= RAIL_FROM ? '<br>이벤트 · 레일 버스' + (n >= TURN_FROM ? ' + U턴 버스' : '') + (n >= SHUFFLE_FROM ? ' + 자리 바꾸기' : '') : ''}${n < unlocked ? '<br>이미 깬 단계예요' : ''}</p>
+    <p>난이도 · ${tier.name}${levelEvents(n).length ? '<br>이벤트 · ' + levelEvents(n).map(e => EVENT_NAMES[e]).join(' + ') : ''}${n < unlocked ? '<br>이미 깬 단계예요' : ''}</p>
     <button class="btn" id="ovStart">시작하기</button>
     ${X_BTN}`;
   card.querySelector('#ovStart').onclick = () => tryStart(n);

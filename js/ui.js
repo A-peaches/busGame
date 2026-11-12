@@ -111,7 +111,7 @@ function showOverlay(kind) {
     const tries = S.tries || 1;
     const all = store.get('busGame.tries', {}); all[S.level] = 0; store.set('busGame.tries', all);   // 다음 도전은 새로 세요
     card.innerHTML = `<canvas id="celebCv" class="perch" width="600" height="250"></canvas>
-      <h2>축하드립니다!</h2><p><b>${tries}번</b>의 시도로 성공했습니다!</p>
+      <h2>축하드립니다!</h2><p><b>${tries}번</b>의 시도로 성공했습니다!<br><small>${HEART_SVG} 시작할 때 낸 하트를 돌려받았어요</small></p>
       ${S.level < MAX_LEVEL ? `<button class="btn" id="ovNext">${S.level + 1}단계로</button>` : '<p><b>100단계를 모두 깼어요! 최고의 버스 기사님!</b></p>'}
       <button class="btn alt" id="ovMap">메인 메뉴로</button>`;
     if (S.level < MAX_LEVEL) card.querySelector('#ovNext').onclick = () => { stopCelebration(); tryStart(S.level + 1); };
@@ -124,7 +124,7 @@ function showOverlay(kind) {
     refreshHearts();
     card.innerHTML = `<canvas id="sadCv" class="perch" width="600" height="250"></canvas>
       <h2>꽉 막혔어요</h2><p>대기 칸이 가득 차서 더 태울 수 없어요.<br>
-      <small>다시 하기·지도 보기를 누르면 하트가 1개 줄어요</small><br>
+      <small>다시 하기는 하트 1개가 들어요</small><br>
       <span class="heartNow">${HEART_SVG}지금 하트 ${hearts.n}개</span></p>
       <button class="btn" id="ovSlot" ${canSlot ? '' : 'disabled'}>아이템 사용${canSlot ? ' (자리 +1)' : ' (없음)'}</button>
       <button class="btn alt" id="ovRetry">다시 하기</button>
@@ -134,7 +134,7 @@ function showOverlay(kind) {
       if (!useHeart()) { toast(`하트가 없어요 · ${heartLeft()} 뒤에 1개 충전`, 2200); return; }
       stopCelebration(); startLevel(S.level);
     };
-    card.querySelector('#ovMap').onclick = () => { useHeart(); stopCelebration(); showMenu(); };
+    card.querySelector('#ovMap').onclick = () => { stopCelebration(); showMenu(); };
     $('overlay').classList.add('show');
     sadLoop();
     return;
@@ -286,8 +286,9 @@ const HELP_PAGES = [
     </ul>`],
   ['❤️ 하트', '하트', `<ul>
       <li>하트는 최대 5개, <b>10분마다 1개</b>씩 충전돼요.</li>
-      <li>실패한 뒤 다시 하거나 지도로 나가면 1개 줄어요. 게임 도중 나가도 1개 줄어요.</li>
-      <li>클리어하면 하트는 줄지 않아요. 하트가 0개면 단계를 시작할 수 없어요.</li>
+      <li>단계를 <b>시작할 때 하트 1개</b>를 내요. <b>깨면 그 하트를 돌려받아요.</b></li>
+      <li>실패하거나 중간에 나가면 낸 하트는 돌아오지 않아요. 다시 하기도 새로 시작이라 하트 1개가 들어요.</li>
+      <li>하트가 0개면 단계를 시작할 수 없어요.</li>
       <li>친구가 보낸 하트를 받으면 5개를 넘을 수도 있어요.</li>
       <li><b>출석 선물</b>: 하루에 처음 들어오면 하트 1개를 더 받아요.</li>
     </ul>`],

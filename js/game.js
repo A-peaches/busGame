@@ -314,12 +314,12 @@ $('homeBtn').onclick = () => {
   refreshHearts();
   const card = $('card');
   card.innerHTML = `<h2>지도로 나갈까요?</h2>
-    <p>지금 나가면 이 단계는 실패로 쳐서 하트가 1개 줄어요.<br>
+    <p>지금 나가면 이 단계는 실패예요.<br>시작할 때 낸 하트는 돌려받지 못해요.<br>
     <span class="heartNow">${HEART_SVG}지금 하트 ${hearts.n}개</span></p>
     <button class="btn" id="ovStay">계속 하기</button>
-    <button class="btn alt" id="ovLeave">나가기 (하트 1개)</button>`;
+    <button class="btn alt" id="ovLeave">나가기</button>`;
   card.querySelector('#ovStay').onclick = () => hideOverlay();
-  card.querySelector('#ovLeave').onclick = () => { useHeart(); showMenu(); };
+  card.querySelector('#ovLeave').onclick = () => showMenu();
   $('overlay').classList.add('show');
 };
 $('settingsBtn').onclick = $('settingsBtn2').onclick = () => showSettings();
@@ -456,6 +456,7 @@ function checkWin() {
   if (remainingCount() === 0 && S.vehicles.every(v => v.state === 'gone')) {
     S.over = true;
     if (S.level + 1 > unlocked) { unlocked = Math.min(MAX_LEVEL, S.level + 1); store.set('busGame.unlocked', unlocked); }
+    refundHeart();                                    // 시작할 때 낸 하트를 돌려받아요
     if (typeof syncSoon === 'function') syncSoon();   // 깬 단계를 서버에도 저장
     sfx('win');
     setTimeout(() => showOverlay('win'), 350);

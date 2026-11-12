@@ -158,11 +158,20 @@ function renderHearts() {
 }
 setInterval(renderHearts, 1000);
 // 하트가 있어야 단계를 시작할 수 있어요
+// 단계를 시작할 때 하트 1개를 내요. 깨면 돌려받아요. (중간에 앱을 꺼도 이미 낸 하트라 편법이 안 돼요)
 function tryStart(n) {
   if (n > MAX_LEVEL) return;
-  refreshHearts();
-  if (hearts.n <= 0) { toast(`하트가 없어요 · ${heartLeft()} 뒤에 1개 충전`, 2200); return; }
+  if (!useHeart()) { toast(`하트가 없어요 · ${heartLeft()} 뒤에 1개 충전`, 2200); return; }
   startLevel(n);
+}
+// 깨면 시작할 때 낸 하트를 돌려줘요
+function refundHeart() {
+  refreshHearts();
+  if (hearts.n >= HEART_MAX) hearts.t = Date.now();
+  hearts.n += 1;
+  store.set('busGame.hearts', hearts);
+  renderHearts();
+  if (typeof syncSoon === 'function') syncSoon();
 }
 
 // 날리는 것: 비 오는 날엔 비, 겨울이거나 실제로 눈 오는 날엔 눈, 그 밖엔 계절 (벚꽃잎·나뭇잎·단풍).

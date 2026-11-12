@@ -264,7 +264,9 @@ function drawTrumpeters(c, T) {
 // =====================================================================
 //  멍냥이의 응원: 한 단계에서 10번 실패하면 깰 때까지 자리 추가 +1 (팝업은 처음 한 번)
 // =====================================================================
-const CHEER_AFTER = 10;   // 이만큼 실패하면 응원해요
+const CHEER_AFTER = 10;   // 이만큼 실패하면 응원해요 (자리 추가 +1)
+const CHEER_AFTER2 = 30;  // 이만큼 실패하면 한 번 더 응원 (자리 추가 +2, 모두 3개)
+const cheerLevel = fails => fails >= CHEER_AFTER2 ? 2 : fails >= CHEER_AFTER ? 1 : 0;
 // 응원 수술(폼폼): 가는 술이 동그랗게 퍼진 모양
 function drawPompom(c, x, y, r, col, T, ph) {
   const n = 16;
@@ -309,13 +311,13 @@ function drawCheerleaders(c, T) {
     }
   } finally { ctx = saved; LW_SCALE = savedLW; }
 }
-function showCheer(onOk) {
+function showCheer(step = 1, onOk) {
   stopCelebration();
   const card = $('card');
   card.innerHTML = `<canvas id="cheerCv" class="perch" width="600" height="250"></canvas>
     <h2>멍냥이의 응원!</h2>
-    <p>이 단계에서 벌써 <b>${CHEER_AFTER}번</b>이나 도전했어요.<br>멍냥이들이 힘을 보태 줄게요!</p>
-    <p class="cheerGift"><b>+ 자리 추가 1개 더!</b><br><small>이 단계를 깰 때까지 자리 추가를 2개씩 써요</small></p>
+    <p>이 단계에서 벌써 <b>${step > 1 ? CHEER_AFTER2 : CHEER_AFTER}번</b>이나 도전했어요.<br>${step > 1 ? '멍냥이들이 한 번 더 힘을 보태 줄게요!' : '멍냥이들이 힘을 보태 줄게요!'}</p>
+    <p class="cheerGift"><b>+ 자리 추가 1개 더!</b><br><small>이 단계를 깰 때까지 자리 추가를 ${S ? S.boost.slot : step + 1}개씩 써요</small></p>
     <button class="btn" id="cheerOk">힘내서 출발!</button>`;
   card.querySelector('#cheerOk').onclick = () => { stopCelebration(); hideOverlay(); if (onOk) onOk(); };
   $('overlay').classList.add('show');
@@ -354,7 +356,8 @@ const HELP_PAGES = [
       <li>대기 칸이 꽉 찼는데 하트 길의 누구도 탈 수 없으면 <b>꽉 막혀요</b>.</li>
       <li><b>자리 추가</b>: 대기 칸이 한 칸 늘어나요. 단계마다 1개 (별 5개 단계는 2개).</li>
       <li><b>크레인</b>: 막혀 있는 버스도 아무거나 하나 바로 꺼내요. 단계마다 1개.</li>
-      <li><b>색 섞기</b>: 지금 꺼낼 수 있는 버스들의 색을 기다리는 멍냥이들 색으로 바꿔 줘요. <b>매우 어려움</b>·<b>최고 난이도</b> 단계에서만 1개.</li>
+      <li><b>멍냥이의 응원</b>: 한 단계에서 10번 실패하면 자리 추가 +1, 30번 실패하면 +1 더 (깰 때까지).</li>
+    <li><b>색 섞기</b>: 지금 꺼낼 수 있는 버스들의 색을 기다리는 멍냥이들 색으로 바꿔 줘요. <b>매우 어려움</b>·<b>최고 난이도</b> 단계에서만 1개.</li>
       <li>꽉 막혔을 때 [아이템 사용]으로 자리를 늘려 이어서 할 수도 있어요.</li>
     </ul>`],
   ['❤️ 하트', '하트', `<ul>

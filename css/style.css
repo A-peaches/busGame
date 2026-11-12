@@ -389,7 +389,7 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 /* 친구 창: 찾기 칸과 "친구 N명" 사이를 가깝게 */
 .codeRow + .findList + .secTitle { margin-top: 0; }
 .codeRow:has(#findNick) { margin-bottom: 4px; }
-.card h2.tightTop { margin-top: -8px; margin-bottom: 8px; }   /* 친구 창 제목을 조금 위로 */
+.card > h2:first-child { margin-top: -8px; margin-bottom: 8px; }   /* 모든 창 제목을 조금 위로 (친구 창과 똑같이) */
 
 /* 창 오른쪽 위 X 닫기 버튼 */
 .xBtn { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 50%; padding: 0; cursor: pointer;

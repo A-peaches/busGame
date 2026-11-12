@@ -279,6 +279,19 @@ function launch(v, si, lifted) {
 
 // 주차장을 빠져나온 버스가 찻길 옆에서 들어와 부릉부릉 달려와서 칸으로 쏙 들어가요
 //   dirx: 빠져나간 방향(오른쪽 +). 오른쪽으로 나갔으면 오른쪽 끝에서 들어와요.
+// 출발 차례: 찻길 위에 떠나는 중인 다른 버스가 내 앞(오른쪽)으로 충분히 지나갔을 때만 출발해요
+//   (같은 시간에 여러 대가 다 차도 한 대씩 차례차례 떠나요)
+function roadClearFor(v) {
+  const myX = slotPos(v.slot).x, gap = slotSize(v).l * 1.3;
+  for (const o of S.vehicles) {
+    if (o === v || o.state !== 'departing') continue;
+    if (vehiclePose(o).x < myX + gap) return false;
+  }
+  // 찻길로 들어오는 중인 버스와도 부딪히지 않게
+  for (const o of S.vehicles) if (o.state === 'toSlot' && !o.lifted && o.t > 0 && o.t < 0.66) return false;
+  return true;
+}
+
 function startArrive(v, dirx) {
   const p = slotPos(v.slot);
   v.side = dirx > 0.3 ? 1 : dirx < -0.3 ? -1 : (p.x < L.W / 2 ? -1 : 1);
@@ -374,7 +387,7 @@ function update(dt) {
       v.t += dt / (v.lifted ? 0.55 : v.arrT);
       if (v.t >= 1) { v.t = 1; v.state = 'slot'; }
     } else if (v.state === 'slot') {
-      if (v.filled >= v.cap && v.incoming === 0) {
+      if (v.filled >= v.cap && v.incoming === 0 && roadClearFor(v)) {   // 먼저 떠난 버스가 앞으로 충분히 가야 출발 (겹치지 않게)
         v.state = 'departing'; v.t = 0; v.left = false;
         const p = slotPos(v.slot); v.depX = p.x; v.depY = p.y;
         sfx('depart');

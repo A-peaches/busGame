@@ -417,7 +417,7 @@ function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, opts = {}) {
 const TAIL_FRAMES = 8;
 const animalSprites = new Map();
 function drawAnimalFast(x, y, r, colorIdx, kind, bob = 0, phase = 0, opts = {}) {
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = DPR;
   const speed = kind === 'cat' ? (opts.sleep ? 0.8 : 2.6) : (opts.sleep ? 2 : opts.excited ? 22 : 14);
   const cyc = ((performance.now() / 1000 + phase) * speed / (Math.PI * 2)) % 1;
   const frame = Math.floor(cyc * TAIL_FRAMES);

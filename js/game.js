@@ -5,7 +5,7 @@
 function layout() {
   const W = stage.clientWidth, H = stage.clientHeight;
   if (!W || !H) return;
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = DPR;
   canvas.width = Math.round(W * dpr);
   canvas.height = Math.round(H * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);

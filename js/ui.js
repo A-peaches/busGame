@@ -151,7 +151,7 @@ function stopCelebration() {
 function celebrate() {
   stopCelebration();
   const cf = $('confetti'), app = $('app');
-  const dpr = window.devicePixelRatio || 1, W = app.clientWidth, H = app.clientHeight;
+  const dpr = DPR, W = app.clientWidth, H = app.clientHeight;
   cf.width = W * dpr; cf.height = H * dpr;
   const fc = cf.getContext('2d'); fc.setTransform(dpr, 0, 0, dpr, 0, 0);
   const COLS = ['#f4a3bd', '#8dbbe0', '#f6d76b', '#b4dc88', '#fbe0ea'];

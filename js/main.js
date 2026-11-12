@@ -2,12 +2,16 @@
 // =====================================================================
 //  시작!
 // =====================================================================
-let last = performance.now();
+// 매 프레임: 움직임 계산은 늘 하고, 그리기는 화면이 바쁠 때만 초당 60번 (조용할 땐 30번) → 발열 줄이기
+let last = performance.now(), skip = false;
+const busy = () => S && (S.rush > 0 || S.holding || S.flying.length > 0 ||
+  S.vehicles.some(v => v.move || v.spin > 0 || v.bump || v.shake > 0 || v.pop < 1 || ['exiting', 'toSlot', 'departing'].includes(v.state)));
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   update(dt);
-  draw();
+  skip = !skip;
+  if (S && (busy() || !skip)) draw();
   requestAnimationFrame(loop);
 }
 

@@ -392,7 +392,7 @@ function tickBusLive() {
   }
   renderBusLive();
 }
-setInterval(tickBusLive, 50);
+setInterval(tickBusLive, 70);   // 초당 14번이면 충분히 부드러워요 (발열 줄이기)
 
 function makeSnowman() {
   return `<g transform="translate(318 470)" stroke="rgba(112,104,96,.6)" stroke-width="1">

@@ -7,7 +7,7 @@ function audio() {
   if (AC) return AC;
   try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
   // 잔향: 작은 나무 방에서 치는 피아노 느낌
-  const len = Math.floor(AC.sampleRate * 2.4);
+  const len = Math.floor(AC.sampleRate * 1.4);   // 잔향 길이를 줄여 계산량 절약 (발열 줄이기)
   const ir = AC.createBuffer(2, len, AC.sampleRate);
   for (let ch = 0; ch < 2; ch++) {
     const d = ir.getChannelData(ch);
@@ -24,6 +24,9 @@ function audio() {
 }
 function applyVolumes() {
   if (!AC) return;
+  // 배경음악·효과음이 모두 꺼져 있으면 소리 엔진을 아예 쉬게 해요 (배터리·발열 절약)
+  if (!settings.bgmOn && !settings.sfxOn) { if (AC.state === 'running') AC.suspend(); return; }
+  if (AC.state === 'suspended' && !document.hidden) AC.resume();
   const t = AC.currentTime;
   sfxBus.gain.setTargetAtTime(settings.sfxOn ? settings.sfxVol * 0.9 : 0, t, 0.03);
   bgmBus.gain.setTargetAtTime(settings.bgmOn ? settings.bgmVol * 0.55 : 0, t, 0.15);

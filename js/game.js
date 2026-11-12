@@ -230,8 +230,16 @@ canvas.addEventListener('pointerdown', e => {
 //   (못 나가는 버스를 일부러 눌러 레일만 돌리는 꼼수 막기)
 function tapVehicle(v) {
   if (S.vehicles.some(o => o.move) || (S.shuffle && S.shuffle.wait > 0)) return;   // 자리 바꾸는 중엔 잠깐 기다려요
-  if (tapParked(v)) railStep();
-  turnStep();
+  if (tapParked(v)) { railStep(); turnStep(); }   // U턴 차례도 버스가 실제로 빠져나갔을 때만 지나가요
+  else unstickTurners();
+}
+// 꺼낼 수 있는 버스가 하나도 없는데 U턴 버스를 돌리면 길이 열린다면, 바로 U턴시켜 줘요 (판이 완전히 막히지 않게)
+function unstickTurners() {
+  const parked = S.vehicles.filter(v => v.state === 'parked');
+  if (!parked.some(v => v.turner) || parked.some(v => !v.bump && parkedBlockers(v).length === 0)) return;
+  if (S.rail && S.rail.items.some((v, i) => v && (railToBoard(v, i), parkedBlockers(v).length === 0))) return;
+  S.turnLeft = S.turnEvery;
+  for (const v of parked) if (v.turner) { if (v.bump) v.turnLater = true; else uTurn(v); }
 }
 function tapParked(v) {
   if (S.liftMode) {

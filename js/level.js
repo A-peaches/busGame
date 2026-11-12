@@ -356,7 +356,7 @@ function startLevel(n) {
     const card = $('card');
     card.innerHTML = `<h2>새 이벤트! U턴 버스</h2>
       <p>모서리에 <b>노란 숫자 배지</b>가 붙은 버스는<br>
-      버스를 <b>3번 누를 때마다 앞뒤 방향이 바뀌어요</b>.<br>
+      버스가 <b>3대 빠져나갈 때마다 앞뒤 방향이 바뀌어요</b>.<br>
       배지 숫자는 다음 U턴까지 남은 턴이에요!</p>
       <button class="btn" id="ovOk">알겠어요</button>`;
     card.querySelector('#ovOk').onclick = () => hideOverlay();
@@ -413,8 +413,8 @@ function tapRail(i) {
       left = true;
     }
   }
-  if (left) railStep();
-  if (v) turnStep();
+  if (left) { railStep(); turnStep(); }       // 레일·U턴 모두 버스가 실제로 빠져나갔을 때만
+  else if (v) unstickTurners();
 }
 
 // ---- 풍선 버스 ----

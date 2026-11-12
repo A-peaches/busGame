@@ -265,13 +265,19 @@ function showNickname(first) {
     <button class="btn" id="nickOk">${first ? '여행 시작' : '저장'}</button>
     ${first ? '<button class="linkBtn" id="restoreBtn">🔑 백업 코드로 불러오기</button>' : '<button class="btn alt" id="ovClose">취소</button>'}`;
   const inp = card.querySelector('#nickInput');
-  const ok = () => {
+  const ok = async () => {
     const v = inp.value.trim();
     if (!v) { toast('닉네임을 적어 주세요'); inp.focus(); return; }
+    if (!first && v === nickname) { hideOverlay(); return; }
     // 권한 요청은 버튼을 누른 그 순간에 해야 크롬이 물어봐요
     const geoC = first && card.querySelector('#geoOk');
     // 알림은 꼭 물어봐요 (권한 창은 버튼을 누른 그 순간에만 띄울 수 있어요)
     const permP = first && pushSupported() && Notification.permission === 'default' ? Notification.requestPermission() : null;
+    // 같은 닉네임은 한 사람만 써요
+    const btn = card.querySelector('#nickOk'); btn.disabled = true;
+    const free = typeof nickAvailable === 'function' ? await nickAvailable(v) : true;
+    btn.disabled = false;
+    if (!free) { toast('이미 있는 닉네임이에요. 다른 닉네임을 정해 주세요', 2400); inp.focus(); inp.select(); return; }
     nickname = v;
     store.set('busGame.nickname', v);
     updateHello();

@@ -20,6 +20,10 @@ async function api(path, data) {
   return j;
 }
 
+// 닉네임을 쓸 수 있는지 서버에 물어봐요 (인터넷이 안 되면 일단 통과, 서버가 다시 막아요)
+async function nickAvailable(name) {
+  try { return (await api('/nick/check?name=' + encodeURIComponent(name))).ok; } catch (e) { return e.status === 429 ? false : true; }
+}
 async function ensureAccount() {
   if (acct) return acct;
   if (!nickname) return null;
@@ -29,7 +33,15 @@ async function ensureAccount() {
     store.set('busGame.acct', acct);
     saveAuthForSW();
     return acct;
-  } catch (e) { return null; }
+  } catch (e) {
+    if (e.status === 409) {                       // 그사이 다른 사람이 같은 닉네임을 썼어요 → 다시 정해 달라고
+      nickname = ''; store.set('busGame.nickname', '');
+      if (typeof updateHello === 'function') updateHello();
+      toast('이미 있는 닉네임이에요. 다른 닉네임을 정해 주세요', 2400);
+      if (typeof showNickname === 'function') showNickname(true);
+    }
+    return null;
+  }
 }
 
 // ---- 단계·하트 저장 (조금 모아서 보내요) ----
@@ -47,6 +59,10 @@ async function syncOnce() {
     refreshHearts();
     const r = await api('/sync', { nickname, unlocked, hearts: { n: hearts.n, t: hearts.t } });
     if (r.code && acct.code !== r.code) { acct.code = r.code; store.set('busGame.acct', acct); }
+    if (r.nickTaken && r.nickname) {               // 바꾸려던 닉네임이 이미 있어서 서버가 원래 닉네임을 지켰어요
+      nickname = r.nickname; store.set('busGame.nickname', nickname); updateHello();
+      toast('이미 있는 닉네임이라 바꾸지 못했어요', 2400);
+    }
     if (r.unlocked > unlocked) {               // 다른 곳에서 더 많이 깼다면 이어서
       unlocked = r.unlocked; store.set('busGame.unlocked', unlocked);
       if (!S) renderMap();

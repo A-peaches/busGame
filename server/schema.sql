@@ -107,3 +107,6 @@ CREATE TABLE IF NOT EXISTS errors (
   stack  TEXT,
   ua     TEXT
 );
+
+-- 닉네임은 한 사람만 (대소문자 구분 없이, 빈 닉네임은 제외)
+CREATE UNIQUE INDEX IF NOT EXISTS users_nick_unique ON users(lower(nickname)) WHERE nickname != '';

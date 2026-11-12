@@ -74,6 +74,12 @@ async function handle(req, env, ctx) {
     try {
       const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
       if (path === '/' ) return json({ ok: true, name: 'meow-bus-api' });
+      if (path === '/nick/check' && req.method === 'GET') {                              // 닉네임 쓸 수 있는지 (중복 막기)
+        if (await tooMany(env, 'nick:' + ipOf(req), 120, 3600000)) return slowDown();
+        const me = await auth(req, env);
+        const name = cleanName(url.searchParams.get('name'));
+        return json({ ok: !!name && !(await nickTaken(env, name, me && me.id)) });
+      }
       if (path === '/register' && req.method === 'POST') {
         if (await tooMany(env, 'reg:' + ipOf(req), 20, 3600000)) return slowDown();      // 한 시간에 20개까지
         return register(env, body);
@@ -146,8 +152,14 @@ async function auth(req, env) {
 }
 const publicMe = u => ({ id: u.id, code: u.code, nickname: u.nickname, unlocked: u.unlocked });
 
+// 같은 닉네임은 한 사람만 (대소문자 구분 없이). selfId 는 내 계정이라 빼고 봐요
+async function nickTaken(env, name, selfId) {
+  if (!name) return false;
+  return !!(await env.DB.prepare("SELECT 1 FROM users WHERE lower(nickname) = lower(?) AND id != ? LIMIT 1").bind(name, selfId || '').first());
+}
 async function register(env, body) {
   const id = hex(8), token = hex(24), nickname = cleanName(body.nickname);
+  if (await nickTaken(env, nickname)) return json({ error: '이미 있는 닉네임이에요', taken: true }, 409);
   for (let i = 0; i < 5; i++) {
     const code = newCode();
     try {
@@ -178,7 +190,9 @@ async function restore(env, body) {
 }
 
 async function sync(env, user, body, ctx) {
-  const nickname = body.nickname !== undefined ? cleanName(body.nickname) : user.nickname;
+  let nickname = body.nickname !== undefined ? cleanName(body.nickname) : user.nickname;
+  let nickTakenNow = false;
+  if (nickname !== user.nickname && await nickTaken(env, nickname, user.id)) { nickname = user.nickname; nickTakenNow = true; }   // 이미 있는 닉네임이면 바꾸지 않아요
   const unlocked = Math.min(100, user.unlocked + 5, Math.max(user.unlocked, body.unlocked | 0));   // 한 번에 5단계 넘게 뛰지 않게
   let { hearts, hearts_t, full_at, full_notified } = user;
   if (body.hearts && Number.isFinite(body.hearts.n) && Number.isFinite(body.hearts.t)) {
@@ -194,7 +208,7 @@ async function sync(env, user, body, ctx) {
   const g = await env.DB.prepare('SELECT COUNT(*) AS c FROM gifts WHERE to_id = ? AND claimed = 0').bind(user.id).first();
   const l = await env.DB.prepare('SELECT COUNT(*) AS c FROM letters WHERE to_id = ? AND read = 0').bind(user.id).first();
   const fr = await env.DB.prepare('SELECT COUNT(*) AS c FROM friend_requests WHERE to_id = ?').bind(user.id).first();
-  return json({ unlocked, gifts: g ? g.c : 0, letters: l ? l.c : 0, requests: fr ? fr.c : 0, code: user.code });
+  return json({ unlocked, gifts: g ? g.c : 0, letters: l ? l.c : 0, requests: fr ? fr.c : 0, code: user.code, nickname, nickTaken: nickTakenNow });
 }
 
 // 내가 old → cur 단계가 되면서 넘어선 친구들에게 알림: 같은 단계가 되면 '따라잡았어요', 더 앞서면 '앞질렀어요'

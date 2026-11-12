@@ -185,8 +185,13 @@ function manageFriend(id, name) {
 // ---- 친구 창 ----
 const fmtWait = ms => {
   const m = Math.max(0, Math.ceil(ms / 60000)), h = Math.floor(m / 60);
-  return h ? `${h}시간 뒤` : `${m}분 뒤`;     // 짧게 (친구 줄이 좁아서)
+  return h ? `${h}h` : `${m}m`;     // 아주 짧게: 4h, 35m
 };
+// 친구 줄의 작은 아이콘 버튼들 (하트 보내기 · 쪽지 · 삭제/차단)
+const IC_HEART = '<svg viewBox="0 0 20 18" width="17" height="15" aria-hidden="true"><path d="M10 16.5 C4.5 12.3 1.5 9.4 1.5 5.9 C1.5 3.3 3.5 1.5 5.8 1.5 C7.5 1.5 9 2.4 10 3.9 C11 2.4 12.5 1.5 14.2 1.5 C16.5 1.5 18.5 3.3 18.5 5.9 C18.5 9.4 15.5 12.3 10 16.5Z" fill="#e9899b" stroke="#8a6a5c" stroke-width="1.1"/></svg>';
+const IC_LETTER = '<svg viewBox="0 0 22 16" width="18" height="14" aria-hidden="true"><g stroke="#6b5a48" stroke-width="1.3" stroke-linejoin="round"><rect x="1.5" y="1.5" width="19" height="13" rx="2" fill="#fbf3e2"/><path d="M2.3 2.6 L11 9 L19.7 2.6" fill="none"/></g></svg>';
+const IC_TRASH = '<svg viewBox="0 0 18 20" width="14" height="16" aria-hidden="true"><g stroke="#6b5a48" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M2 5 H16 M7 5 V2.8 H11 V5"/><path d="M3.8 5 L4.8 17.5 H13.2 L14.2 5" fill="#efe6d6"/><path d="M7.4 8.5 V14.5 M10.6 8.5 V14.5"/></g></svg>';
+
 // 마지막 접속: 5분 안이면 "접속 중"(초록 동그라미), 아니면 "N분/시간/일 전"
 const ONLINE_MS = 5 * 60 * 1000;
 const seenText = (ls, t) => {
@@ -221,13 +226,13 @@ async function showFriends() {
     <p class="secTitle">친구 ${list.length}명</p>
     <div class="friendList">${list.length ? ranked.map((f, i) => {
       const rank = `<span class="rank">${i < 3 ? trophy(i) : i + 1}</span>`;
-      if (f.me) return `<div class="friendRow me"><span>${rank}${esc(nickname)}<small>나 · ${unlocked}단계</small></span></div>`;
+      if (f.me) return `<div class="friendRow me"><span class="fName">${rank}<span class="fTxt">${esc(nickname)}<small>나 · ${unlocked}단계</small></span></span></div>`;
       const wait = f.nextGiftAt && f.nextGiftAt > t;
       const on = f.lastSeen && t - f.lastSeen < ONLINE_MS;
-      return `<div class="friendRow"><span>${rank}${esc(f.nickname || '친구')}<i class="onDot${on ? ' on' : ''}" title="${on ? '접속 중' : ''}"></i><small>${f.unlocked}단계 · ${seenText(f.lastSeen, t)}</small></span>
-        <span class="friendBtns"><button class="btn mini ${wait ? 'alt' : ''}" data-id="${esc(f.id)}" ${wait ? 'disabled' : ''}>${wait ? fmtWait(f.nextGiftAt - t) : '하트'}</button>
-        <button class="btn alt mini" data-letter="${esc(f.id)}" data-name="${esc(f.nickname || '친구')}">쪽지</button>
-        <button class="btn alt mini more" data-more="${esc(f.id)}" data-name="${esc(f.nickname || '친구')}" aria-label="더보기">⋯</button></span></div>`;
+      return `<div class="friendRow"><span class="fName">${rank}<span class="fTxt">${esc(f.nickname || '친구')}<i class="onDot${on ? ' on' : ''}" title="${on ? '접속 중' : ''}"></i><small>${f.unlocked}단계 · ${seenText(f.lastSeen, t)}</small></span></span>
+        <span class="friendBtns"><button class="btn mini ic ${wait ? 'alt' : ''}" data-id="${esc(f.id)}" ${wait ? 'disabled' : ''} aria-label="하트 보내기">${wait ? fmtWait(f.nextGiftAt - t) : IC_HEART}</button>
+        <button class="btn alt mini ic" data-letter="${esc(f.id)}" data-name="${esc(f.nickname || '친구')}" aria-label="쪽지">${IC_LETTER}</button>
+        <button class="btn alt mini ic" data-more="${esc(f.id)}" data-name="${esc(f.nickname || '친구')}" aria-label="삭제·차단">${IC_TRASH}</button></span></div>`;
     }).join('') : '<p><small>아직 친구가 없어요. 위에서 닉네임으로 찾아 친구 요청을 보내 보세요!</small></p>'}</div>
     <p><small>친구에게 6시간마다 하트 1개를 보낼 수 있어요</small></p>
     ${close}`;

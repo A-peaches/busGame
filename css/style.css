@@ -273,7 +273,7 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .btn.mini.claimAll { display: block; margin: 0 auto 8px; }
 .btn.mini.more { padding: 7px 8px; letter-spacing: 1px; }
 /* 친구 줄: 이름은 한 줄(길면 …), 단계는 아래 작은 글씨 */
-.friendRow > span:first-child { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.friendRow > span:first-child { flex: 1; min-width: 0; word-break: break-all; line-height: 1.3; }   /* 긴 닉네임도 잘리지 않고 다 보여요 */
 .friendRow > span:first-child small { display: block; }
 .friendRow > span:first-child .rank ~ small { margin-left: 26px; }
 .friendRow .btn.mini { padding: 7px 9px; }
@@ -304,3 +304,13 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .fMark { position: absolute; transform: translateY(-50%); z-index: 2; white-space: nowrap; cursor: pointer;
   padding: 3px 9px; border-radius: 12px; font-size: 11.5px; color: var(--ink);
   background: rgba(255, 250, 240, .92); border: 1px solid var(--line); box-shadow: 0 2px 4px rgba(70, 50, 30, .12); }
+
+/* 친구 줄 아이콘 버튼: 작고 동그랗게 */
+.friendRow .btn.mini.ic { width: 34px; height: 30px; padding: 0; display: inline-grid; place-items: center; font-size: 11.5px; letter-spacing: 0; }
+.friendRow .btn.mini.ic svg { display: block; }
+.friendBtns { gap: 5px; }
+/* 순위 아이콘은 왼쪽에 고정, 이름이 길면 이름 칸 안에서만 줄바꿈 */
+.friendRow .fName { display: flex; align-items: flex-start; }
+.friendRow .fName .rank { flex: none; margin-top: 1px; }
+.friendRow .fTxt { min-width: 0; word-break: break-all; }
+.friendRow .fTxt small { margin-left: 0 !important; }

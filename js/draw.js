@@ -504,9 +504,11 @@ function vehiclePose(v) {
 }
 
 function drawQueueArea() {
+  const SP = SEASONS[season];
+  // 풀밭·길·꽃·화살표는 단계 중에 안 변해서 한 장의 그림으로 구워 두고 붙여요 (가볍게)
+  cachedLayer('queue', `${L.W}|${L.H}|${DPR}|${season}|${S.level}|${L.laneW}`, L.qTop - 2, L.qH + 4, () => {
   // 풀밭
   // 풀밭 색도 메인 화면의 계절을 따라가요
-  const SP = SEASONS[season];
   const g = ctx.createLinearGradient(0, L.qTop, 0, L.qTop + L.qH);
   g.addColorStop(0, SP.meadow[0]); g.addColorStop(1, SP.meadow[1]);
   ctx.fillStyle = g;
@@ -550,15 +552,6 @@ function drawQueueArea() {
     ctx.fillStyle = SP.flowers[i % SP.flowers.length];
     circle(L.rcx + (x - L.rcx) * 0.8, cyI + (y - cyI) * 0.8, 2.2);
   }
-  // 가운데 큰 나무 (메인 화면과 같은 계절의 잎사귀 나무)
-  if (islandTree.complete && islandTree.naturalWidth) {
-    const imgH = iry * 1.55, baseY = L.rcy + iry * 0.42;   // 하트 섬 안에 들어가는 크기
-    const sh = S.treeShake > 0 ? Math.sin(S.treeShake * 40) * 0.06 * S.treeShake : 0;   // 누르면 살랑 흔들려요
-    ctx.save(); ctx.translate(L.rcx, baseY); ctx.rotate(sh); ctx.translate(-L.rcx, -baseY);
-    ctx.drawImage(islandTree, L.rcx - imgH / 2, baseY - imgH * (110 / 120), imgH, imgH);
-    ctx.restore();
-  }
-
   // 도는 방향 화살표 (하트 길을 따라)
   ctx.fillStyle = 'rgba(255,255,255,.85)';
   const n = L.ringPts.length;
@@ -567,6 +560,17 @@ function drawQueueArea() {
     const ang = Math.atan2(qy - py, qx - px);
     ctx.save(); ctx.translate(px, py); ctx.rotate(ang);
     ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(-3, -3.5); ctx.lineTo(-3, 3.5); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  });
+  // 가운데 큰 나무 (메인 화면과 같은 계절의 잎사귀 나무) — 누르면 흔들려서 매번 그려요
+  const iry = L.ry - L.laneW / 2 - 4;
+  if (islandTree.complete && islandTree.naturalWidth) {
+    const imgH = iry * 1.55, baseY = L.rcy + iry * 0.42;   // 하트 섬 안에 들어가는 크기
+    const sh = S.treeShake > 0 ? Math.sin(S.treeShake * 40) * 0.06 * S.treeShake : 0;   // 누르면 살랑 흔들려요
+    ctx.save(); ctx.translate(L.rcx, baseY); ctx.rotate(sh); ctx.translate(-L.rcx, -baseY);
+    ctx.drawImage(islandTree, L.rcx - imgH / 2, baseY - imgH * (110 / 120), imgH, imgH);
     ctx.restore();
   }
 
@@ -624,8 +628,10 @@ function draw() {
     ctx.fillText(tx, L.W / 2, by + (fs + 12) / 2 + 1);
   }
 
-  // 정류장: 위쪽 보도 + 하얗게 칠한 주차 칸 + 아래쪽 찻길
   const panelH = L.swH + L.sH + L.roadH + 8;
+  // 정류장(보도·칸·찻길)도 칸 수가 바뀔 때만 다시 그려요
+  cachedLayer('stop', `${L.W}|${L.H}|${DPR}|${S.slotCount}|${S.boost.slot > 0 ? 1 : 0}`, L.qTop + L.qH - 6, L.sTop + panelH - (L.qTop + L.qH) + 10, () => {
+  // 정류장: 위쪽 보도 + 하얗게 칠한 주차 칸 + 아래쪽 찻길
   ctx.fillStyle = '#8f8a83';
   rr(8, L.sTop - 4, L.W - 16, panelH, 14); ctx.fill();
   ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
@@ -676,6 +682,8 @@ function draw() {
     }
   }
 
+  });
+
   // 주차장(바탕 + 가만히 서 있는 버스들)은 한 장의 그림으로 만들어 두고, 바뀔 때만 다시 그려요 (발열 줄이기)
   drawBoardCached();
 
@@ -717,6 +725,8 @@ function draw() {
 // 레일 버스 이벤트: 침목이 깔린 레일 + 노란 출구 칸 + 레일 위 버스들
 function drawRail() {
   const R = S.rail, y0 = L.railTop, h = L.railH, off = R.anim * L.railW;
+  // 레일 바탕(침목·칸 나눔선)은 레일이 움직이는 순간 말고는 같아서 구워 둬요
+  const drawBase = () => {
   ctx.fillStyle = '#8f8a83';
   rr(8, y0, L.W - 16, h, 14); ctx.fill();
   ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
@@ -734,6 +744,12 @@ function drawRail() {
   ctx.beginPath();
   for (let k = 0; k <= R.K; k++) { const x = L.bx + L.railW * k; ctx.moveTo(x, y0 + 4); ctx.lineTo(x, y0 + h - 4); }
   ctx.stroke(); ctx.setLineDash([]);
+  ctx.restore();
+  };
+  if (R.anim > 0) drawBase();
+  else cachedLayer('rail', `${L.W}|${L.H}|${DPR}|${R.K}|${L.railW}`, y0 - 1, h + 2, drawBase);
+  ctx.save();
+  rr(8, y0, L.W - 16, h, 14); ctx.clip();
   // 레일 위 버스들 (위를 보고 서 있어요. 위가 비면 위로 쭉 나가요)
   ctx.beginPath(); ctx.rect(L.bx, y0, L.railW * R.K, h); ctx.clip();
   R.items.forEach((v, i) => {
@@ -838,3 +854,21 @@ function drawBoardCached() {
   ctx.drawImage(boardCache.cv, 0, boardCache.y0, L.W, boardCache.h);
 }
 document.fonts && document.fonts.ready.then(() => { boardCache = null; });   // 글꼴이 늦게 와도 숫자가 바른 글꼴로
+
+// ---- 구워 두는 그림층 (안 변하는 부분을 한 장으로 만들어 두고, key 가 바뀔 때만 다시 그려요) ----
+const layerCache = {};
+function cachedLayer(name, key, y0, h, fn) {
+  let c = layerCache[name];
+  if (!c || c.key !== key) {
+    const cv = (c && c.cv) || document.createElement('canvas');
+    cv.width = Math.ceil(L.W * DPR); cv.height = Math.ceil(h * DPR);
+    const g = cv.getContext('2d');
+    g.setTransform(DPR, 0, 0, DPR, 0, -y0 * DPR);
+    g.clearRect(0, y0, L.W, h);
+    const saved = ctx; ctx = g;
+    try { fn(); } finally { ctx = saved; }
+    c = layerCache[name] = { cv, key, y0, h };
+  }
+  ctx.drawImage(c.cv, 0, c.y0, L.W, c.h);
+}
+document.fonts && document.fonts.ready.then(() => { for (const k in layerCache) delete layerCache[k]; });

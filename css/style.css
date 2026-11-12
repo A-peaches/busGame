@@ -131,7 +131,7 @@ html, body, button, canvas, #app { touch-action: manipulation; }
 .node.dog.locked .nodeIn { top: 23px; }
 .node.locked .nodeIn svg { display: block; margin: 0 auto; }
 .node .busIcon {
-  position: absolute; left: 50%; top: -34px; width: 40px; transform: translateX(-50%);
+  position: absolute; left: 50%; top: -24px; width: 40px; transform: translateX(-50%);
   animation: bob 1.6s ease-in-out infinite; pointer-events: none;
 }
 @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }

@@ -265,7 +265,7 @@ async function listMail(env, user) {
   }
   return json({ mail: results.map(r => {
     const mine = r.from_id === user.id, other = mine ? r.to_id : r.from_id;
-    const m = { kind: r.kind, dir: mine ? 'out' : 'in', friendId: other, nickname: names[other] || '친구', body: r.body, at: r.at, unread: !mine && !r.read };
+    const m = { kind: r.kind, dir: mine ? 'out' : 'in', friendId: other, nickname: other === 'admin' ? '관리자' : (names[other] || '친구'), body: r.body, at: r.at, unread: !mine && !r.read };
     if (r.kind === 'heart' && !mine && !r.read) m.giftId = r.id;     // 아직 안 받은 하트: 우편함에서 [받기]
     return m;
   }), now: now() });

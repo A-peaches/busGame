@@ -152,7 +152,8 @@ async function showMail() {
     ${toClaim > 1 ? `<button class="btn mini claimAll" id="claimAll">하트 모두 받기 (${toClaim})</button>` : ''}
     <div class="mailList">${r.mail.length ? r.mail.map(m => {
       const who = `<b>${esc(m.nickname)}</b>님`;
-      const what = m.kind === 'heart'
+      const what = m.friendId === 'admin' ? `🎁 특별 이벤트! <b>관리자</b>가 하트를 보냈어요`
+        : m.kind === 'heart'
         ? (m.dir === 'in' ? `${who}이 하트를 보냈어요` : `${who}에게 하트를 보냈어요`)
         : (m.dir === 'in' ? `${who}의 쪽지` : `${who}에게 보낸 쪽지`);
       const reply = m.giftId

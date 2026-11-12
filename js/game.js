@@ -349,7 +349,7 @@ document.addEventListener('touchend', e => {
 document.addEventListener('gesturestart', e => e.preventDefault());
 // 화면의 모든 버튼에 "톡" 피아노 소리
 document.addEventListener('click', e => { if (e.target.closest('button')) sfx('click'); }, true);
-window.addEventListener('resize', () => { if (S) layout(); else renderMap(); });
+window.addEventListener('resize', () => { if (S) layout(); else if (typeof renderMap === 'function') renderMap(); });   // 다 불러오기 전에 크기가 바뀌어도 괜찮게
 
 // =====================================================================
 //  매 프레임 업데이트

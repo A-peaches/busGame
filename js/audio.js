@@ -3,6 +3,8 @@
 //  소리: 피아노 음색을 브라우저에서 직접 합성합니다 (음악 파일 없음)
 // =====================================================================
 let AC = null, sfxBus = null, bgmBus = null;
+// 소리 장치 켜기: 폰이 거절해도(아이폰에서 가끔) 오류로 남기지 않고 다음 터치에 다시 시도해요
+const resumeAudio = () => { try { const p = AC.resume(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* 무시 */ } };
 function audio() {
   if (AC) return AC;
   try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
@@ -26,14 +28,14 @@ function applyVolumes() {
   if (!AC) return;
   // 배경음악·효과음이 모두 꺼져 있으면 소리 엔진을 아예 쉬게 해요 (배터리·발열 절약)
   if (!settings.bgmOn && !settings.sfxOn) { if (AC.state === 'running') AC.suspend(); return; }
-  if (AC.state === 'suspended' && !document.hidden) AC.resume();
+  if (AC.state === 'suspended' && !document.hidden) resumeAudio();
   const t = AC.currentTime;
   sfxBus.gain.setTargetAtTime(settings.sfxOn ? settings.sfxVol * 0.9 : 0, t, 0.03);
   bgmBus.gain.setTargetAtTime(settings.bgmOn ? settings.bgmVol * 0.55 : 0, t, 0.15);
 }
 document.addEventListener('visibilitychange', () => {
   if (!AC) return;
-  if (document.hidden) AC.suspend(); else AC.resume();
+  if (document.hidden) AC.suspend(); else resumeAudio();
 });
 
 // 피아노 한 음: 배음 몇 개 + 빠른 타건 + 천천히 사라지는 울림
@@ -78,7 +80,7 @@ const PENTA = [72, 74, 76, 79, 81, 84, 86, 88];   // 탈 때마다 한 음씩 �
 const SFX_ON = new Set(['depart']);
 function sfx(kind, arg = 0) {
   if (!SFX_ON.has(kind) || !settings.sfxOn || !audio()) return;
-  if (AC.state === 'suspended') AC.resume();
+  if (AC.state === 'suspended') resumeAudio();
   const t = AC.currentTime + 0.01, B = sfxBus;
   switch (kind) {
     case 'click':  blip(t); break;                                                            // 뿅 (작고 동그랗게)
@@ -131,7 +133,7 @@ function scheduleBgm() {
 }
 function startBgm() {
   if (!settings.bgmOn || bgmTimer || !audio()) return;
-  if (AC.state === 'suspended') AC.resume();
+  if (AC.state === 'suspended') resumeAudio();
   bgmNext = AC.currentTime + 0.3;
   applyVolumes();
   scheduleBgm();
@@ -142,7 +144,7 @@ function startBgm() {
 function unlockAudio() {
   if (!audio()) return;
   if (AC.state !== 'running') {
-    AC.resume();
+    resumeAudio();
     // 아이폰: 사용자 동작 안에서 아주 짧은 무음을 한 번 재생해야 소리 길이 열려요
     const s = AC.createBufferSource();
     s.buffer = AC.createBuffer(1, 1, 22050);

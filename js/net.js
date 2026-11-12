@@ -471,11 +471,15 @@ function appMode() {
   if (IN_APP) return (kind || '앱') + ' (주소 표시)' + tail;
   return (standalone ? '홈 화면 앱' : '브라우저') + tail;
 }
+const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const IS_STANDALONE = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
 // 알림이 막혀 있을 때: 어디서 켜는지 알려 드려요 (웹은 폰 설정을 직접 바꿀 수 없어요)
 function showPushBlocked() {
   const card = $('card');
   card.innerHTML = `<h2>🔔 알림이 꺼져 있어요</h2>
-    <p>${IN_APP
+    <p>${IS_IOS
+      ? '아이폰 <b>설정 → 알림 → 멍냥이의 버스여행</b>에서<br>알림 허용을 켜 주세요.'
+      : IN_APP
       ? '폰의 <b>설정 → 애플리케이션 → 멍냥버스 → 알림</b>을<br>켜 주세요. 켠 뒤 앱을 다시 열면 연결돼요.'
       : '크롬 주소창 왼쪽 <b>자물쇠(또는 설정) 아이콘 → 권한 → 알림</b>을<br>허용으로 바꿔 주세요.'}</p>
     <p><small>하트 도착 · 쪽지 · 하트 가득 · 여행 알림을 받을 수 있어요</small></p>
@@ -538,10 +542,11 @@ async function enablePush(permP, silent) {
   if (!pushSupported()) { toast('이 브라우저는 폰 알림을 지원하지 않아요', 2400); return false; }
   if (Notification.permission === 'denied') { setWhy('알림 권한: 차단됨'); if (!silent) showPushBlocked(); return false; }
   // 권한은 먼저(버튼을 누른 순간) 물어보고, 계정은 그다음에 만들어요
-  permP = permP || Notification.requestPermission();
+  // 조용히 다시 연결할 때는 권한을 묻지 않아요 (사파리는 버튼을 누르지 않고 물으면 '거부'로 답해요)
+  permP = permP || (Notification.permission === 'granted' || silent ? Promise.resolve(Notification.permission) : Notification.requestPermission());
   if (!(await ensureAccount())) { setWhy('계정 연결 실패 (인터넷 확인)'); toast('인터넷 연결을 확인해 주세요'); return false; }
   const perm = await permP;
-  if (perm !== 'granted') { setWhy('알림 권한: ' + perm); if (perm === 'denied') showPushBlocked(); else toast('알림이 허용되지 않았어요', 2000); return false; }
+  if (perm !== 'granted') { setWhy('알림 권한: ' + perm); if (!silent) { if (perm === 'denied') showPushBlocked(); else toast('알림이 허용되지 않았어요', 2000); } return false; }
   let step = '서비스 워커';
   try {
     const reg = await swReady();
@@ -560,8 +565,22 @@ async function enablePush(permP, silent) {
   } catch (e) {
     setWhy(step + ' 실패 · ' + errText(e));
     if (!silent) toast('알림을 켜지 못했어요', 2000);
+    else if (step === '구독') askReconnect();   // 아이폰은 버튼을 눌러야 다시 연결돼요
     return false;
   }
+}
+// 알림을 조용히 다시 잇지 못했을 때 (아이폰 등): 버튼 한 번으로 다시 연결해요. 하루 한 번만 물어봐요
+function askReconnect() {
+  if ($('overlay').classList.contains('show') || (typeof S !== 'undefined' && S)) return;
+  if (Date.now() - store.get('busGame.reconnTip', 0) < 86400000) return;
+  store.set('busGame.reconnTip', Date.now());
+  const card = $('card');
+  card.innerHTML = `<h2>🔔 알림을 다시 이어 주세요</h2>
+    <p>알림 연결이 새로 바뀌었어요.<br>아래 버튼을 한 번 누르면 다시 알림을 받을 수 있어요.</p>
+    <button class="btn" id="reconnYes">알림 다시 연결하기</button>${X_BTN}`;
+  card.querySelector('#reconnYes').onclick = () => { hideOverlay(); enablePush(Promise.resolve(Notification.permission)); };
+  card.querySelector('#ovClose').onclick = () => hideOverlay();
+  $('overlay').classList.add('show');
 }
 // 알림 동의를 꼭 받아요: 아직 정하지 않았으면 시작할 때마다 물어보고, 허용돼 있으면 조용히 연결해요
 function askPushIfNeeded() {
@@ -570,6 +589,7 @@ function askPushIfNeeded() {
   if (p === 'granted') { pushState(); return; }     // 허용돼 있으면 구독을 확인하고 서버와 다시 맞춰요
   if ($('overlay').classList.contains('show')) return;
   if (p === 'denied') {                          // 막혀 있으면 사흘에 한 번 켜는 방법을 알려 드려요
+    if (IS_IOS && !IS_STANDALONE) return;          // 아이폰 사파리 창에서는 알림을 켤 방법이 없어서 안내하지 않아요
     if (Date.now() - store.get('busGame.blockedTip', 0) > 3 * 86400000) { store.set('busGame.blockedTip', Date.now()); showPushBlocked(); }
     return;
   }

@@ -68,10 +68,10 @@ function levelTier(n) {
   return [1, 3, 4][(pos - 1) % 3];
 }
 // 실제로 버스 수, 색 수 등을 정할 때 쓰는 "체감 난이도" 값
-//   전체를 한 단계(+1.5) 올리고, 단계마다 0.27씩 미세하게 계속 어려워져요 (같은 별이라도 뒤 단계가 조금 더 어려워요)
+//   전체를 +2.5 올리고, 단계마다 0.27씩 미세하게 계속 어려워져요 (같은 별이라도 뒤 단계가 조금 더 어려워요)
 function effectiveLevel(n) {
   const tier = levelTier(n) === 5 ? 4.4 : levelTier(n);     // 별 5개는 너무 어렵지 않게 살짝 완화
-  return (tier - 1) * 3 + 1 + 1.5 + (n - 1) * 0.27;
+  return (tier - 1) * 3 + 1 + 2.5 + (n - 1) * 0.27;   // 기본 +2.5 (조금 더 어렵게 한 칸 올림)
 }
 
 function levelParams(n) {

@@ -446,6 +446,17 @@ function drawAnimal(x, y, r, colorIdx, kind, bob = 0, phase = 0, opts = {}) {
 //   꼬리는 8단계 그림을 돌려 써서 지금처럼 살랑살랑 움직여요. (폰 배터리·발열이 훨씬 줄어요)
 const TAIL_FRAMES = 6;   // 꼬리 흔들림 그림 수 (적을수록 새로 그릴 그림이 줄어 가벼워요)
 const animalSprites = new Map();
+// 다 쓴 그림판은 크기를 0으로 줄여 메모리를 바로 돌려줘요.
+//   (아이폰 사파리는 그림판 메모리를 늦게 돌려줘서, 쌓이면 새 그림이 텅 빈 채로 그려져요 → 배경·멍냥이가 사라지는 현상)
+const releaseCanvas = cv => { try { if (cv) { cv.width = 0; cv.height = 0; } } catch (e) { /* 무시 */ } };
+const SPRITE_MAX = 320;   // 멍냥이 그림을 이만큼까지만 기억해요 (넘으면 오래 안 쓴 것부터 정리)
+// 그림판을 더 못 만들 만큼 메모리가 찼으면, 기억해 둔 그림을 모두 비우고 처음부터 다시 그려요
+function freeCanvasMemory() {
+  for (const s of animalSprites.values()) releaseCanvas(s.cv);
+  animalSprites.clear();
+  if (typeof boardCache !== 'undefined' && boardCache) { releaseCanvas(boardCache.cv); boardCache = null; }
+  if (typeof layerCache !== 'undefined') for (const k in layerCache) { if (layerCache[k]) releaseCanvas(layerCache[k].cv); delete layerCache[k]; }
+}
 function drawAnimalFast(x, y, r, colorIdx, kind, bob = 0, phase = 0, opts = {}) {
   const dpr = DPR;
   const speed = kind === 'cat' ? (opts.sleep ? 0.8 : 2.6) : (opts.sleep ? 2 : opts.excited ? 22 : 14);
@@ -456,14 +467,16 @@ function drawAnimalFast(x, y, r, colorIdx, kind, bob = 0, phase = 0, opts = {}) 
   if (spr) { animalSprites.delete(key); animalSprites.set(key, spr); }   // 방금 쓴 그림은 맨 뒤로 (오래 안 쓴 그림부터 정리하려고)
   else {
     // 한꺼번에 다 지우면 그 순간 수십 마리를 새로 그리느라 덜컥거려요 → 가장 오래 안 쓴 그림부터 조금씩 정리
-    if (animalSprites.size > 900) {
-      let n = 120;
-      for (const k of animalSprites.keys()) { animalSprites.delete(k); if (--n <= 0) break; }
+    if (animalSprites.size > SPRITE_MAX) {
+      let n = 60;
+      for (const [k, s] of animalSprites) { releaseCanvas(s.cv); animalSprites.delete(k); if (--n <= 0) break; }
     }
     const ax = r * 1.95, ay = r * 2.5, w = r * 3.9, h = r * 3.4;
     const cv = document.createElement('canvas');
     cv.width = Math.ceil(w * dpr); cv.height = Math.ceil(h * dpr);
-    const c = cv.getContext('2d'); c.scale(dpr, dpr);
+    const c = cv.getContext('2d');
+    if (!c) { freeCanvasMemory(); return; }      // 메모리가 꽉 찼어요: 비우고 다음 그림부터 다시
+    c.scale(dpr, dpr);
     const saved = ctx; ctx = c;
     try { drawAnimal(ax, ay, r, colorIdx, kind, 0, 0, { ...opts, tailT: (frame / TAIL_FRAMES) * Math.PI * 2 / speed }); }
     finally { ctx = saved; }
@@ -937,6 +950,7 @@ function drawBoardCached() {
     const cv = (boardCache && boardCache.cv) || document.createElement('canvas');
     cv.width = Math.ceil(L.W * DPR); cv.height = Math.ceil(h * DPR);
     const c = cv.getContext('2d');
+    if (!c) { freeCanvasMemory(); return; }
     c.setTransform(DPR, 0, 0, DPR, 0, -y0 * DPR);
     c.clearRect(0, y0, L.W, h);
     const saved = ctx; ctx = c;
@@ -982,10 +996,17 @@ function cachedLayer(name, key, y0, h, fn) {
     const cv = (c && c.cv) || document.createElement('canvas');
     cv.width = Math.ceil(L.W * DPR); cv.height = Math.ceil(h * DPR);
     const g = cv.getContext('2d');
+    if (!g) { freeCanvasMemory(); return; }      // 메모리가 꽉 찼어요: 비우고 다음 화면에서 다시
     g.setTransform(DPR, 0, 0, DPR, 0, -y0 * DPR);
     g.clearRect(0, y0, L.W, h);
     const saved = ctx; ctx = g;
     try { fn(); } finally { ctx = saved; }
+    // 배경 판(대기 구역·정류장)은 가운데가 꼭 칠해져 있어야 해요. 텅 비었으면 메모리가 꽉 찬 거라 비우고 다시 그려요
+    if (name !== 'rail') {
+      let a = 255;
+      try { a = g.getImageData(Math.floor(cv.width / 2), Math.floor(cv.height / 2), 1, 1).data[3]; } catch (e) { /* 확인 못 하면 넘어가요 */ }
+      if (!a) { freeCanvasMemory(); return; }
+    }
     c = layerCache[name] = { cv, key, y0, h };
   }
   ctx.drawImage(c.cv, 0, c.y0, L.W, c.h);
@@ -1001,9 +1022,12 @@ function treeBitmap(size) {
     const cv = (treeBmp && treeBmp.cv) || document.createElement('canvas');
     cv.width = cv.height = px;
     const c = cv.getContext('2d');
+    if (!c) { freeCanvasMemory(); return cv; }
     c.clearRect(0, 0, px, px);
     c.drawImage(islandTree, 0, 0, px, px);
     treeBmp = { cv, key };
   }
   return treeBmp.cv;
 }
+// 앱을 내려 두면 그려 둔 그림을 비워 메모리를 돌려줘요 (돌아오면 다시 그려요)
+document.addEventListener('visibilitychange', () => { if (document.hidden) freeCanvasMemory(); });

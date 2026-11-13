@@ -482,3 +482,5 @@ svg.crown { display: inline-block; vertical-align: -1px; margin-left: 3px; }
 /* 지도: 받은 별이 없는 단계는 숫자만 얼굴 가운데에 */
 .node.nostar .nodeIn { top: 27px; }
 .node.dog.nostar .nodeIn { top: 25px; }
+
+.booster[hidden] { display: none; }   /* 색 섞기가 없는 단계에서는 숨겨요 */

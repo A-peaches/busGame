@@ -828,20 +828,11 @@ function draw() {
   const panelH = L.swH + L.sH + L.roadH + 8;
   // 정류장(보도·칸·찻길)도 칸 수가 바뀔 때만 다시 그려요
   cachedLayer('stop', `${L.W}|${L.H}|${DPR}|${S.slotCount}|${S.boost.slot > 0 ? 1 : 0}`, L.qTop + L.qH - 6, L.sTop + panelH - (L.qTop + L.qH) + 10, () => {
-  // 정류장: 위쪽 보도 + 하얗게 칠한 주차 칸 + 아래쪽 찻길
+  // 정류장: 하얗게 칠한 주차 칸 + 아래쪽 찻길 (위쪽 보도는 없앴어요 → 멍냥이 자리가 넓어져요)
   ctx.fillStyle = '#8f8a83';
   rr(8, L.sTop - 4, L.W - 16, panelH, 14); ctx.fill();
   ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
   drawSpeckles(8, L.sTop - 4, L.W - 16, panelH, 50);
-  // 보도 (멍냥이들이 걸어가는 길)
-  ctx.fillStyle = '#e4dccb';
-  rr(8.5, L.sTop - 3.5, L.W - 17, L.swH + 3.5, 13); ctx.fill();
-  ctx.fillRect(8.5, L.sTop + 6, L.W - 17, L.swH - 6);
-  ctx.strokeStyle = 'rgba(112,104,96,.25)'; ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let x = 22; x < L.W - 14; x += Math.max(8, L.swH * 1.1)) { ctx.moveTo(x, L.sTop - 2); ctx.lineTo(x, L.sTop + L.swH); }
-  ctx.stroke();
-  ctx.strokeStyle = LINE; ctx.beginPath(); ctx.moveTo(8, L.sTop + L.swH); ctx.lineTo(L.W - 8, L.sTop + L.swH); ctx.stroke();
   // 찻길 (다 탄 버스가 떠나는 길) + 가운데 점선
   const ry0 = L.sTop + L.swH + L.sH;
   ctx.fillStyle = '#7c7771';

@@ -44,8 +44,8 @@ function layout() {
 
   // 정류장: 위쪽 보도(걸어가는 길) + 대기 칸 + 아래쪽 찻길(버스가 떠나는 길)
   L.sTop = L.qTop + L.qH + 8;
-  L.swH = L.pr * 2.2;                                         // 보도 높이
-  L.walkY = L.sTop + L.swH * 0.55;
+  L.swH = 4;                                                  // (보도는 없앴어요: 칸 위쪽 여백만)
+  L.walkY = L.sTop - 2;                                       // 멍냥이들은 정류장 판 위쪽 가장자리를 따라 걸어가요
   L.sH = sH;
   L.roadH = L.pr * 2.8;
   L.sw = Math.min((W - 2 * pad) / MAX_SLOTS, L.sH * 0.62);

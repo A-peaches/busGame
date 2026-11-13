@@ -140,7 +140,7 @@ html, body, button, canvas, #app { touch-action: manipulation; }
 
 /* ---------------- 게임 화면 ---------------- */
 #game { background: linear-gradient(#cfe0dc, #f2e7d0 40%, #eee0c4); }
-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 4px; }
+header { display: flex; align-items: center; justify-content: space-between; padding: 10px 6px 4px; }   /* 양쪽 버튼을 가장자리 쪽으로 */
 /* 양쪽 버튼 자리를 같은 폭으로 → 단계 제목이 정가운데 */
 header .hbtns { flex: 0 0 92px; display: flex; gap: 8px; justify-content: flex-end; }
 header .hbtns.left { justify-content: flex-start; }

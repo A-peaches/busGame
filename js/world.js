@@ -232,8 +232,25 @@ function setSeason(pref) {
 //  닉네임 (같은 기기에서 이어하기)
 // =====================================================================
 let nickname = store.get('busGame.nickname', '');
+// 오른쪽 아래 버튼 묶음 접기·펴기 (상태는 기억해요). 접혀 있을 때 새 소식이 있으면 접기 버튼에 빨간 점
+const SIDE_SVG = open => `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="${open ? 'M7 9.5 L12 14.5 L17 9.5' : 'M7 14.5 L12 9.5 L17 14.5'}" fill="none" stroke="#4a3b2c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+function setSideFolded(f) {
+  $('sideCol').classList.toggle('folded', f);
+  store.set('busGame.sideFolded', f);
+  $('sideToggle').innerHTML = SIDE_SVG(!f) + '<span class="dot"></span>';
+  syncSideDot();
+}
+function syncSideDot() {
+  const any = [...document.querySelectorAll('#sideCol .sideBtns .round')].some(b => b.classList.contains('hasDot'));
+  $('sideToggle').classList.toggle('hasDot', any && $('sideCol').classList.contains('folded'));
+}
+$('sideToggle').onclick = () => setSideFolded(!$('sideCol').classList.contains('folded'));
+setSideFolded(store.get('busGame.sideFolded', false));
+new MutationObserver(syncSideDot).observe($('sideCol'), { subtree: true, attributes: true, attributeFilter: ['class'] });
 function updateHello() {
-  $('hello').textContent = nickname ? `${nickname}님 · ${unlocked}단계 여행 중${myScore() ? ` · ${myScore().toLocaleString()}점` : ''}` : '';
+  // 닉네임이 길면 닉네임만 …으로 줄이고 단계는 늘 보여요
+  const nm = String(nickname || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  $('hello').innerHTML = nickname ? `<span class="nm">${nm}</span>님 · ${unlocked}단계 여행 중${myScore() ? ` · ${myScore().toLocaleString()}점` : ''}` : '';
 }
 // ---- 출석 선물: 하루에 처음 들어오면 하트 +1 (5개를 넘어도 받아요) ----
 function checkDaily() {

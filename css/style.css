@@ -467,7 +467,7 @@ svg.crown { display: inline-block; vertical-align: -1px; margin-left: 3px; }
 .refund svg { width: 1.05em; height: 1em; vertical-align: -0.15em; margin-right: 3px; }
 
 /* 전체 채팅 버튼: 안 읽은 글 수 (우편함 N과 같은 모양) */
-#chatBtn { position: absolute; }
+#chatBtn { position: relative; }
 #chatBtn .dot { display: none; position: absolute; top: -2px; right: -2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #e8768e; border: 1px solid #fff8ec;
   font-size: calc(10px + var(--fd)); font-weight: 700; line-height: 15px; color: #fffaf1; text-align: center; font-family: inherit; }
 #chatBtn.hasDot .dot { display: block; }
@@ -504,3 +504,20 @@ svg.crown { display: inline-block; vertical-align: -1px; margin-left: 3px; }
 /* 점수: 축하 창 */
 .winScore { font-weight: 700; font-size: calc(17px + var(--fd)); color: #8a6a2c; margin: -2px 0 2px; }
 .winScore .combo { display: inline-block; font-size: calc(12px + var(--fd)); color: #d0703a; background: #fdeedd; border-radius: 10px; padding: 1px 8px; margin-left: 4px; vertical-align: 2px; }
+
+/* 지도 왼쪽 위: 1줄 인사(하트 왼쪽까지만, 넘치면 …) / 2줄 날씨 + 점수 */
+.topLeft { position: absolute; top: 14px; left: 12px; z-index: 4; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.topLeft .hello, .topLeft .weather { position: static; }
+.topLeft .hello { max-width: min(calc(100vw - 150px), 410px); display: flex; }
+.topLeft .hello .nm { overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+
+/* 하트는 맨 위 오른쪽 끝 (설정 버튼은 오른쪽 아래 묶음으로) */
+#menu > .hearts { right: 12px; }
+/* 오른쪽 아래 버튼 묶음: 위에서부터 설정·공지·설명서·채팅·친구·우편함, 맨 아래 접기 버튼 */
+.sideCol { position: absolute; right: 12px; bottom: 16px; z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.sideBtns { display: flex; flex-direction: column; gap: 8px; }
+.sideCol .sideBtns .round { position: relative; top: auto; right: auto; bottom: auto; }
+.sideCol.folded .sideBtns { display: none; }
+.sideToggle { position: relative; }   /* 다른 동그란 버튼과 같은 크기 */
+.sideToggle .dot { display: none; position: absolute; top: -1px; right: -1px; width: 10px; height: 10px; border-radius: 50%; background: #e8768e; border: 1px solid #fff8ec; }
+.sideToggle.hasDot .dot { display: block; }

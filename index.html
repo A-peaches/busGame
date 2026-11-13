@@ -64,7 +64,7 @@
 <meta name="theme-color" content="#f6dd92">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="css/style.css?v=133">
+<link rel="stylesheet" href="css/style.css?v=135">
 </head>
 <body>
 <div id="app">
@@ -80,15 +80,23 @@
     <div id="mapScroll"><div id="mapInner"><img id="mapRoad" alt="" draggable="false"></div></div>
     <div class="fx" id="fx"></div>
 
-    <div class="hello" id="hello"></div>
-    <div class="weather" id="weather"></div>
+    <div class="topLeft">
+      <div class="hello" id="hello"></div>
+      <div class="weather" id="weather"></div>
+    </div>
     <div class="hearts" id="hearts"></div>
-    <button class="round settingsBtn" id="settingsBtn" title="설정"></button>
-    <button class="round" id="helpBtn" title="설명서"></button>
-    <button class="round" id="friendsBtn" title="친구"></button>
-    <button class="round" id="mailBtn" title="우편함"></button>
-    <button class="round" id="noticeBtn" title="공지사항"></button>
-    <button class="round" id="chatBtn" title="전체 채팅"></button>
+    <!-- 오른쪽 아래 버튼 묶음: 맨 아래 접기 버튼으로 접었다 펼 수 있어요 -->
+    <div class="sideCol" id="sideCol">
+      <div class="sideBtns">
+        <button class="round settingsBtn" id="settingsBtn" title="설정"></button>
+        <button class="round" id="noticeBtn" title="공지사항"></button>
+        <button class="round" id="helpBtn" title="설명서"></button>
+        <button class="round" id="chatBtn" title="전체 채팅"></button>
+        <button class="round" id="friendsBtn" title="친구"></button>
+        <button class="round" id="mailBtn" title="우편함"></button>
+      </div>
+      <button class="round sideToggle" id="sideToggle" title="버튼 접기·펴기"><span class="dot"></span></button>
+    </div>
     <button class="round" id="dailyBtn" title="오늘의 경쟁"></button>
   </section>
 
@@ -149,15 +157,15 @@
   <canvas id="confetti" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:7"></canvas>
 </div>
 
-<script src="js/config.js?v=133"></script>
-<script src="js/level.js?v=133"></script>
-<script src="js/game.js?v=133"></script>
-<script src="js/draw.js?v=133"></script>
-<script src="js/ui.js?v=133"></script>
-<script src="js/scene.js?v=133"></script>
-<script src="js/world.js?v=133"></script>
-<script src="js/net.js?v=133"></script>
-<script src="js/audio.js?v=133"></script>
-<script src="js/main.js?v=133"></script>
+<script src="js/config.js?v=135"></script>
+<script src="js/level.js?v=135"></script>
+<script src="js/game.js?v=135"></script>
+<script src="js/draw.js?v=135"></script>
+<script src="js/ui.js?v=135"></script>
+<script src="js/scene.js?v=135"></script>
+<script src="js/world.js?v=135"></script>
+<script src="js/net.js?v=135"></script>
+<script src="js/audio.js?v=135"></script>
+<script src="js/main.js?v=135"></script>
 </body>
 </html>

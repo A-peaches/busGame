@@ -487,3 +487,16 @@ svg.crown { display: inline-block; vertical-align: -1px; margin-left: 3px; }
 
 /* 게임 화면: 단계 제목 위 작은 회색 난이도 */
 #tierLabel { font-size: calc(11px + var(--fd)); color: var(--muted); line-height: 1.2; margin-bottom: -2px; }
+
+/* 단계 랭킹: 순위 번호 칸 */
+.lvRank .rk .pos { width: 18px; text-align: center; color: var(--muted); font-size: calc(12px + var(--fd)); }
+.lvRank .rkGap { text-align: center; color: var(--muted); line-height: 1; }
+
+/* 단계 랭킹: 제목 왼쪽 + 친구만 체크 오른쪽, 5명 높이로 스크롤, 내 기록은 아래 고정 */
+.lvRank .rkHead { display: flex; align-items: center; justify-content: space-between; padding: 0 6px; margin: -5px 0 7px; }   /* 제목 줄만 위로 바짝 (위 여백↓), 아래 목록과는 조금 띄워요 */
+.lvRank .rkHead .rkTitle { margin: 0; text-align: left; }
+.lvRank .rkOnly { display: inline-flex; align-items: center; gap: 3px; font-size: calc(10px + var(--fd)); color: var(--muted); cursor: pointer; }
+.lvRank .rkOnly input { width: 11px; height: 11px; margin: 0; accent-color: #c99a2e; }   /* 글자 크기만큼 작게, 글자 오른쪽 끝에 */
+.lvRank .rkList { max-height: 132px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.lvRank .rkMine { border-top: 1px dashed #e2d6bf; margin-top: 4px; padding-top: 4px; }
+.lvRank .rkNone { text-align: center; margin: 8px 0; }

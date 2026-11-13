@@ -383,14 +383,27 @@ function showLevelPopup(n) {
     <button class="btn" id="ovStart">시작하기</button>
     ${X_BTN}`;
   card.querySelector('#ovStart').onclick = () => tryStart(n);
-  // 친구 랭킹: 이 단계를 가장 적은 시도로 깬 친구(나 포함) 1~3등
+  // 단계 랭킹: 이 단계를 가장 적은 시도로 깬 모든 사람 1~10등 + 내 순위 (친구가 아니면 닉네임 가림)
   (async () => {
     if (!acct || typeof api !== 'function') return;
     let r; try { r = await api('/rank?level=' + n); } catch (e) { return; }
     const box = card.querySelector('#lvRank');
     if (!box || !r.rank || !r.rank.length) return;
-    box.innerHTML = `<div class="rkTitle">친구 랭킹</div>` + r.rank.map((x, i) =>
-      `<div class="rk${x.me ? ' me' : ''}">${medalSvg(i + 1)}<b>${esc(x.nickname)}${x.me ? ' (나)' : ''}</b><small>${x.tries}회 시도</small></div>`).join('');
+    // 위: 제목(왼쪽) + [친구만] 체크(오른쪽) / 가운데: 5명 높이로 스크롤 / 아래: 내 기록은 늘 보여요
+    const row = x => `<div class="rk${x.me ? ' me' : ''}"><span class="pos">${x.pos <= 3 ? medalSvg(x.pos) : x.pos}</span><b>${esc(x.name)}${x.me ? ' (나)' : ''}</b><small>${x.tries}번 만에</small></div>`;
+    const draw = onlyFriends => {
+      // 친구만 볼 때는 친구 사이 순위(1, 2, 3…)로 다시 매겨요. 내 줄은 아래에 따로 있어서 목록에선 빼요
+      const list = (onlyFriends ? r.rank.filter(x => x.friend || x.me).map((x, i) => ({ ...x, pos: i + 1 })) : r.rank).filter(x => !x.me);
+      const mine = box.querySelector('.rkMine');
+      if (mine && r.me) { const fpos = onlyFriends ? r.rank.filter(x => x.friend || x.me).findIndex(x => x.me) + 1 : r.me.pos; mine.innerHTML = row({ ...r.me, pos: fpos || r.me.pos }); }
+      box.querySelector('.rkList').innerHTML = list.length ? list.map(row).join('') : `<p class="rkNone"><small>${onlyFriends ? '아직 이 단계를 깬 친구가 없어요' : '아직 다른 사람 기록이 없어요'}</small></p>`;
+    };
+    box.innerHTML = `<div class="rkHead"><span class="rkTitle">단계 랭킹 · ${r.total}명</span><label class="rkOnly">친구만<input type="checkbox" id="rkFriends"></label></div>
+      <div class="rkList"></div>${r.me ? `<div class="rkMine">${row(r.me)}</div>` : ''}`;
+    const cb = box.querySelector('#rkFriends');
+    cb.checked = !!store.get('busGame.rankFriends', false);
+    cb.onchange = () => { store.set('busGame.rankFriends', cb.checked); draw(cb.checked); };
+    draw(cb.checked);
   })();
   card.querySelector('#ovClose').onclick = () => hideOverlay();
   $('overlay').classList.add('show');

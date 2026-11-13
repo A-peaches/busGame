@@ -395,11 +395,16 @@ async function dailyRank(env, user) {
 }
 async function levelRank(env, user, level) {
   if (level < 1 || level > 150) return json({ rank: [] });
+  // 모든 사람의 기록으로 순위를 매기고, 친구·나만 닉네임을 보여 줘요 (나머지는 가려요)
   const { results } = await env.DB.prepare(
     `SELECT c.user_id, u.nickname, c.tries FROM clears c JOIN users u ON u.id = c.user_id
-     WHERE c.level = ?1 AND (c.user_id = ?2 OR c.user_id IN (SELECT b FROM friends WHERE a = ?2))
-     ORDER BY c.tries ASC, c.at ASC LIMIT 3`).bind(level, user.id).all();
-  return json({ rank: results.map(r => ({ nickname: r.nickname || '친구', tries: r.tries, me: r.user_id === user.id })) });
+     WHERE c.level = ?1 ORDER BY c.tries ASC, c.at ASC LIMIT 300`).bind(level).all();
+  const fr = new Set((await env.DB.prepare('SELECT b FROM friends WHERE a = ?').bind(user.id).all()).results.map(x => x.b));
+  const rows = results.map((r, i) => {
+    const me = r.user_id === user.id, friend = fr.has(r.user_id);
+    return { pos: i + 1, name: me || friend ? (r.nickname || '친구') : maskName(r.nickname), tries: r.tries, me, friend };
+  });
+  return json({ total: rows.length, rank: rows.slice(0, 100), me: rows.find(r => r.me) || null });
 }
 async function makeFriends(env, a, b) {
   const t = now();

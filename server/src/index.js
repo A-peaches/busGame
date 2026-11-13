@@ -471,10 +471,14 @@ async function savePush(env, user, body) {
 
 // 서비스 워커가 푸시를 받으면 여기서 보여 줄 메시지를 가져가요
 async function inbox(env, user) {
-  const { results } = await env.DB.prepare('SELECT id, title, body, at FROM notes WHERE user_id = ? AND seen = 0 ORDER BY at DESC LIMIT 5')
-    .bind(user.id).all();
+  // 오래 쌓인 알림(폰이 꺼져 있었거나 알림이 끊겼던 동안)은 빼고, 같은 제목은 가장 최근 것 하나만 보여 줘요
+  //   (예: '하트가 가득 찼어요'가 두 번 뜨지 않게)
+  const { results } = await env.DB.prepare('SELECT id, title, body, at FROM notes WHERE user_id = ? AND seen = 0 AND at > ? ORDER BY at DESC LIMIT 20')
+    .bind(user.id, now() - 12 * 3600000).all();
   await env.DB.prepare('UPDATE notes SET seen = 1 WHERE user_id = ? AND seen = 0').bind(user.id).run();
-  return json({ notes: results });
+  const seenTitles = new Set();
+  const notes = results.filter(n => !seenTitles.has(n.title) && seenTitles.add(n.title)).slice(0, 5);
+  return json({ notes });
 }
 
 async function notifyFullHearts(env) {

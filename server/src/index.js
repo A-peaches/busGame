@@ -237,7 +237,14 @@ async function sync(env, user, body, ctx) {
   const g = await env.DB.prepare('SELECT COUNT(*) AS c FROM gifts WHERE to_id = ? AND claimed = 0').bind(user.id).first();
   const l = await env.DB.prepare('SELECT COUNT(*) AS c FROM letters WHERE to_id = ? AND read = 0').bind(user.id).first();
   const fr = await env.DB.prepare('SELECT COUNT(*) AS c FROM friend_requests WHERE to_id = ?').bind(user.id).first();
-  return json({ unlocked, gifts: g ? g.c : 0, letters: l ? l.c : 0, requests: fr ? fr.c : 0, code: user.code, nickname, nickTaken: nickTakenNow });
+  // 안 읽은 전체 채팅 수 (내가 마지막으로 본 글 다음부터, 내 글·차단한 사람 글은 빼고, 사흘 지나 지워진 글은 원래 없어요)
+  let chatNew = 0;
+  if (Number.isFinite(body.chatRead)) {
+    const c = await env.DB.prepare('SELECT COUNT(*) AS c FROM chat WHERE id > ?1 AND user_id != ?2 AND user_id NOT IN (SELECT b FROM blocks WHERE a = ?2)')
+      .bind(Math.max(0, body.chatRead | 0), user.id).first();
+    chatNew = c ? c.c : 0;
+  }
+  return json({ unlocked, gifts: g ? g.c : 0, letters: l ? l.c : 0, requests: fr ? fr.c : 0, chatNew, code: user.code, nickname, nickTaken: nickTakenNow });
 }
 
 // 내가 old → cur 단계가 되면서 넘어선 친구들에게 알림: 같은 단계가 되면 '따라잡았어요', 더 앞서면 '앞질렀어요'

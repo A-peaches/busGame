@@ -465,3 +465,9 @@ svg.crown { display: inline-block; vertical-align: -1px; margin-left: 3px; }
 
 /* 축하 창: 하트를 돌려받았어요 줄의 하트를 글자 크기에 맞춰요 */
 .refund svg { width: 1.05em; height: 1em; vertical-align: -0.15em; margin-right: 3px; }
+
+/* 전체 채팅 버튼: 안 읽은 글 수 (우편함 N과 같은 모양) */
+#chatBtn { position: absolute; }
+#chatBtn .dot { display: none; position: absolute; top: -2px; right: -2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #e8768e; border: 1px solid #fff8ec;
+  font-size: calc(10px + var(--fd)); font-weight: 700; line-height: 15px; color: #fffaf1; text-align: center; font-family: inherit; }
+#chatBtn.hasDot .dot { display: block; }

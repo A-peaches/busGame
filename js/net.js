@@ -57,7 +57,8 @@ async function syncOnce() {
   if (!(await ensureAccount())) return;
   try {
     refreshHearts();
-    const r = await api('/sync', { nickname, unlocked, hearts: { n: hearts.n, t: hearts.t }, hideSeen: !!settings.hideSeen });
+    const r = await api('/sync', { nickname, unlocked, hearts: { n: hearts.n, t: hearts.t }, hideSeen: !!settings.hideSeen, chatRead: store.get('busGame.chatRead', 0) });
+    setChatBadge(r.chatNew || 0);
     if (r.code && acct.code !== r.code) { acct.code = r.code; store.set('busGame.acct', acct); }
     if (r.nickTaken && r.nickname) {               // 바꾸려던 닉네임이 이미 있어서 서버가 원래 닉네임을 지켰어요
       nickname = r.nickname; store.set('busGame.nickname', nickname); if (typeof updateHello === 'function') updateHello();
@@ -76,6 +77,14 @@ async function syncOnce() {
 }
 
 // 우편함 버튼의 N 표시: 안 받은 하트나 안 읽은 쪽지가 있을 때
+// 전체 채팅: 안 읽은 글 수를 채팅 버튼 오른쪽 위에 숫자로 (채팅 창을 열면 읽은 걸로)
+function setChatBadge(n) {
+  const b = $('chatBtn'); if (!b) return;
+  let d = b.querySelector('.dot');
+  if (!d) { d = document.createElement('span'); d.className = 'dot'; b.appendChild(d); }
+  d.textContent = n > 99 ? '99+' : n;
+  b.classList.toggle('hasDot', n > 0);
+}
 function setMailBadge(n) {
   pendingGifts = n;
   const b = $('mailBtn');
@@ -469,6 +478,7 @@ const CROWN = '<svg class="crown" viewBox="0 0 18 14" width="15" height="12" ari
 const IC_ADDFRIEND = '<svg viewBox="0 0 20 16" width="16" height="13" aria-hidden="true"><g stroke="#6b5a48" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="5" r="3" fill="#fbf3e2"/><path d="M1.5 15 C1.8 11 4 9.4 7 9.4 C10 9.4 12.2 11 12.5 15Z" fill="#fbf3e2"/><path d="M16 4.5 V10.5 M13 7.5 H19" fill="none" stroke="#e8768e" stroke-width="1.8"/></g></svg>';
 const chatSent = new Set();   // 이번에 채팅에서 친구 요청을 보낸 사람
 async function showChat() {
+  setChatBadge(0);
   const card = $('card');
   card.innerHTML = `<h2>전체 채팅</h2>
     <div class="chatList" id="chatList"><p><small>불러오는 중…</small></p></div>
@@ -487,6 +497,7 @@ async function showChat() {
     const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
     for (const m of list) {
       chatLast = Math.max(chatLast, m.id);
+      if (m.id > store.get('busGame.chatRead', 0)) store.set('busGame.chatRead', m.id);   // 창에서 본 글은 읽은 걸로
       const el = document.createElement('div');
       el.className = 'chatMsg' + (m.mine ? ' mine' : '');
       // 닉네임 옆에 단계, 전체 1·2·3위면 작은 금·은·동 메달

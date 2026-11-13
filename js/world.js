@@ -377,7 +377,7 @@ function showLevelPopup(n) {
   const tier = TIERS[levelTier(n)];
   const card = $('card');
   const got = levelStars(n);
-  card.innerHTML = `${n < unlocked ? starCrown(got) : ''}<h2>${n}단계</h2>
+  card.innerHTML = `${got ? starCrown(got) : ''}<h2>${n}단계</h2>
     <p>난이도 · ${tier.name}${levelEvents(n).length ? '<br>이벤트 · ' + levelEvents(n).map(e => EVENT_NAMES[e]).join(' + ') : ''}${n < unlocked ? (got ? `<br>가장 잘한 기록 · ${bestTries()[n]}번 만에` : '<br>이미 깬 단계예요') : ''}</p>
     <div class="lvRank" id="lvRank"></div>
     <button class="btn" id="ovStart">시작하기</button>

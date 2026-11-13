@@ -446,9 +446,9 @@ svg.crown { display: inline-block; vertical-align: -1px; margin-left: 3px; }
 .starCrown .sc0 { transform: rotate(-14deg) translateY(4px); }
 .starCrown .sc1 { width: 40px; height: 37px; }
 .starCrown .sc2 { transform: rotate(14deg) translateY(4px); }
-.starCrown.inline { position: static; transform: none; justify-content: center; margin: 2px 0 8px; }
+.starCrown.inline { position: static; transform: none; justify-content: center; margin: 6px 0 10px; }
 .winStars { margin: -2px 0 4px; }
-.winStars small { display: block; }
+.winStars small { display: block; margin-top: 4px; }   /* 별과 글자 사이 띄우기 */
 .node small .off { opacity: .35; }
 
 /* 오늘의 경쟁: 지도 왼쪽 아래 엄지 버튼 + 순위 */

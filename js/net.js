@@ -431,16 +431,16 @@ const medalSvg = n => {
     <circle cx="8" cy="11.5" r="5.2" fill="${c}" stroke="${d}" stroke-width="1.2"/><text x="8" y="14" text-anchor="middle" font-size="6.5" font-weight="700" fill="#5a4e44">${n}</text></svg>`;
 };
 const fmtClock = ms => { const d = new Date(ms); return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`; };
-// ---- 👍 오늘의 경쟁 (지도 왼쪽 아래 엄지 버튼) ----
+// ---- 🔥 오늘의 경쟁 (지도 왼쪽 아래 불꽃 버튼) ----
 const THUMB_SVG = `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><g stroke="#4a3b2c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
-  <path d="M7.5 10.5 L11 3.6 C12.6 3.6 13.6 4.8 13.2 6.6 L12.6 9.4 H18.4 C19.8 9.4 20.7 10.7 20.3 12 L18.6 18.4 C18.3 19.4 17.4 20 16.4 20 H7.5Z" fill="#f6dd92"/>
-  <rect x="3.2" y="10" width="4.3" height="10.4" rx="1.2" fill="#fbf3e2"/></g></svg>`;
+  <path d="M12 2.6 C12.6 6 16.8 8 17.6 12.4 C18.4 16.6 15.6 21 12 21 C8.2 21 5.6 18 6 14.4 C6.3 11.8 8 10.6 8.6 8.6 C9.6 10.2 10.2 11 11 11.4 C11.2 8 10.4 5.6 12 2.6Z" fill="#f5ae74"/>
+  <path d="M12 12.6 C12.6 14.6 14.6 15.4 14.4 17.6 C14.2 19.2 13.2 20 12 20 C10.6 20 9.6 19 9.8 17.4 C10 16 11 15.6 11.4 14.6 Z" fill="#f6dd92" stroke-width="1.2"/></g></svg>`;   // 🔥 불꽃 (오늘의 경쟁)
 $('dailyBtn').innerHTML = THUMB_SVG + '<span class="dot"></span>';
 $('dailyBtn').onclick = () => showDaily();
 async function showDaily() {
   const card = $('card'), day = kstDayNum(), d = new Date(day * 86400000);
   const tries = store.get('busGame.tries', {})['d' + day] || 0;
-  card.innerHTML = `<h2>👍 오늘의 경쟁</h2>
+  card.innerHTML = `<h2>🔥 오늘의 경쟁</h2>
     <p><small>${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일 · 모두 같은 판! 아주 어려운 도전이에요<br>
     <b>처음 깰 때까지 몇 번 만에 깼는지</b>로 순위를 매겨요 (같으면 먼저 깬 사람)</small></p>
     <div class="dailyRank" id="dailyRank"><p><small>불러오는 중…</small></p></div>

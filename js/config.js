@@ -48,7 +48,16 @@ const BUS_SVG = `<svg class="busIcon" viewBox="0 0 42 28" aria-hidden="true"><g 
 
 // 저장 (브라우저에 진행 상황 기억)
 // 지금 쓰는 파일 버전 (index.html 의 ?v= 와 같게). 설정 창 맨 아래에 보여서 폰이 새 파일을 받았는지 알 수 있어요
-const APP_VER = 90;
+const APP_VER = 91;
+// 화면(HTML)은 옛날 것인데 코드(JS)만 새것으로 받아지면(새 버전을 올리는 순간 들어왔거나, 폰이 옛 화면을 기억할 때)
+//   버튼이 없어 게임이 반쯤 멈춰요 → 새 화면으로 한 번 다시 열어요 (한 번만 시도)
+const PAGE_VER = (() => { try { const m = (document.currentScript && document.currentScript.src || '').match(/[?&]v=(\d+)/); return m ? +m[1] : 0; } catch (e) { return 0; } })();
+if (PAGE_VER && PAGE_VER !== APP_VER) {
+  try {
+    const k = 'meowFresh' + APP_VER;
+    if (!sessionStorage.getItem(k)) { sessionStorage.setItem(k, '1'); location.replace(location.pathname + '?fresh=' + APP_VER + location.hash); }
+  } catch (e) { /* 저장소가 막혀 있으면 그냥 진행 */ }
+}
 // 화면 해상도 상한: 폰 화면이 아주 촘촘해도(3배) 2배까지만 그려요 → 그릴 점이 절반 이하, 발열·배터리 절약
 // 가벼운 모드: 오래된 폰에서 버벅이지 않게 그림을 조금 단순하게 해요.
 //   설정값 'auto'(느리면 자동으로 켜짐) / 'on' / 'off'. 자동으로 켜진 적이 있으면 기억해 둬요.
@@ -77,7 +86,7 @@ function reportError(e) {
     console.error(e);
     fetch('https://meow-bus-api.bbhtodo.workers.dev/log', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ver: APP_VER, level: (typeof S !== 'undefined' && S && S.level) || 0, msg, stack: String((e && e.stack) || '').slice(0, 1200), ua: navigator.userAgent.slice(0, 160) }),
+      body: JSON.stringify({ ver: PAGE_VER && PAGE_VER !== APP_VER ? APP_VER + '/p' + PAGE_VER : APP_VER, level: (typeof S !== 'undefined' && S && S.level) || 0, msg, stack: String((e && e.stack) || '').slice(0, 1200), ua: navigator.userAgent.slice(0, 160) }),
     }).catch(() => {});
   } catch (x) { /* 보고가 실패해도 게임은 계속 */ }
 }

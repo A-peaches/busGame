@@ -125,6 +125,7 @@ async function handle(req, env, ctx) {
         if (await tooMany(env, 'req:' + user.id, 30, 3600000)) return slowDown();         // 한 시간에 30번까지
         return requestFriend(env, ctx, user, body);
       }
+      if (path === '/friends/suggest' && req.method === 'GET') return suggestFriend(env, user);
       if (path === '/friends/respond' && req.method === 'POST') return respondFriend(env, ctx, user, body);
       if (path === '/inquiry' && req.method === 'POST') {
         if (await tooMany(env, 'inq:' + user.id, 5, 3600000)) return json({ error: '문의는 한 시간에 5번까지 보낼 수 있어요' }, 429);
@@ -321,6 +322,19 @@ async function searchUsers(env, user, q) {
        AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.a = ?1 AND b.b = u.id) OR (b.a = u.id AND b.b = ?1))
      ORDER BY (u.nickname = ?3) DESC, u.last_seen DESC LIMIT 15`).bind(user.id, like, q).all();
   return json({ users: results.map(r => ({ id: r.id, nickname: r.nickname, unlocked: r.unlocked, friend: !!r.friend, sent: !!r.sent })) });
+}
+// 추천 친구: 오늘(한국 시간) 접속한 사람 중 한 명을 무작위로 (이미 친구·요청 중·차단은 빼요)
+async function suggestFriend(env, user) {
+  const t = now(), KST = 9 * 3600000;
+  const dayStart = Math.floor((t + KST) / DAY) * DAY - KST;
+  const r = await env.DB.prepare(
+    `SELECT u.id, u.nickname, u.unlocked, u.last_seen FROM users u
+     WHERE u.id != ?1 AND u.nickname != '' AND u.last_seen >= ?2
+       AND NOT EXISTS(SELECT 1 FROM friends f WHERE f.a = ?1 AND f.b = u.id)
+       AND NOT EXISTS(SELECT 1 FROM friend_requests q WHERE (q.from_id = ?1 AND q.to_id = u.id) OR (q.from_id = u.id AND q.to_id = ?1))
+       AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.a = ?1 AND b.b = u.id) OR (b.a = u.id AND b.b = ?1))
+     ORDER BY RANDOM() LIMIT 1`).bind(user.id, dayStart).first();
+  return json({ user: r ? { id: r.id, nickname: r.nickname, unlocked: r.unlocked, lastSeen: r.last_seen || 0 } : null, now: t });
 }
 async function makeFriends(env, a, b) {
   const t = now();

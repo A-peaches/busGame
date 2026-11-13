@@ -306,6 +306,7 @@ async function showFriends() {
   card.innerHTML = `<h2>친구</h2>
     <div class="codeRow"><input class="nickInput" id="findNick" maxlength="10" placeholder="닉네임으로 친구 찾기"><button class="btn mini" id="findBtn">찾기</button></div>
     <div class="findList" id="findList"></div>
+    <div id="suggestBox"></div>
     ${reqs.length ? `<p class="secTitle">받은 친구 요청</p><div class="friendList reqList">${reqs.map(q =>
       `<div class="friendRow"><span>${esc(q.nickname || '친구')}<small>${q.unlocked}단계</small></span>
         <span class="friendBtns"><button class="btn mini" data-accept="${esc(q.id)}">수락</button><button class="btn alt mini" data-reject="${esc(q.id)}">거절</button></span></div>`).join('')}</div>` : ''}
@@ -347,6 +348,26 @@ async function showFriends() {
     });
   };
   card.querySelector('#findBtn').onclick = find;
+  // 오늘의 추천 친구: 오늘 접속한 사람 중 한 명을 창을 열 때마다 무작위로
+  (async () => {
+    const box = card.querySelector('#suggestBox');
+    let r;
+    try { r = await api('/friends/suggest'); } catch (e) { return; }
+    if (!r.user || !card.contains(box)) return;
+    const u = r.user, on = u.lastSeen && r.now - u.lastSeen < ONLINE_MS;
+    box.innerHTML = `<p class="secTitle">오늘의 추천 친구 ✨</p><div class="friendList"><div class="friendRow suggest">
+      <span class="fName"><span class="fTxt">${esc(u.nickname)}<i class="onDot${on ? ' on' : ''}"></i><small>${u.unlocked}단계 · ${seenText(u.lastSeen, r.now)}</small></span></span>
+      <button class="btn mini" id="sugReq">친구 요청</button></div></div>`;
+    box.querySelector('#sugReq').onclick = async e => {
+      e.target.disabled = true;
+      try {
+        const q = await api('/friends/request', { id: u.id });
+        if (q.friend) { toast(`${u.nickname}님과 친구가 되었어요! 🐾`, 2000); showFriends(); return; }
+        e.target.outerHTML = '<small class="tag">요청함</small>';
+        toast('친구 요청을 보냈어요', 1600);
+      } catch (err) { e.target.disabled = false; toast(err.message && err.message.length < 40 ? err.message : '보내지 못했어요', 1800); }
+    };
+  })();
   inp.onkeydown = e => { if (e.key === 'Enter') find(); };
   // 받은 요청: 수락 / 거절
   const answer = async (id, accept) => {

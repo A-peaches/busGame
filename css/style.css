@@ -416,3 +416,6 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 /* 빨리감기 버튼 (설정 왼쪽): 누르면 노랗게 켜지고, 다시 누르면 꺼져요 */
 .round.ffBtn { font-size: calc(11px + var(--fd)); font-weight: 700; letter-spacing: -.5px; line-height: 1; }
 .round.ffBtn.on { background: #f6dd92; }
+
+/* 오늘의 추천 친구 */
+.friendRow.suggest { background: #f4f0e2; border-radius: 8px; border-bottom: none; padding: 7px 8px; }

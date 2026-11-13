@@ -18,7 +18,7 @@ function layout() {
   L.sp = L.pr * 2.15;
   L.qTop = 2; L.qH = clamp(H * 0.27, 130, 250);
   // 주차장 버스가 너무 작아지지 않게: 화면이 낮으면 승객 구역·정류장·레일을 조금씩 줄여 주차장 높이를 확보해요
-  let sH = clamp(H * 0.11, 56, 100), railH = S.rail ? clamp(H * 0.085, 50, 76) : 0;
+  let sH = clamp(H * 0.095, 48, 88), railH = S.rail ? clamp(H * 0.085, 50, 76) : 0;
   {
     const fixed = L.qTop + 8 + L.pr * 2.2 + L.pr * 2.8 + 12 + pad + (S.rail ? 8 : 0);
     const want = CS_MIN * (S.rows + 0.4) + 16;                       // 이만큼은 있어야 버스가 적당한 크기
@@ -26,7 +26,7 @@ function layout() {
     let need = Math.min(want, fitW * (S.rows + 0.4) + 16) - (H - fixed - L.qH - sH - railH);
     const take = (cur, min) => { const d = Math.max(0, Math.min(need, cur - min)); need -= d; return cur - d; };
     if (need > 0) L.qH = take(L.qH, 96);
-    if (need > 0) sH = take(sH, 44);
+    if (need > 0) sH = take(sH, 40);
     if (need > 0 && S.rail) railH = take(railH, 40);
   }
   L.headRoom = L.pr * 2.3;

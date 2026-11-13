@@ -99,7 +99,7 @@ let mapPts = null, mapW = 0;
 function updateUI() {
   $('levelLabel').textContent = S.daily ? '🔥 오늘의 경쟁' : `${S.level}단계`;
   // 자리 바꾸기 안내는 낱말 중간에서 잘리지 않게 아랫줄에 따로
-  $('leftLabel').innerHTML = `${TIERS[levelTier(S.level)].name} · 남은 승객 ${remainingCount()}명` +
+  $('leftLabel').innerHTML = `${S.daily ? '도전 · ' : ''}${TIERS[levelTier(S.level)].name} · 남은 승객 ${remainingCount()}명` +
     (S.shuffle ? `<br>자리 바꾸기까지 ${S.shuffle.left}대` : '');
   $('slotCnt').textContent = S.boost.slot;
   $('liftCnt').textContent = S.boost.lift;

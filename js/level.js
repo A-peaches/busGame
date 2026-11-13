@@ -295,7 +295,8 @@ function fitBoardTurn() {
 }
 // 오늘의 경쟁: 한국 시간 날짜 번호, 그날의 판(91~100단계 수준의 어려운 판 + 그날만의 배치)
 const kstDayNum = () => Math.floor((Date.now() + 9 * 3600000) / 86400000);
-const dailyLevelOf = day => 91 + (day % 10);
+const DAILY_LEVELS = [93, 96, 90, 99, 100];   // 매우 어려움(93·96·99·100)과 최고 난이도(90) 설정만
+const dailyLevelOf = day => DAILY_LEVELS[day % DAILY_LEVELS.length];
 function startDaily() {
   const day = kstDayNum();
   startLevel(dailyLevelOf(day), { daily: day, seed: day * 104729 + 7 });

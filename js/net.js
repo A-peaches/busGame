@@ -442,7 +442,7 @@ async function showDaily() {
   const tries = store.get('busGame.tries', {})['d' + day] || 0;
   card.innerHTML = `<h2>🔥 오늘의 경쟁</h2>
     <p><small>${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일 · 모두 같은 판! 아주 어려운 도전이에요<br>
-    <b>처음 깰 때까지 몇 번 만에 깼는지</b>로 순위를 매겨요 (같으면 먼저 깬 사람)</small></p>
+    <b>처음 깰 때까지 몇 번 만에 깼는지</b>로 순위를 매겨요</small></p>
     <div class="dailyRank" id="dailyRank"><p><small>불러오는 중…</small></p></div>
     <p class="dailyMe" id="dailyMe">${tries ? `<small>오늘 ${tries}번 도전했어요</small>` : ''}</p>
     <button class="btn" id="dailyGo">도전하기</button>${X_BTN}`;

@@ -462,3 +462,6 @@ svg.crown { display: inline-block; vertical-align: -1px; margin-left: 3px; }
 .dailyRank .rkTitle { text-align: center; font-size: calc(12px + var(--fd)); color: var(--muted); margin-bottom: 2px; }
 .dailyRank .rkGap { text-align: center; color: var(--muted); line-height: 1; }
 .dailyMe { margin: 0 0 8px; }
+
+/* 축하 창: 하트를 돌려받았어요 줄의 하트를 글자 크기에 맞춰요 */
+.refund svg { width: 1.05em; height: 1em; vertical-align: -0.15em; margin-right: 3px; }

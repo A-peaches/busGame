@@ -544,13 +544,18 @@ function update(dt) {
   // 원이 빙글빙글 돌고, 빈자리가 입구를 지나가면 기다리던 승객이 들어갑니다
   // 화면을 꾹 누르면 빨리감기 (줄이 빠르게 하트 길로 들어와요)
   if ((S.holding || S.ff) && !S.over) S.rush = Math.max(S.rush, 0.15);   // 꾹 누르는 동안·빨리감기 버튼이 켜져 있는 동안 계속 빨리
+  // 주차장·레일·하늘에 버스가 하나도 안 남았으면(다 대기 칸에 올라왔으면) 더 고를 게 없으니 약 6배로 후다닥 태워요
+  S.allOut = !S.over && !S.vehicles.some(v => v.state === 'parked' || v.state === 'rail' || v.state === 'sky' || v.state === 'landing' || v.state === 'exiting')
+    && !(S.rail && S.rail.items.some(Boolean));
+  if (S.allOut) S.rush = Math.max(S.rush, 0.15);
+  const zoom = S.allOut ? 1.5 : 1;               // 빨리감기(약 4배)보다 1.5배 더 → 약 6배
   if (S.rush > 0) S.rush -= dt;
   if (S.treeShake > 0) S.treeShake -= dt;
   if (S.rail && S.rail.anim > 0) S.rail.anim = Math.max(0, S.rail.anim - dt / 0.25);
   // 빈자리가 있고 기다리는 친구가 있으면 하트 길이 조금 더 빨리 돌아서 금방 채워져요 (듬성듬성하지 않게)
   const gaps = S.waiting.length ? S.ring.reduce((a, p) => a + (p ? 0 : 1), 0) : 0;
   // 꾹 누르면 약 3배속 (하트 길 5배, 걷기·탑승도 더 빠르게)
-  const fast = S.rush > 0 ? 5.2 : 1 + Math.min(2.2, gaps * 0.35);
+  const fast = S.rush > 0 ? 5.2 * zoom : 1 + Math.min(2.2, gaps * 0.35);
   S.ringOff = (S.ringOff + dt * L.pr * 4.5 * fast) % L.ring.total;   // 기본 속도 조금 올림 (출구 차례대로 타니까)
   for (let k = 0; k < S.ring.length; k++) {
     if (!S.ring[k] && S.waiting.length && ringS(k) < L.ringSp * 0.7) S.ring[k] = S.waiting.shift();
@@ -574,7 +579,7 @@ function update(dt) {
       v.incoming++;
       // 버스까지 걸어가는 친구 (눈이 반짝반짝!)
       S.flying.push({ color: p.color, kind: p.kind, bag: p.bag, ribbon: p.ribbon, id: p.id, path: walkRoute(p, v, ringS(k)), s: 0, v });
-      S.boardTimer = S.rush > 0 ? 0.02 : 0.06;   // 꾹 누르는 동안엔 더 빨리 차례차례 출발
+      S.boardTimer = S.rush > 0 ? 0.02 / zoom : 0.06;   // 꾹 누르는 동안엔 더 빨리 차례차례 출발
       sfx('board', v.filled + v.incoming);
       updateUI();
     }
@@ -582,14 +587,14 @@ function update(dt) {
 
   let landed = false;
   for (const f of S.flying) {
-    f.s += dt * L.pr * 14 * (S.rush > 0 ? 3.8 : 1);   // 꾹 누르는 동안엔 버스까지 더 빨리 걸어가요
+    f.s += dt * L.pr * 14 * (S.rush > 0 ? 3.8 * zoom : 1);   // 꾹 누르는 동안엔 버스까지 더 빨리 걸어가요
     if (f.s >= f.path.total) { f.v.filled++; f.v.incoming--; landed = true; f.done = true; }
   }
   S.flying = S.flying.filter(f => !f.done);
   if (landed) updateUI();
 
   // 승객들이 자기 자리로 걸어가기
-  const k = Math.min(1, dt * 10 * (S.rush > 0 ? 4.5 : 1));
+  const k = Math.min(1, dt * 10 * (S.rush > 0 ? 4.5 * zoom : 1));
   const walkTo = (p, t) => {
     if (p.x === undefined) { p.x = t.x; p.y = t.y; }
     const dx = t.x - p.x, dy = t.y - p.y;

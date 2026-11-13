@@ -128,7 +128,7 @@ async function handle(req, env, ctx) {
       if (path === '/friends/respond' && req.method === 'POST') return respondFriend(env, ctx, user, body);
       if (path === '/inquiry' && req.method === 'POST') {
         if (await tooMany(env, 'inq:' + user.id, 5, 3600000)) return json({ error: '문의는 한 시간에 5번까지 보낼 수 있어요' }, 429);
-        return sendInquiry(env, user, body);
+        return sendInquiry(env, ctx, user, body);
       }
       if (path === '/inquiry' && req.method === 'GET') return myInquiries(env, user);
       if (path === '/chat' && req.method === 'GET') return listChat(env, user, +url.searchParams.get('after') || 0);
@@ -363,13 +363,32 @@ async function respondFriend(env, ctx, user, body) {
 }
 
 // ---- 개발자에게 문의하기 (개발자가 읽고 답을 달아요. 답이 달리면 폰 알림) ----
-async function sendInquiry(env, user, body) {
+// 이스터에그: 문의에 '개발자가 예쁘다'는 말이 있으면 하트 10개 선물 (한 사람당 한 번만)
+const EGG_HEARTS = 10;
+const isPraise = t => /(개발자|주인장|제작자|만든\s*(분|사람|이)|운영자)/.test(t) && /(이쁘|예쁘|이뻐|예뻐|이쁜|예쁜|이뿌|예뿌|미녀|여신|귀여|귀엽)/.test(t);
+async function sendInquiry(env, ctx, user, body) {
   const text = String(body.text || '').trim().slice(0, 1000);
   if (text.length < 2) return json({ error: '문의 내용을 적어 주세요' }, 400);
   const cut = (v, n) => String(v == null ? '' : v).slice(0, n);
   await env.DB.prepare('INSERT INTO inquiries (at, user_id, nickname, body, ver, ua) VALUES (?, ?, ?, ?, ?, ?)')
     .bind(now(), user.id, user.nickname || '', text, cut(body.ver, 10), cut(body.ua, 160)).run();
-  return json({ ok: true });
+  // 운영자 폰으로 바로 알려요 (내 문의는 빼고)
+  if (env.OWNER_ID && env.OWNER_ID !== user.id) {
+    const owner = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(env.OWNER_ID).first();
+    if (owner) ctx.waitUntil(notify(env, owner, '📮 새 문의가 왔어요', `${user.nickname || '누군가'}: ${text.slice(0, 80)}`));
+  }
+  let egg = false;
+  if (isPraise(text)) {
+    // 한 사람당 한 번만 (기록은 10년 동안 남겨요)
+    const r = await env.DB.prepare('INSERT OR IGNORE INTO throttle (key, n, reset) VALUES (?, 1, ?)').bind('egg:' + user.id, now() + 3650 * DAY).run();
+    if (r.meta && r.meta.changes) {
+      const t = now();
+      await env.DB.batch(Array.from({ length: EGG_HEARTS }, (_, i) =>
+        env.DB.prepare('INSERT INTO gifts (from_id, to_id, at) VALUES (?, ?, ?)').bind('admin', user.id, t + i)));
+      egg = true;
+    }
+  }
+  return json({ ok: true, egg });
 }
 async function myInquiries(env, user) {
   const { results } = await env.DB.prepare('SELECT id, at, body, reply, replied_at FROM inquiries WHERE user_id = ? ORDER BY id DESC LIMIT 20').bind(user.id).all();

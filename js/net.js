@@ -235,7 +235,13 @@ async function showInquiry(back) {
     if (text.length < 2) { toast('문의 내용을 적어 주세요'); return; }
     if (!nickname || !(await ensureAccount())) { toast('닉네임을 정하고 인터넷에 연결해 주세요', 2200); return; }
     e.target.disabled = true;
-    try { await api('/inquiry', { text, ver: APP_VER, ua: navigator.userAgent }); ta.value = ''; card.querySelector('#inqN').textContent = '0'; toast('문의를 보냈어요! 답이 오면 알려 드릴게요 💌', 2200); loadMine(); }
+    try {
+      const r = await api('/inquiry', { text, ver: APP_VER, ua: navigator.userAgent });
+      ta.value = ''; card.querySelector('#inqN').textContent = '0';
+      if (r.egg) { toast('💝 개발자가 기뻐하며 하트 10개를 보냈어요! 우편함을 확인해 보세요', 3600); syncNow(); }   // 이스터에그 (우편함 N 표시도 바로)
+      else toast('문의를 보냈어요! 답이 오면 알려 드릴게요 💌', 2200);
+      loadMine();
+    }
     catch (err) { toast(err.message && err.message.length < 40 ? err.message : '보내지 못했어요', 2200); }
     e.target.disabled = false;
   };

@@ -7,6 +7,8 @@ compatibility_date = "2024-11-01"
 # 웹 푸시 공개 열쇠 (공개돼도 괜찮아요). 비밀 열쇠는 `wrangler secret put VAPID_PRIVATE` 로 따로 넣어요.
 VAPID_PUBLIC = "BGIy5HnCW1a3D-uWQ1uyv7qrhYbJ8IVbVCxouk_EuaGl1h2l5yq_AthZYZFS8uWz9kiI83Vym4R3vHPq5otHhbs"
 VAPID_SUBJECT = "https://meowbus.bbhtodo.workers.dev/"
+# 운영자(개발자) 계정: 새 문의가 오면 이 계정 폰으로 바로 알려 줘요
+OWNER_ID = "7ecdb23ae56b3ac5"
 
 [[d1_databases]]
 binding = "DB"

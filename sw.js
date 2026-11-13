@@ -21,7 +21,7 @@ self.addEventListener('push', e => {
     for (const n of notes.slice(0, 3)) {
       await self.registration.showNotification(n.title, {
         body: n.body, tag: 'meow-' + (n.id || Date.now()), renotify: true,
-        icon: 'icon.png', badge: 'icon.png',
+        icon: 'icon.png', badge: 'icons/badge.png',   // 알림 막대 작은 아이콘: 하얀 고양이 얼굴 (안드로이드는 모양만 써요)
       });
     }
   })());

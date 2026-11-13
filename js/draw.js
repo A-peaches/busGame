@@ -822,7 +822,7 @@ function draw() {
     ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#5a4a3a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(tx, L.W / 2, by + (fs + 12) / 2 + 1);
+    ctx.fillText(tx, L.W / 2, by + (fs + 12) / 2 + 1, tw - 22);
   }
 
   const panelH = L.swH + L.sH + L.roadH + 8;
@@ -914,7 +914,8 @@ function draw() {
     ctx.save(); ctx.globalAlpha = a;
     ctx.font = `700 ${fs}px MaruBuri, serif`;
     // 주차장 판 맨 위 (버스들 위쪽 빈 곳)에 띄워요
-    const tw = ctx.measureText(tx).width + 24, bx = L.W / 2 - tw / 2, by = Math.max(L.bTop + 4, L.by - fs - 16);
+    // 폰마다 그림 글자(⚠️) 폭이 달라 넉넉히 재고, 글자는 말풍선 안에 맞춰 줄여 그려요 (밖으로 튀어나오지 않게)
+    const tw = Math.min(L.W - 28, ctx.measureText(tx).width + fs * 1.2 + 28), bx = L.W / 2 - tw / 2, by = Math.max(L.bTop + 4, L.by - fs - 16);
     ctx.fillStyle = 'rgba(255,253,248,.96)'; rr(bx, by, tw, fs + 12, (fs + 12) / 2); ctx.fill();
     ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
     ctx.fillStyle = '#5a4a3a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';

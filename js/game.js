@@ -493,6 +493,7 @@ function update(dt) {
   if (S.wing) {                                   // 날개 버스: 미리 알림 → 잠깐 뒤 날아가요
     if (S.wing.warn > 0) S.wing.warn -= dt;
     if (S.wing.wait > 0 && (S.wing.wait -= dt) <= 0) { S.wing.wait = 0; flyWingBus(); }
+    if (S.wing.pending && !S.over && freeSlot() >= 0 && !S.vehicles.some(v => v.move)) flyWingBus();   // 자리가 났어요: 이제 날아와요
   }
   for (const f of S.lifeFx) f.t += dt;          // 깨진 하트 조각
   if (S.lifeFx.length && S.lifeFx.every(f => f.t > 1.2)) S.lifeFx.length = 0;

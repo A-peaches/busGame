@@ -524,20 +524,9 @@ function flyWingBus() {
   const cand = S.vehicles.filter(v => v.state === 'parked' && !v.bump && !v.move);
   if (!cand.length || S.over) return;
   const v = cand[Math.floor(Math.random() * cand.length)];
-  let si = freeSlot();
-  if (si < 0) {
-    if (S.boost.slot > 0 && S.slotCount < MAX_SLOTS) {   // 꽉 찼으면 자리 추가를 저절로 써요
-      useSlotBooster(); si = freeSlot();
-      toast('⚠️ 날개 버스 자리를 만들려고 자리 추가를 썼어요!', 2000);
-    }
-    if (si < 0) {                                        // 자리 추가도 없으면 실패
-      S.over = true; S.lostByWing = true;
-      v.shake = 0.6;
-      sfx('lose');
-      setTimeout(() => showOverlay('lose'), 700);
-      return;
-    }
-  }
+  const si = freeSlot();
+  if (si < 0) { S.wing.pending = true; return; }       // 대기 칸이 꽉 찼으면 기다렸다가, 자리가 나면 날아와요 (실패 없음)
+  S.wing.pending = false;
   v.winged = true;
   launch(v, si, true);
   revealCheck(false);

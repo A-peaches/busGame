@@ -48,7 +48,7 @@ const BUS_SVG = `<svg class="busIcon" viewBox="0 0 42 28" aria-hidden="true"><g 
 
 // 저장 (브라우저에 진행 상황 기억)
 // 지금 쓰는 파일 버전 (index.html 의 ?v= 와 같게). 설정 창 맨 아래에 보여서 폰이 새 파일을 받았는지 알 수 있어요
-const APP_VER = 120;
+const APP_VER = 121;
 // 화면(HTML)은 옛날 것인데 코드(JS)만 새것으로 받아지면(새 버전을 올리는 순간 들어왔거나, 폰이 옛 화면을 기억할 때)
 //   버튼이 없어 게임이 반쯤 멈춰요 → 새 화면으로 한 번 다시 열어요 (한 번만 시도)
 const PAGE_VER = (() => { try { const m = (document.currentScript && document.currentScript.src || '').match(/[?&]v=(\d+)/); return m ? +m[1] : 0; } catch (e) { return 0; } })();

@@ -471,3 +471,6 @@ svg.crown { display: inline-block; vertical-align: -1px; margin-left: 3px; }
 #chatBtn .dot { display: none; position: absolute; top: -2px; right: -2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #e8768e; border: 1px solid #fff8ec;
   font-size: calc(10px + var(--fd)); font-weight: 700; line-height: 15px; color: #fffaf1; text-align: center; font-family: inherit; }
 #chatBtn.hasDot .dot { display: block; }
+
+/* 공지사항 버튼: 새 공지 N 배지 (우편함 N과 같은 모양) */
+#noticeBtn .dot { width: 16px; height: 16px; top: -2px; right: -2px; font-size: calc(10px + var(--fd)); font-weight: 700; line-height: 15px; color: #fffaf1; text-align: center; font-family: inherit; }

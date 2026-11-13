@@ -771,7 +771,7 @@ const MAIL_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="t
   <path d="M12 13.2 C10.6 11.6 9.4 12.2 9.6 13.3 C9.8 14.4 12 15.8 12 15.8 C12 15.8 14.2 14.4 14.4 13.3 C14.6 12.2 13.4 11.6 12 13.2Z" fill="#e8768e" stroke-width="1"/></g></svg>`;
 $('mailBtn').innerHTML = MAIL_SVG + '<span class="dot">N</span>';   // 새 소식이 있으면 N
 $('mailBtn').onclick = () => showMail();
-$('noticeBtn').innerHTML = NOTICE_SVG + '<span class="dot"></span>';
+$('noticeBtn').innerHTML = NOTICE_SVG + '<span class="dot">N</span>';   // 새 공지가 있으면 N
 $('noticeBtn').onclick = () => showNotices();
 setTimeout(checkNotices, 2500);                       // 새 공지가 있으면 확성기 버튼에 빨간 점
 setInterval(() => { if (!document.hidden) checkNotices(); }, 30 * 60 * 1000);   // 화면을 안 보고 있으면 쉬어요

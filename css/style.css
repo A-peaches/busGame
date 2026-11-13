@@ -433,3 +433,6 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 .lvRank .rk small { color: var(--muted); }
 .lvRank .rk.me { background: #fbf1d3; border-radius: 8px; }
 .lvRank .rkTitle { text-align: center; font-size: calc(12px + var(--fd)); color: var(--muted); margin-bottom: 2px; }
+
+/* 관리자 왕관 (채팅·친구 목록 닉네임 옆) */
+svg.crown { display: inline-block; vertical-align: -1px; margin-left: 3px; }

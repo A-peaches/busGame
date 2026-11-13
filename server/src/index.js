@@ -289,7 +289,8 @@ async function listFriends(env, user) {
     `SELECT u.id, u.nickname, u.unlocked, r.at FROM friend_requests r JOIN users u ON u.id = r.from_id WHERE r.to_id = ? ORDER BY r.at DESC LIMIT 30`)
     .bind(user.id).all();
   return json({
-    friends: results.map(r => ({ id: r.id, nickname: r.nickname, unlocked: r.unlocked, lastSeen: r.last_seen || 0, nextGiftAt: r.last_gift ? r.last_gift + GIFT_MS : 0 })),
+    friends: results.map(r => ({ id: r.id, nickname: r.nickname, unlocked: r.unlocked, lastSeen: r.last_seen || 0, nextGiftAt: r.last_gift ? r.last_gift + GIFT_MS : 0, admin: r.id === env.OWNER_ID })),
+    meAdmin: user.id === env.OWNER_ID,
     requests: rq.results.map(r => ({ id: r.id, nickname: r.nickname, unlocked: r.unlocked, at: r.at })),
     now: now(),
   });
@@ -429,8 +430,9 @@ async function sendInquiry(env, ctx, user, body) {
   }
   let egg = false;
   if (isPraise(text)) {
-    // 한 사람당 한 번만 (기록은 10년 동안 남겨요)
-    const r = await env.DB.prepare('INSERT OR IGNORE INTO throttle (key, n, reset) VALUES (?, 1, ?)').bind('egg:' + user.id, now() + 3650 * DAY).run();
+    // 한 사람당 하루(한국 시간)에 한 번: 날짜를 붙인 표시를 남기고, 그날 자정에 지워져요
+    const KST = 9 * 3600000, day = Math.floor((now() + KST) / DAY);
+    const r = await env.DB.prepare('INSERT OR IGNORE INTO throttle (key, n, reset) VALUES (?, 1, ?)').bind('egg:' + user.id + ':' + day, (day + 1) * DAY - KST).run();
     if (r.meta && r.meta.changes) {
       const t = now();
       await env.DB.batch(Array.from({ length: EGG_HEARTS }, (_, i) =>
@@ -457,7 +459,7 @@ async function notifyReplies(env) {
 
 // ---- 전체 채팅 (모두가 보는 짧은 말, 사흘 뒤 지워져요) ----
 const CHAT_MAX = 100;
-async function listChat(env, user, after) {
+async function listChat(env, user, after) {   // env.OWNER_ID 의 글에는 관리자 왕관 표시
   const q = after > 0
     ? env.DB.prepare(`SELECT id, user_id, nickname, body, at FROM chat WHERE id > ?1
         AND user_id NOT IN (SELECT b FROM blocks WHERE a = ?2) ORDER BY id ASC LIMIT 50`).bind(after, user.id)
@@ -477,7 +479,7 @@ async function listChat(env, user, after) {
   const sent = new Set((await env.DB.prepare('SELECT to_id FROM friend_requests WHERE from_id = ?').bind(user.id).all()).results.map(x => x.to_id));
   return json({ messages: results.map(r => ({ id: r.id, nickname: r.nickname, body: r.body, at: r.at, mine: r.user_id === user.id,
     level: lv[r.user_id] || 0, medal: top.indexOf(r.user_id) + 1,
-    uid: r.user_id === user.id ? '' : r.user_id, friend: fr.has(r.user_id), sent: sent.has(r.user_id) })), now: now() });
+    uid: r.user_id === user.id ? '' : r.user_id, friend: fr.has(r.user_id), sent: sent.has(r.user_id), admin: r.user_id === env.OWNER_ID })), now: now() });
 }
 async function sendChat(env, user, body) {
   const text = String(body.text || '').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX);

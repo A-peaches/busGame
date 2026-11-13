@@ -296,8 +296,8 @@ async function showFriends() {
   $('overlay').classList.add('show');
   if (!nickname) { card.innerHTML = '<h2>친구</h2><p>먼저 닉네임을 정해 주세요.</p>' + close; bindClose(); return; }
   if (!(await ensureAccount())) { card.innerHTML = '<h2>친구</h2><p>인터넷 연결을 확인해 주세요.</p>' + close; bindClose(); return; }
-  let list = [], reqs = [], diff = 0;
-  try { const r = await api('/friends'); list = r.friends; reqs = r.requests || []; diff = r.now - Date.now(); }
+  let list = [], reqs = [], diff = 0, meAdmin = false;
+  try { const r = await api('/friends'); list = r.friends; reqs = r.requests || []; diff = r.now - Date.now(); meAdmin = !!r.meAdmin; }
   catch (e) { card.innerHTML = '<h2>친구</h2><p>친구 목록을 불러오지 못했어요.</p>' + close; bindClose(); return; }
   setFriendBadge(reqs.length);
   friendMarks = list.map(f => ({ nickname: f.nickname || '친구', unlocked: f.unlocked })); friendMarksAt = Date.now(); renderFriendMarks();
@@ -314,10 +314,10 @@ async function showFriends() {
     <p class="secTitle">친구 ${list.length}명</p>
     <div class="friendList">${list.length ? ranked.map((f, i) => {
       const rank = `<span class="rank">${i < 3 ? trophy(i) : i + 1}</span>`;
-      if (f.me) return `<div class="friendRow me"><span class="fName">${rank}<span class="fTxt">${esc(nickname)}<small>나 · ${unlocked}단계</small></span></span></div>`;
+      if (f.me) return `<div class="friendRow me"><span class="fName">${rank}<span class="fTxt">${esc(nickname)}${meAdmin ? CROWN : ''}<small>나 · ${unlocked}단계</small></span></span></div>`;
       const wait = f.nextGiftAt && f.nextGiftAt > t;
       const on = f.lastSeen && t - f.lastSeen < ONLINE_MS;
-      return `<div class="friendRow"><span class="fName">${rank}<span class="fTxt">${esc(f.nickname || '친구')}<i class="onDot${on ? ' on' : ''}" title="${on ? '접속 중' : ''}"></i><small>${f.unlocked}단계 · ${seenText(f.lastSeen, t)}</small></span></span>
+      return `<div class="friendRow"><span class="fName">${rank}<span class="fTxt">${esc(f.nickname || '친구')}${f.admin ? CROWN : ''}<i class="onDot${on ? ' on' : ''}" title="${on ? '접속 중' : ''}"></i><small>${f.unlocked}단계 · ${seenText(f.lastSeen, t)}</small></span></span>
         <span class="friendBtns"><button class="btn mini ic ${wait ? 'alt' : ''}" data-id="${esc(f.id)}" ${wait ? 'disabled' : ''} aria-label="하트 보내기">${wait ? fmtWait(f.nextGiftAt - t) : IC_HEART}</button>
         <button class="btn alt mini ic" data-letter="${esc(f.id)}" data-name="${esc(f.nickname || '친구')}" aria-label="쪽지">${IC_LETTER}</button>
         <button class="btn alt mini ic" data-more="${esc(f.id)}" data-name="${esc(f.nickname || '친구')}" aria-label="삭제·차단">${IC_TRASH}</button></span></div>`;
@@ -429,6 +429,8 @@ const medalSvg = n => {
     <circle cx="8" cy="11.5" r="5.2" fill="${c}" stroke="${d}" stroke-width="1.2"/><text x="8" y="14" text-anchor="middle" font-size="6.5" font-weight="700" fill="#5a4e44">${n}</text></svg>`;
 };
 const fmtClock = ms => { const d = new Date(ms); return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`; };
+// 관리자(개발자) 닉네임 옆 작은 왕관
+const CROWN = '<svg class="crown" viewBox="0 0 18 14" width="15" height="12" aria-label="관리자"><path d="M2 12 L1 3.5 L5.5 7 L9 1.5 L12.5 7 L17 3.5 L16 12Z" fill="#f6d76b" stroke="#a8842c" stroke-width="1.1" stroke-linejoin="round"/><circle cx="9" cy="8.6" r="1.2" fill="#e8768e"/><path d="M2.4 12 H15.6" stroke="#a8842c" stroke-width="1.1"/></svg>';
 // 사람 + 작은 더하기: 친구 요청 아이콘
 const IC_ADDFRIEND = '<svg viewBox="0 0 20 16" width="16" height="13" aria-hidden="true"><g stroke="#6b5a48" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="5" r="3" fill="#fbf3e2"/><path d="M1.5 15 C1.8 11 4 9.4 7 9.4 C10 9.4 12.2 11 12.5 15Z" fill="#fbf3e2"/><path d="M16 4.5 V10.5 M13 7.5 H19" fill="none" stroke="#e8768e" stroke-width="1.8"/></g></svg>';
 const chatSent = new Set();   // 이번에 채팅에서 친구 요청을 보낸 사람
@@ -459,7 +461,7 @@ async function showChat() {
       const addBtn = !m.mine && m.uid && !m.friend
         ? (m.sent || chatSent.has(m.uid) ? `<span class="chatReq sent">요청함</span>`
           : `<button class="chatReq" data-uid="${esc(m.uid)}" data-name="${esc(m.nickname)}" aria-label="친구 요청">${IC_ADDFRIEND}</button>`) : '';
-      el.innerHTML = `${m.mine ? (tag ? `<b class="meTag">${tag}</b>` : '') : `<b>${esc(m.nickname)}${tag}${addBtn}</b>`}<span class="bubble">${esc(m.body)}</span><small>${fmtClock(m.at)}</small>`;
+      el.innerHTML = `${m.mine ? (tag || m.admin ? `<b class="meTag">${m.admin ? CROWN : ''}${tag}</b>` : '') : `<b>${esc(m.nickname)}${m.admin ? CROWN : ''}${tag}${addBtn}</b>`}<span class="bubble">${esc(m.body)}</span><small>${fmtClock(m.at)}</small>`;
       const rb = el.querySelector('button.chatReq');
       if (rb) rb.onclick = async () => {
         rb.disabled = true;

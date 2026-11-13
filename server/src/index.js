@@ -408,16 +408,24 @@ const PRAISE = /(이쁘|이뻐|이쁜|이뿌|이뽀|이쁨|예쁘|예뻐|예쁜|
 const DEV = /(개발|주인장|제작자|운영자|만든\s*(분|사람|이|님)|관리자|사장님|누나|언니|님\s*(이|은|도|진짜|넘|너무|완전|정말|짱))/;
 const OTHER = /(게임|그림|멍냥|냥이|고양이|강아지|댕댕|버스|색깔|색감|색이|디자인|화면|캐릭터|음악|노래|배경|하트|아이콘|구름|풍선|단계|지도)/;
 const isPraise = t => PRAISE.test(t) && (DEV.test(t) || !OTHER.test(t));
+// 백업 코드 요청: 자동으로 발급하지는 않아요 (닉네임만으로 남의 계정을 가져갈 수 있어서). 운영자에게 따로 알리고, 문의한 사람에겐 바로 안내 답장
+const isBackupReq = t => /(백업|복구|복원)/.test(t)
+  || /(계정|기록|데이터|단계|진행).{0,12}(찾|잃|날아|사라|없어|옮|이전|돌려|살려|되돌)/.test(t)
+  || /(폰|핸드폰|휴대폰|기기|아이폰|갤럭시).{0,10}(바꿨|바꿔|바뀌|새로|변경|잃어|고장)/.test(t)
+  || /(다시\s*(깔|설치)|재설치|지웠|삭제했)/.test(t);
+const BACKUP_AUTO_REPLY = '백업 코드 요청을 받았어요! 개발자가 확인한 뒤 이 답장으로 백업 코드를 보내 드릴게요. 예전 닉네임과 대략 몇 단계까지 했는지 적어 주시면 더 빨리 찾을 수 있어요 🐾';
 async function sendInquiry(env, ctx, user, body) {
   const text = String(body.text || '').trim().slice(0, 1000);
   if (text.length < 2) return json({ error: '문의 내용을 적어 주세요' }, 400);
   const cut = (v, n) => String(v == null ? '' : v).slice(0, n);
-  await env.DB.prepare('INSERT INTO inquiries (at, user_id, nickname, body, ver, ua) VALUES (?, ?, ?, ?, ?, ?)')
-    .bind(now(), user.id, user.nickname || '', text, cut(body.ver, 10), cut(body.ua, 160)).run();
+  const backupReq = isBackupReq(text);
+  // 백업 코드 요청이면 안내 답장을 바로 달아 둬요 (상태는 'new' 그대로 → 운영자가 확인하고 진짜 답장을 보내요)
+  await env.DB.prepare('INSERT INTO inquiries (at, user_id, nickname, body, ver, ua, reply) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .bind(now(), user.id, user.nickname || '', text, cut(body.ver, 10), cut(body.ua, 160), backupReq ? BACKUP_AUTO_REPLY : null).run();
   // 운영자 폰으로 바로 알려요 (내 문의는 빼고)
   if (env.OWNER_ID && env.OWNER_ID !== user.id) {
     const owner = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(env.OWNER_ID).first();
-    if (owner) ctx.waitUntil(notify(env, owner, '📮 새 문의가 왔어요', `${user.nickname || '누군가'}: ${text.slice(0, 80)}`));
+    if (owner) ctx.waitUntil(notify(env, owner, backupReq ? '🔑 백업 코드 요청이 왔어요' : '📮 새 문의가 왔어요', `${user.nickname || '누군가'}: ${text.slice(0, 80)}`));
   }
   let egg = false;
   if (isPraise(text)) {
@@ -430,7 +438,7 @@ async function sendInquiry(env, ctx, user, body) {
       egg = true;
     }
   }
-  return json({ ok: true, egg });
+  return json({ ok: true, egg, backupReq });
 }
 async function myInquiries(env, user) {
   const { results } = await env.DB.prepare('SELECT id, at, body, reply, replied_at FROM inquiries WHERE user_id = ? ORDER BY id DESC LIMIT 20').bind(user.id).all();

@@ -461,6 +461,10 @@ const isBackupReq = t => /(백업|복구|복원)/.test(t)
   || /(계정|기록|데이터|단계|진행).{0,12}(찾|잃|날아|사라|없어|옮|이전|돌려|살려|되돌)/.test(t)
   || /(폰|핸드폰|휴대폰|기기|아이폰|갤럭시).{0,10}(바꿨|바꿔|바뀌|새로|변경|잃어|고장)/.test(t)
   || /(다시\s*(깔|설치)|재설치|지웠|삭제했)/.test(t);
+// 하트 요청 문의 ("하트 주세요" 등): 그때마다 하트 5개를 바로 보내요 (횟수 제한 없음, 문의는 원래 한 시간에 5번까지)
+const isHeartReq = t => t.length <= 40 && !/(자동|기능|추가|바꿔|해주세요 ?$.*기능)/.test(t) && (/하트.{0,8}(주세요|주셔|줘|좀|달라|부탁|없어|모자|떨어|다 ?썼)/.test(t) || /(주세요|줘|부탁).{0,4}하트/.test(t));   // 짧은 '하트 주세요' 부탁만 (기능 건의는 빼요)
+const HEART_REQ_GIFT = 5;
+const HEART_REPLY = '급하셨군요! 🐾 하트 5개를 우편함으로 보냈어요. 받기를 눌러 주세요 💌';
 const EGG_REPLY = '칭찬 고마워요 😳💕 개발자가 기뻐서 하트 10개를 보냈어요! 우편함에서 확인해 보세요. 하루에 한 번씩 받을 수 있어요 🐾';
 const EGG_REPLY_AGAIN = '칭찬 고마워요 😳💕 오늘 하트는 이미 받았어요! 내일 또 칭찬해 주면 하트 10개를 보내 드릴게요 🐾';
 const BACKUP_AUTO_REPLY = '백업 코드 요청을 받았어요! 개발자가 확인한 뒤 이 답장으로 백업 코드를 보내 드릴게요. 예전 닉네임과 대략 몇 단계까지 했는지 적어 주시면 더 빨리 찾을 수 있어요 🐾';
@@ -468,7 +472,12 @@ async function sendInquiry(env, ctx, user, body) {
   const text = String(body.text || '').trim().slice(0, 1000);
   if (text.length < 2) return json({ error: '문의 내용을 적어 주세요' }, 400);
   const cut = (v, n) => String(v == null ? '' : v).slice(0, n);
-  const praise = isPraise(text), backupReq = !praise && isBackupReq(text);
+  const praise = isPraise(text), heartReq = !praise && isHeartReq(text), backupReq = !praise && !heartReq && isBackupReq(text);
+  if (heartReq) {                                    // 하트 요청: 5개 바로 선물
+    const t1 = now();
+    await env.DB.batch(Array.from({ length: HEART_REQ_GIFT }, (_, i) =>
+      env.DB.prepare('INSERT INTO gifts (from_id, to_id, at) VALUES (?, ?, ?)').bind('admin', user.id, t1 + i)));
+  }
   // 이스터에그: 개발자 칭찬이면 하트 10개 (한 사람당 하루(한국 시간)에 한 번: 날짜를 붙인 표시를 남기고, 그날 자정에 지워져요)
   let egg = false;
   if (praise) {
@@ -483,17 +492,18 @@ async function sendInquiry(env, ctx, user, body) {
   }
   // 자동 답장: 칭찬이면 바로 답장까지 끝(보내자마자 화면에 보여서 폰 알림은 따로 안 보내요),
   //   백업 코드 요청이면 안내 답장만 달아 두고 상태는 'new' 그대로 (운영자가 확인하고 진짜 답장을 보내요)
-  const reply = praise ? (egg ? EGG_REPLY : EGG_REPLY_AGAIN) : backupReq ? BACKUP_AUTO_REPLY : null;
+  const reply = praise ? (egg ? EGG_REPLY : EGG_REPLY_AGAIN) : heartReq ? HEART_REPLY : backupReq ? BACKUP_AUTO_REPLY : null;
+  const auto = praise || heartReq;                   // 자동으로 답까지 끝난 문의
   const t0 = now();
   await env.DB.prepare('INSERT INTO inquiries (at, user_id, nickname, body, ver, ua, reply, replied_at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .bind(t0, user.id, user.nickname || '', text, cut(body.ver, 10), cut(body.ua, 160), reply, praise ? t0 : null, praise ? 'notified' : 'new').run();
+    .bind(t0, user.id, user.nickname || '', text, cut(body.ver, 10), cut(body.ua, 160), reply, auto ? t0 : null, auto ? 'notified' : 'new').run();
   // 운영자 폰으로 바로 알려요 (내 문의는 빼고)
   if (env.OWNER_ID && env.OWNER_ID !== user.id) {
     const owner = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(env.OWNER_ID).first();
-    const title = praise ? '💝 칭찬 문의가 왔어요 (자동 답장 완료)' : backupReq ? '🔑 백업 코드 요청이 왔어요' : '📮 새 문의가 왔어요';
+    const title = praise ? '💝 칭찬 문의가 왔어요 (자동 답장 완료)' : heartReq ? '❤️ 하트 요청 (5개 자동 지급)' : backupReq ? '🔑 백업 코드 요청이 왔어요' : '📮 새 문의가 왔어요';
     if (owner) ctx.waitUntil(notify(env, owner, title, `${user.nickname || '누군가'}: ${text.slice(0, 80)}`));
   }
-  return json({ ok: true, egg, backupReq });
+  return json({ ok: true, egg, backupReq, heartReq });
 }
 async function myInquiries(env, user) {
   const { results } = await env.DB.prepare('SELECT id, at, body, reply, replied_at FROM inquiries WHERE user_id = ? ORDER BY id DESC LIMIT 20').bind(user.id).all();

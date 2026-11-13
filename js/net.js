@@ -249,6 +249,7 @@ async function showInquiry(back) {
       const r = await api('/inquiry', { text, ver: APP_VER, ua: navigator.userAgent });
       ta.value = ''; card.querySelector('#inqN').textContent = '0';
       if (r.egg) { toast('💝 개발자가 기뻐하며 하트 10개를 보냈어요! 우편함을 확인해 보세요', 3600); syncNow(); }   // 이스터에그 (우편함 N 표시도 바로)
+      else if (r.heartReq) { toast('❤️ 하트 5개가 우편함으로 왔어요!', 2600); syncNow(); }
       else if (r.backupReq) toast('백업 코드 요청을 받았어요! 확인 후 답장으로 보내 드릴게요 🔑', 3000);
       else toast('문의를 보냈어요! 답이 오면 알려 드릴게요 💌', 2200);
       loadMine();

@@ -593,7 +593,7 @@ function vehiclePose(v) {
 function drawQueueArea() {
   const SP = SEASONS[season];
   // 풀밭·길·꽃·화살표는 단계 중에 안 변해서 한 장의 그림으로 구워 두고 붙여요 (가볍게)
-  cachedLayer('queue', `${L.W}|${L.H}|${DPR}|${season}|${S.level}|${L.laneW}`, L.qTop - 2, L.qH + 4, () => {
+  cachedLayer('queue', `${L.W}|${L.H}|${DPR}|${season}|${S.level}|${L.laneW}|${L.qH}`, L.qTop - 2, L.qH + 4, () => {
   // 풀밭
   // 풀밭 색도 메인 화면의 계절을 따라가요
   const g = ctx.createLinearGradient(0, L.qTop, 0, L.qTop + L.qH);
@@ -827,7 +827,7 @@ function draw() {
 
   const panelH = L.swH + L.sH + L.roadH + 8;
   // 정류장(보도·칸·찻길)도 칸 수가 바뀔 때만 다시 그려요
-  cachedLayer('stop', `${L.W}|${L.H}|${DPR}|${S.slotCount}|${S.boost.slot > 0 ? 1 : 0}`, L.qTop + L.qH - 6, L.sTop + panelH - (L.qTop + L.qH) + 10, () => {
+  cachedLayer('stop', `${L.W}|${L.H}|${DPR}|${S.slotCount}|${S.boost.slot > 0 ? 1 : 0}|${L.qH}|${L.sTop}|${L.sH}|${L.swH}|${L.roadH}|${L.exitX}`, L.qTop + L.qH - 6, L.sTop + panelH - (L.qTop + L.qH) + 10, () => {
   // 정류장: 하얗게 칠한 주차 칸 + 아래쪽 찻길 (위쪽 보도는 없앴어요 → 멍냥이 자리가 넓어져요)
   ctx.fillStyle = '#8f8a83';
   rr(8, L.sTop - 4, L.W - 16, panelH, 14); ctx.fill();

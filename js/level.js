@@ -177,7 +177,7 @@ function saveBest(n, tries) {
 // 별 기록이 생기기 전에 깬 단계는 별 3개(1번 만에)로 한 번 채워 줘요 (만점 선물)
 (function giftOldStars() {
   if (store.get('busGame.starGift1', false)) return;
-  const b = bestTries(), top = store.get('busGame.unlocked', 1);
+  const b = bestTries(), top = unlocked;
   for (let n = 1; n < top; n++) if (!b[n]) b[n] = 1;
   store.set('busGame.best', b); store.set('busGame.starGift1', true);
 })();

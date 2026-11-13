@@ -376,9 +376,19 @@ function showLevelPopup(n) {
   card.innerHTML = `<h2>${n}단계</h2>
     <div class="stars">${'★'.repeat(tier.stars)}<span class="off">${'★'.repeat(5 - tier.stars)}</span></div>
     <p>난이도 · ${tier.name}${levelEvents(n).length ? '<br>이벤트 · ' + levelEvents(n).map(e => EVENT_NAMES[e]).join(' + ') : ''}${n < unlocked ? '<br>이미 깬 단계예요' : ''}</p>
+    <div class="lvRank" id="lvRank"></div>
     <button class="btn" id="ovStart">시작하기</button>
     ${X_BTN}`;
   card.querySelector('#ovStart').onclick = () => tryStart(n);
+  // 친구 랭킹: 이 단계를 가장 적은 시도로 깬 친구(나 포함) 1~3등
+  (async () => {
+    if (!acct || typeof api !== 'function') return;
+    let r; try { r = await api('/rank?level=' + n); } catch (e) { return; }
+    const box = card.querySelector('#lvRank');
+    if (!box || !r.rank || !r.rank.length) return;
+    box.innerHTML = `<div class="rkTitle">친구 랭킹</div>` + r.rank.map((x, i) =>
+      `<div class="rk${x.me ? ' me' : ''}">${medalSvg(i + 1)}<b>${esc(x.nickname)}${x.me ? ' (나)' : ''}</b><small>${x.tries}회 시도</small></div>`).join('');
+  })();
   card.querySelector('#ovClose').onclick = () => hideOverlay();
   $('overlay').classList.add('show');
 }

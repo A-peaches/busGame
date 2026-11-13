@@ -133,3 +133,5 @@ CREATE TABLE IF NOT EXISTS inquiries (
   status      TEXT NOT NULL DEFAULT 'new'
 );
 CREATE INDEX IF NOT EXISTS inquiries_user ON inquiries(user_id);
+CREATE TABLE IF NOT EXISTS clears (user_id TEXT NOT NULL, level INTEGER NOT NULL, tries INTEGER NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (user_id, level));
+CREATE INDEX IF NOT EXISTS clears_level ON clears (level, tries, at);

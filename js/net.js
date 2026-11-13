@@ -428,6 +428,9 @@ const medalSvg = n => {
     <circle cx="8" cy="11.5" r="5.2" fill="${c}" stroke="${d}" stroke-width="1.2"/><text x="8" y="14" text-anchor="middle" font-size="6.5" font-weight="700" fill="#5a4e44">${n}</text></svg>`;
 };
 const fmtClock = ms => { const d = new Date(ms); return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`; };
+// 사람 + 작은 더하기: 친구 요청 아이콘
+const IC_ADDFRIEND = '<svg viewBox="0 0 20 16" width="16" height="13" aria-hidden="true"><g stroke="#6b5a48" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="5" r="3" fill="#fbf3e2"/><path d="M1.5 15 C1.8 11 4 9.4 7 9.4 C10 9.4 12.2 11 12.5 15Z" fill="#fbf3e2"/><path d="M16 4.5 V10.5 M13 7.5 H19" fill="none" stroke="#e8768e" stroke-width="1.8"/></g></svg>';
+const chatSent = new Set();   // 이번에 채팅에서 친구 요청을 보낸 사람
 async function showChat() {
   const card = $('card');
   card.innerHTML = `<h2>전체 채팅</h2>
@@ -451,7 +454,21 @@ async function showChat() {
       el.className = 'chatMsg' + (m.mine ? ' mine' : '');
       // 닉네임 옆에 단계, 전체 1·2·3위면 작은 금·은·동 메달
       const tag = m.level ? `<span class="lvTag">${m.level}단계${m.medal ? medalSvg(m.medal) : ''}</span>` : '';
-      el.innerHTML = `${m.mine ? (tag ? `<b class="meTag">${tag}</b>` : '') : `<b>${esc(m.nickname)}${tag}</b>`}<span class="bubble">${esc(m.body)}</span><small>${fmtClock(m.at)}</small>`;
+      // 친구가 아니면 닉네임 옆에 작은 [친구 요청] 아이콘 (보냈으면 '요청함' 표시)
+      const addBtn = !m.mine && m.uid && !m.friend
+        ? (m.sent || chatSent.has(m.uid) ? `<span class="chatReq sent">요청함</span>`
+          : `<button class="chatReq" data-uid="${esc(m.uid)}" data-name="${esc(m.nickname)}" aria-label="친구 요청">${IC_ADDFRIEND}</button>`) : '';
+      el.innerHTML = `${m.mine ? (tag ? `<b class="meTag">${tag}</b>` : '') : `<b>${esc(m.nickname)}${tag}${addBtn}</b>`}<span class="bubble">${esc(m.body)}</span><small>${fmtClock(m.at)}</small>`;
+      const rb = el.querySelector('button.chatReq');
+      if (rb) rb.onclick = async () => {
+        rb.disabled = true;
+        try {
+          const r = await api('/friends/request', { id: rb.dataset.uid });
+          chatSent.add(rb.dataset.uid);
+          box.querySelectorAll(`button.chatReq[data-uid="${rb.dataset.uid}"]`).forEach(x => { x.outerHTML = r.friend ? '' : '<span class="chatReq sent">요청함</span>'; });
+          toast(r.friend ? `${rb.dataset.name}님과 친구가 되었어요! 🐾` : `${rb.dataset.name}님에게 친구 요청을 보냈어요`, 1800);
+        } catch (e) { rb.disabled = false; toast(e.message && e.message.length < 40 ? e.message : '보내지 못했어요', 1800); }
+      };
       box.appendChild(el);
     }
     if (nearBottom || list.some(m => m.mine)) box.scrollTop = box.scrollHeight;

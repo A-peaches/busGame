@@ -126,6 +126,11 @@ async function handle(req, env, ctx) {
         return requestFriend(env, ctx, user, body);
       }
       if (path === '/friends/suggest' && req.method === 'GET') return suggestFriend(env, user);
+      if (path === '/clear' && req.method === 'POST') {
+        if (await tooMany(env, 'clr:' + user.id, 60, 3600000)) return slowDown();
+        return saveClear(env, user, body);
+      }
+      if (path === '/rank' && req.method === 'GET') return levelRank(env, user, +url.searchParams.get('level') || 0);
       if (path === '/friends/respond' && req.method === 'POST') return respondFriend(env, ctx, user, body);
       if (path === '/inquiry' && req.method === 'POST') {
         if (await tooMany(env, 'inq:' + user.id, 5, 3600000)) return json({ error: '문의는 한 시간에 5번까지 보낼 수 있어요' }, 429);
@@ -336,6 +341,23 @@ async function suggestFriend(env, user) {
      ORDER BY RANDOM() LIMIT 1`).bind(user.id, dayStart).first();
   return json({ user: r ? { id: r.id, nickname: r.nickname, unlocked: r.unlocked, lastSeen: r.last_seen || 0 } : null, now: t });
 }
+// ---- 단계 랭킹 (친구끼리): 가장 적은 시도로 깬 기록만 남겨요. 같은 시도면 먼저 깬 사람이 앞
+async function saveClear(env, user, body) {
+  const level = body.level | 0, tries = body.tries | 0;
+  if (level < 1 || level > 150 || tries < 1 || tries > 9999 || level > (user.unlocked || 1)) return json({ error: 'bad' }, 400);
+  await env.DB.prepare(`INSERT INTO clears (user_id, level, tries, at) VALUES (?1, ?2, ?3, ?4)
+    ON CONFLICT(user_id, level) DO UPDATE SET tries = excluded.tries, at = excluded.at WHERE excluded.tries < clears.tries`)
+    .bind(user.id, level, tries, now()).run();
+  return json({ ok: true });
+}
+async function levelRank(env, user, level) {
+  if (level < 1 || level > 150) return json({ rank: [] });
+  const { results } = await env.DB.prepare(
+    `SELECT c.user_id, u.nickname, c.tries FROM clears c JOIN users u ON u.id = c.user_id
+     WHERE c.level = ?1 AND (c.user_id = ?2 OR c.user_id IN (SELECT b FROM friends WHERE a = ?2))
+     ORDER BY c.tries ASC, c.at ASC LIMIT 3`).bind(level, user.id).all();
+  return json({ rank: results.map(r => ({ nickname: r.nickname || '친구', tries: r.tries, me: r.user_id === user.id })) });
+}
 async function makeFriends(env, a, b) {
   const t = now();
   await env.DB.batch([
@@ -442,8 +464,12 @@ async function listChat(env, user, after) {
     for (const x of u.results) lv[x.id] = x.unlocked;
   }
   const top = (await env.DB.prepare("SELECT id FROM users WHERE nickname != '' ORDER BY unlocked DESC, created ASC LIMIT 3").all()).results.map(x => x.id);
+  // 친구가 아니면 닉네임 옆에 [친구 요청] 아이콘을 보여 주려고: 이미 친구인지, 요청을 보냈는지
+  const fr = new Set((await env.DB.prepare('SELECT b FROM friends WHERE a = ?').bind(user.id).all()).results.map(x => x.b));
+  const sent = new Set((await env.DB.prepare('SELECT to_id FROM friend_requests WHERE from_id = ?').bind(user.id).all()).results.map(x => x.to_id));
   return json({ messages: results.map(r => ({ id: r.id, nickname: r.nickname, body: r.body, at: r.at, mine: r.user_id === user.id,
-    level: lv[r.user_id] || 0, medal: top.indexOf(r.user_id) + 1 })), now: now() });
+    level: lv[r.user_id] || 0, medal: top.indexOf(r.user_id) + 1,
+    uid: r.user_id === user.id ? '' : r.user_id, friend: fr.has(r.user_id), sent: sent.has(r.user_id) })), now: now() });
 }
 async function sendChat(env, user, body) {
   const text = String(body.text || '').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX);

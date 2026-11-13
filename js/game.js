@@ -616,6 +616,7 @@ function checkWin() {
     S.over = true;
     if (S.level + 1 > unlocked) { unlocked = Math.min(MAX_LEVEL, S.level + 1); store.set('busGame.unlocked', unlocked); }
     refundHeart();                                    // 시작할 때 낸 하트를 돌려받아요
+    if (acct && typeof api === 'function') api('/clear', { level: S.level, tries: S.tries || 1 }).catch(() => {});   // 친구 랭킹 기록
     if (typeof syncSoon === 'function') syncSoon();   // 깬 단계를 서버에도 저장
     sfx('win');
     setTimeout(() => showOverlay('win'), 350);

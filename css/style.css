@@ -484,3 +484,6 @@ svg.crown { display: inline-block; vertical-align: -1px; margin-left: 3px; }
 .node.dog.nostar .nodeIn { top: 25px; }
 
 .booster[hidden] { display: none; }   /* 색 섞기가 없는 단계에서는 숨겨요 */
+
+/* 게임 화면: 단계 제목 위 작은 회색 난이도 */
+#tierLabel { font-size: calc(11px + var(--fd)); color: var(--muted); line-height: 1.2; margin-bottom: -2px; }

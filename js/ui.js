@@ -99,6 +99,7 @@ let mapPts = null, mapW = 0;
 // =====================================================================
 function updateUI() {
   $('levelLabel').textContent = S.daily ? '🔥 오늘의 경쟁' : `${S.level}단계`;
+  $('tierLabel').textContent = (S.daily ? '도전 · ' : '') + TIERS[levelTier(S.level)].name;   // 제목 위 작은 회색 난이도
   // 자리 바꾸기 안내는 낱말 중간에서 잘리지 않게 아랫줄에 따로
   // 단계 제목 밑에는 '자리 바꾸기까지 N대' 같은 이벤트 안내만 (난이도·남은 승객은 안 보여요 → 머리줄 높이가 판 도중에 바뀌지 않아요)
   $('leftLabel').innerHTML = S.shuffle ? `<span class="ll">자리 바꾸기까지 ${S.shuffle.left}대</span>` : '';

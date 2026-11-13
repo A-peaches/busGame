@@ -474,3 +474,7 @@ svg.crown { display: inline-block; vertical-align: -1px; margin-left: 3px; }
 
 /* 공지사항 버튼: 새 공지 N 배지 (우편함 N과 같은 모양) */
 #noticeBtn .dot { width: 16px; height: 16px; top: -2px; right: -2px; font-size: calc(10px + var(--fd)); font-weight: 700; line-height: 15px; color: #fffaf1; text-align: center; font-family: inherit; }
+
+/* 단계 설명: 줄마다 한 줄 고정 (넘치면 …), 게임 중 머리줄 높이가 변하지 않게 */
+#leftLabel .ll { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#title { min-width: 0; }

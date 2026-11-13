@@ -275,6 +275,8 @@ function fitBoardTurn() {
   if (S.rail) S.rail.off = Math.floor((S.cols - S.rail.K) / 2);   // 레일은 넓어진 주차장 가운데 줄들 아래에
   S.turned = true;
 }
+// 자리 추가 개수: 기본 1개(최고 난이도 2개) + 멍냥이의 응원. 대기 칸은 4칸에서 7칸까지라 3개를 넘게 줘도 쓸 수 없어요
+const slotBoosts = (n, cheer) => Math.min(MAX_SLOTS - BASE_SLOTS, (levelTier(n) === 5 ? 2 : 1) + cheer);
 function startLevel(n) {
   const g = genLevel(n);
   // 이 단계 도전 횟수 세기 (클리어하면 "N번의 시도로 성공!")
@@ -289,7 +291,7 @@ function startLevel(n) {
     slots: new Array(MAX_SLOTS).fill(null), slotCount: BASE_SLOTS,
     flying: [], boardTimer: 0.6, liftMode: false, over: false, time: 0,
     // 자리 추가: 기본 1개 (최고 난이도 2개), 10번 실패하면 멍냥이의 응원으로 +1, 30번이면 +2 · 색 섞기: '매우 어려움'·'최고 난이도'에서만 1개
-    boost: { slot: (levelTier(n) === 5 ? 2 : 1) + cheerLevel(allTries[n] - 1), lift: 1, mix: levelTier(n) >= 4 ? 1 : 0 },
+    boost: { slot: slotBoosts(n, cheerLevel(allTries[n] - 1)), lift: 1, mix: levelTier(n) >= 4 ? 1 : 0 },
     tries: allTries[n], rush: 0, treeShake: 0,
     balloon: hasEvent(n, 'balloon') ? { left: BALLOON_EVERY } : null,
     lives: n >= LIVES_FROM ? LIVES : 0, lifeFx: [],
@@ -320,7 +322,11 @@ function startLevel(n) {
   // 멍냥이의 응원: 10번·30번 넘게 실패했으면 들어올 때 한 번씩만 알려 줘요 (이미 본 응원은 다시 안 띄워요)
   {
     const step = cheerLevel(allTries[n] - 1), seen = store.get('busGame.cheerSeen', {});
-    if (step > (seen[n] || 0)) { seen[n] = step; store.set('busGame.cheerSeen', seen); showCheer(step); return; }
+    if (step > (seen[n] || 0)) {
+      const more = slotBoosts(n, step) > slotBoosts(n, seen[n] || 0);   // 실제로 자리 추가가 늘어날 때만 응원 팝업
+      seen[n] = step; store.set('busGame.cheerSeen', seen);
+      if (more) { showCheer(step); return; }
+    }
   }
   // 목숨 하트를 처음 만나면 안내 (처음 한 번만)
   if (S.lives && !store.get('busGame.livesSeen', false)) {

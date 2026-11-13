@@ -80,7 +80,8 @@ function renderMap() {
     b.style.left = p.x + 'px';
     b.style.top = p.y + 'px';
     const st = n < unlocked ? levelStars(n) : 0;   // 받은 별 (깬 단계만)
-    b.innerHTML = nodeSvg(kind) + `<span class="nodeIn">${n > unlocked ? LOCK_SVG : `${n}<small>${st ? '★'.repeat(st) + '<span class="off">' + '★'.repeat(3 - st) + '</span>' : '&nbsp;'}</small>`}</span>`;
+    if (n <= unlocked && !st) b.classList.add('nostar');   // 별이 없으면 숫자를 가운데로
+    b.innerHTML = nodeSvg(kind) + `<span class="nodeIn">${n > unlocked ? LOCK_SVG : `${n}${st ? '<small>' + '★'.repeat(st) + '<span class="off">' + '★'.repeat(3 - st) + '</span></small>' : ''}`}</span>`;
     if (n === unlocked) b.innerHTML += BUS_SVG;
     b.onclick = () => n <= unlocked ? showLevelPopup(n) : toast('앞 단계를 먼저 깨 주세요');
     inner.appendChild(b);
@@ -99,9 +100,8 @@ let mapPts = null, mapW = 0;
 function updateUI() {
   $('levelLabel').textContent = S.daily ? '🔥 오늘의 경쟁' : `${S.level}단계`;
   // 자리 바꾸기 안내는 낱말 중간에서 잘리지 않게 아랫줄에 따로
-  // 줄마다 한 줄로 고정 (승객 수가 바뀌어도 줄바꿈이 생기거나 없어지지 않게 → 화면 크기가 흔들리지 않아요)
-  $('leftLabel').innerHTML = `<span class="ll">${S.daily ? '도전 · ' : ''}${TIERS[levelTier(S.level)].name} · 남은 승객 ${remainingCount()}명</span>` +
-    (S.shuffle ? `<span class="ll">자리 바꾸기까지 ${S.shuffle.left}대</span>` : '');
+  // 단계 제목 밑에는 '자리 바꾸기까지 N대' 같은 이벤트 안내만 (난이도·남은 승객은 안 보여요 → 머리줄 높이가 판 도중에 바뀌지 않아요)
+  $('leftLabel').innerHTML = S.shuffle ? `<span class="ll">자리 바꾸기까지 ${S.shuffle.left}대</span>` : '';
   $('slotCnt').textContent = S.boost.slot;
   $('liftCnt').textContent = S.boost.lift;
   $('slotBtn').disabled = S.boost.slot <= 0 || S.slotCount >= MAX_SLOTS;

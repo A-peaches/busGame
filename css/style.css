@@ -478,3 +478,7 @@ svg.crown { display: inline-block; vertical-align: -1px; margin-left: 3px; }
 /* 단계 설명: 줄마다 한 줄 고정 (넘치면 …), 게임 중 머리줄 높이가 변하지 않게 */
 #leftLabel .ll { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #title { min-width: 0; }
+
+/* 지도: 받은 별이 없는 단계는 숫자만 얼굴 가운데에 */
+.node.nostar .nodeIn { top: 27px; }
+.node.dog.nostar .nodeIn { top: 25px; }

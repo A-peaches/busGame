@@ -1,0 +1,7 @@
+{
+  "name": "meowbus-tools",
+  "private": true,
+  "description": "멍냥이의 버스여행 배포 전 자동 점검 (node precheck.js)",
+  "scripts": { "check": "node precheck.js" },
+  "dependencies": { "puppeteer-core": "^23.11.1" }
+}

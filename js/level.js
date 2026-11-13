@@ -159,8 +159,24 @@ function extractOrder(list, rng, drop) {
   return order;
 }
 
-function genLevel(n) {
-  const rng = mulberry32(n * 7919 + 13);
+// ---- 별 모으기: 몇 번 만에 깼는지로 별 1~3개 ----
+const bestTries = () => store.get('busGame.best', {});
+const starsFor = tries => !tries ? 0 : tries <= 3 ? 3 : tries <= 10 ? 2 : 1;
+const levelStars = n => starsFor(bestTries()[n]);
+function saveBest(n, tries) {
+  const b = bestTries();
+  if (!b[n] || tries < b[n]) { b[n] = tries; store.set('busGame.best', b); }
+}
+// 팝업 위에 삐죽 올라온 별 세 개 (가운데가 커요). 받은 별만 노랗게
+const STAR_PATH = 'M12 1.8 L14.9 8.3 L22 9 L16.6 13.7 L18.2 20.7 L12 17 L5.8 20.7 L7.4 13.7 L2 9 L9.1 8.3Z';
+const starCrown = (k, cls = '') => `<div class="starCrown ${cls}">${[0, 1, 2].map(i =>
+  `<svg class="sc${i}" viewBox="0 0 24 22" aria-hidden="true"><path d="${STAR_PATH}" fill="${i < k ? '#f6d76b' : '#efe6d4'}" stroke="${i < k ? '#c99a2e' : '#cbbfa8'}" stroke-width="1.4" stroke-linejoin="round"/></svg>`).join('')}</div>`;
+
+// 무작위는 쓰임새마다 따로 써요: 주차장 배치·색은 rng, U턴·레일·풍선·승객 줄은 각자 다른 흐름.
+//   → 이벤트 규칙을 바꿔도 버스 배치는 그대로예요 (랭킹 기록이 같은 판끼리 비교돼요)
+function genLevel(n, seed = n * 7919 + 13) {
+  const rng = mulberry32(seed);
+  const rngT = mulberry32(seed * 3 + 101), rngR = mulberry32(seed * 5 + 203), rngB = mulberry32(seed * 7 + 307), rngQ = mulberry32(seed * 11 + 409);
   const P = levelParams(n);
   const { cols, rows } = P;
   const target = Math.min(20 + 3 * (P.target - 1), Math.floor(cols * rows / 1.9));   // 버스 수 (주차장이 꽉 찰 때까지)
@@ -192,7 +208,7 @@ function genLevel(n) {
     v.hidden = rng() < P.hiddenChance;
     // U턴 버스 (61단계부터): 버스를 누를 때마다 앞뒤 방향이 휙 바뀌어요.
     //   빼낼 순서를 정할 때 앞·뒤 어느 쪽으로든 나갈 수 있게 골랐으니, 한 번 더 누르면 언제든 풀 수 있어요.
-    v.turner = hasEvent(n, 'turn') && rng() < Math.min(0.16 + n * 0.0015, 0.3);
+    v.turner = hasEvent(n, 'turn') && rngT() < Math.min(0.16 + n * 0.0015, 0.3);
     if (v.turner) v.hidden = false;
   });
 
@@ -204,11 +220,11 @@ function genLevel(n) {
     const K = cols, cnt = Math.min(8, 3 + Math.floor(n / 15), K - 2);   // 초반 3대 → 뒤로 갈수록 8대까지
     const items = new Array(K).fill(null), free = [...Array(K).keys()];
     for (let i = 0; i < cnt; i++) {
-      const len = rng() < 0.6 ? 2 : 3;
+      const len = rngR() < 0.6 ? 2 : 3;
       const v = { cx: -100, cy: -100, ang: 0, len, l: len - 0.14, w: BODY_W, onRail: true,
-        color: palette[Math.floor(rng() * P.colorCount)], cap: (len - 1) * 8, hidden: false };
-      items[free.splice(Math.floor(rng() * free.length), 1)[0]] = v;
-      order.splice(Math.floor(rng() * (order.length + 1)), 0, v);   // 승객 순서에도 섞어 넣어요
+        color: palette[Math.floor(rngR() * P.colorCount)], cap: (len - 1) * 8, hidden: false };
+      items[free.splice(Math.floor(rngR() * free.length), 1)[0]] = v;
+      order.splice(Math.floor(rngR() * (order.length + 1)), 0, v);   // 승객 순서에도 섞어 넣어요
     }
     rail = { K, items };
   }
@@ -217,11 +233,11 @@ function genLevel(n) {
   //   (내려앉을 자리는 그때 고르는데, 그 뒤에도 반드시 다 뺄 수 있는 자리만 골라요)
   if (hasEvent(n, 'balloon')) {
     for (let i = 0; i < BALLOON_COUNT; i++) {
-      const len = rng() < 0.6 ? 2 : 3;
+      const len = rngB() < 0.6 ? 2 : 3;
       const v = { cx: -100, cy: -100, ang: 0, len, l: len - 0.14, w: BODY_W, sky: true,
-        color: palette[Math.floor(rng() * P.colorCount)], cap: (len - 1) * 8, hidden: false };
+        color: palette[Math.floor(rngB() * P.colorCount)], cap: (len - 1) * 8, hidden: false };
       const lo = Math.floor(order.length * 0.3);       // 승객은 조금 뒤쪽에 섞어 넣어요 (내려온 뒤에 탈 수 있게)
-      order.splice(lo + Math.floor(rng() * (order.length - lo + 1)), 0, v);
+      order.splice(lo + Math.floor(rngB() * (order.length - lo + 1)), 0, v);
     }
   }
 
@@ -229,7 +245,7 @@ function genLevel(n) {
   const q = [];
   let k = 0;
   for (const v of order) for (let j = 0; j < v.cap; j++) q.push({ color: v.color, key: k++ });
-  q.forEach(p => p.key += rng() * P.mix);
+  q.forEach(p => p.key += rngQ() * P.mix);
   q.sort((a, b) => a.key - b.key);
   // 억울한 시작 막기: 줄 맨 앞 몇 명은 "처음부터 뺄 수 있는 버스" 색으로 맞춰요.
   //   (색별 인원 수는 그대로라서 풀 수 있는지는 변하지 않고, 중반 이후 어려움도 그대로예요)
@@ -248,8 +264,8 @@ function genLevel(n) {
   return {
     cols, rows, vehicles: order, rail,
     queue: q.map((p, i) => ({
-      id: i, color: p.color, kind: rng() < 0.5 ? 'cat' : 'dog', bag: rng() < 0.16,
-      ribbon: rng() < 0.15 ? ['#e8768e', '#7fb4d6', '#f2c35a', '#b9a2d8'][Math.floor(rng() * 4)] : null,
+      id: i, color: p.color, kind: rngQ() < 0.5 ? 'cat' : 'dog', bag: rngQ() < 0.16,
+      ribbon: rngQ() < 0.15 ? ['#e8768e', '#7fb4d6', '#f2c35a', '#b9a2d8'][Math.floor(rngQ() * 4)] : null,
     })),
   };
 }
@@ -277,11 +293,19 @@ function fitBoardTurn() {
   if (S.rail) S.rail.off = Math.floor((S.cols - S.rail.K) / 2);   // 레일은 넓어진 주차장 가운데 줄들 아래에
   S.turned = true;
 }
-function startLevel(n) {
-  const g = genLevel(n);
-  // 이 단계 도전 횟수 세기 (클리어하면 "N번의 시도로 성공!")
+// 오늘의 경쟁: 한국 시간 날짜 번호, 그날의 판(91~100단계 수준의 어려운 판 + 그날만의 배치)
+const kstDayNum = () => Math.floor((Date.now() + 9 * 3600000) / 86400000);
+const dailyLevelOf = day => 91 + (day % 10);
+function startDaily() {
+  const day = kstDayNum();
+  startLevel(dailyLevelOf(day), { daily: day, seed: day * 104729 + 7 });
+}
+function startLevel(n, opts = {}) {
+  const g = genLevel(n, opts.seed);
+  // 이 단계 도전 횟수 세기 (클리어하면 "N번의 시도로 성공!"). 오늘의 경쟁은 그날 따로 세요
+  const tk = opts.daily ? 'd' + opts.daily : n;
   const allTries = store.get('busGame.tries', {});
-  allTries[n] = (allTries[n] || 0) + 1;
+  allTries[tk] = (allTries[tk] || 0) + 1;
   store.set('busGame.tries', allTries);
   S = {
     level: n, cols: g.cols, rows: g.rows, vehicles: [],
@@ -291,8 +315,8 @@ function startLevel(n) {
     slots: new Array(MAX_SLOTS).fill(null), slotCount: BASE_SLOTS,
     flying: [], boardTimer: 0.6, liftMode: false, over: false, time: 0,
     // 자리 추가: 모든 단계 기본 1개, 10번 실패하면 멍냥이의 응원으로 +1, 30번이면 +2 · 색 섞기: '매우 어려움'·'최고 난이도'에서만 1개
-    boost: { slot: 1 + cheerLevel(allTries[n] - 1), lift: 1, mix: levelTier(n) >= 4 ? 1 : 0 },
-    tries: allTries[n], rush: 0, treeShake: 0,
+    boost: { slot: 1 + (opts.daily ? 0 : cheerLevel(allTries[tk] - 1)), lift: 1, mix: levelTier(n) >= 4 ? 1 : 0 },
+    tries: allTries[tk], daily: opts.daily || 0, rush: 0, treeShake: 0,
     balloon: hasEvent(n, 'balloon') ? { left: BALLOON_EVERY } : null,
     lives: n >= LIVES_FROM ? LIVES : 0, lifeFx: [],
     cloud: hasEvent(n, 'cloud'),
@@ -322,7 +346,7 @@ function startLevel(n) {
   updateUI();
   // 멍냥이의 응원: 10번·30번 넘게 실패했으면 들어올 때 한 번씩만 알려 줘요 (이미 본 응원은 다시 안 띄워요)
   {
-    const step = cheerLevel(allTries[n] - 1), seen = store.get('busGame.cheerSeen', {});
+    const step = opts.daily ? 0 : cheerLevel(allTries[n] - 1), seen = store.get('busGame.cheerSeen', {});
     if (step > (seen[n] || 0)) { seen[n] = step; store.set('busGame.cheerSeen', seen); showCheer(step); return; }
   }
   // 목숨 하트를 처음 만나면 안내 (처음 한 번만)

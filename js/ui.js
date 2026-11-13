@@ -79,7 +79,8 @@ function renderMap() {
     b.className = 'node ' + kind + ' ' + (n < unlocked ? 'done' : n === unlocked ? 'current' : 'locked');
     b.style.left = p.x + 'px';
     b.style.top = p.y + 'px';
-    b.innerHTML = nodeSvg(kind) + `<span class="nodeIn">${n > unlocked ? LOCK_SVG : `${n}<small>${'★'.repeat(TIERS[levelTier(n)].stars)}</small>`}</span>`;
+    const st = n < unlocked ? levelStars(n) : 0;   // 받은 별 (깬 단계만)
+    b.innerHTML = nodeSvg(kind) + `<span class="nodeIn">${n > unlocked ? LOCK_SVG : `${n}<small>${st ? '★'.repeat(st) + '<span class="off">' + '★'.repeat(3 - st) + '</span>' : '&nbsp;'}</small>`}</span>`;
     if (n === unlocked) b.innerHTML += BUS_SVG;
     b.onclick = () => n <= unlocked ? showLevelPopup(n) : toast('앞 단계를 먼저 깨 주세요');
     inner.appendChild(b);
@@ -96,7 +97,7 @@ let mapPts = null, mapW = 0;
 //  화면 UI
 // =====================================================================
 function updateUI() {
-  $('levelLabel').textContent = `${S.level}단계`;
+  $('levelLabel').textContent = S.daily ? '👍 오늘의 경쟁' : `${S.level}단계`;
   // 자리 바꾸기 안내는 낱말 중간에서 잘리지 않게 아랫줄에 따로
   $('leftLabel').innerHTML = `${TIERS[levelTier(S.level)].name} · 남은 승객 ${remainingCount()}명` +
     (S.shuffle ? `<br>자리 바꾸기까지 ${S.shuffle.left}대` : '');
@@ -124,12 +125,14 @@ function showOverlay(kind) {
   const card = $('card');
   if (kind === 'win') {
     const tries = S.tries || 1;
-    const all = store.get('busGame.tries', {}); all[S.level] = 0; store.set('busGame.tries', all);   // 다음 도전은 새로 세요
+    if (!S.daily) { const all = store.get('busGame.tries', {}); all[S.level] = 0; store.set('busGame.tries', all); }   // 다음 도전은 새로 세요 (오늘의 경쟁은 처음 깬 기록이 남아요)
     card.innerHTML = `<canvas id="celebCv" class="perch" width="600" height="250"></canvas>
-      <h2>축하드립니다!</h2><p><b>${tries}번</b>의 시도로 성공했습니다!<br><small>${HEART_SVG} 시작할 때 낸 하트를 돌려받았어요</small></p>
-      ${S.level < MAX_LEVEL ? `<button class="btn" id="ovNext">${S.level + 1}단계로</button>` : '<p><b>150단계를 모두 깼어요! 최고의 버스 기사님!</b></p>'}
+      <h2>축하드립니다!</h2>${S.daily ? '' : `<div class="winStars">${starCrown(starsFor(tries), 'inline')}<small>${['', '별 1개 · 10번 안에 깨면 별 2개', '별 2개 · 3번 안에 깨면 별 3개', '별 3개! 완벽해요'][starsFor(tries)]}</small></div>`}<p><b>${tries}번</b>의 시도로 성공했습니다!<br><small>${HEART_SVG} 시작할 때 낸 하트를 돌려받았어요</small></p>
+      ${S.daily ? `<button class="btn" id="ovDaily">👍 오늘의 순위 보기</button>`
+        : S.level < MAX_LEVEL ? `<button class="btn" id="ovNext">${S.level + 1}단계로</button>` : '<p><b>150단계를 모두 깼어요! 최고의 버스 기사님!</b></p>'}
       <button class="btn alt" id="ovMap">지도로 이동</button>`;
-    if (S.level < MAX_LEVEL) card.querySelector('#ovNext').onclick = () => { stopCelebration(); tryStart(S.level + 1); };
+    if (S.daily) card.querySelector('#ovDaily').onclick = () => { stopCelebration(); showMenu(); setTimeout(showDaily, 300); };
+    else if (S.level < MAX_LEVEL) card.querySelector('#ovNext').onclick = () => { stopCelebration(); tryStart(S.level + 1); };
     card.querySelector('#ovMap').onclick = () => { stopCelebration(); showMenu(); };
     $('overlay').classList.add('show');
     celebrate();
@@ -149,7 +152,7 @@ function showOverlay(kind) {
     if (canSlot) card.querySelector('#ovSlot').onclick = () => { stopCelebration(); useSlotBooster(); S.over = false; hideOverlay(); };
     card.querySelector('#ovRetry').onclick = () => {
       if (!useHeart()) { toast(`하트가 없어요 · ${heartLeft()} 뒤에 1개 충전`, 2200); return; }
-      stopCelebration(); startLevel(S.level);
+      stopCelebration(); if (S.daily) startDaily(); else startLevel(S.level);
     };
     card.querySelector('#ovMap').onclick = () => { stopCelebration(); showMenu(); };
     $('overlay').classList.add('show');

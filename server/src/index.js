@@ -131,6 +131,11 @@ async function handle(req, env, ctx) {
         return saveClear(env, user, body);
       }
       if (path === '/rank' && req.method === 'GET') return levelRank(env, user, +url.searchParams.get('level') || 0);
+      if (path === '/daily/clear' && req.method === 'POST') {
+        if (await tooMany(env, 'dly:' + user.id, 30, 3600000)) return slowDown();
+        return dailyClear(env, user, body);
+      }
+      if (path === '/daily/rank' && req.method === 'GET') return dailyRank(env, user);
       if (path === '/friends/respond' && req.method === 'POST') return respondFriend(env, ctx, user, body);
       if (path === '/inquiry' && req.method === 'POST') {
         if (await tooMany(env, 'inq:' + user.id, 5, 3600000)) return json({ error: '문의는 한 시간에 5번까지 보낼 수 있어요' }, 429);
@@ -358,6 +363,28 @@ async function saveClear(env, user, body) {
     ON CONFLICT(user_id, level) DO UPDATE SET tries = excluded.tries, at = excluded.at WHERE excluded.tries < clears.tries`)
     .bind(user.id, level, tries, now()).run();
   return json({ ok: true });
+}
+// ---- 오늘의 경쟁: 매일(한국 시간) 모두 같은 판. 처음 깬 기록(가장 적은 시도)으로 전체 순위, 친구가 아니면 닉네임 가려요
+const kstDay = () => Math.floor((now() + 9 * 3600000) / DAY);
+async function dailyClear(env, user, body) {
+  const day = body.day | 0, tries = body.tries | 0, today = kstDay();
+  if ((day !== today && day !== today - 1) || tries < 1 || tries > 9999) return json({ error: 'bad' }, 400);   // 자정 넘어 깬 건 하루 봐줘요
+  await env.DB.prepare(`INSERT INTO daily_clears (day, user_id, tries, at) VALUES (?1, ?2, ?3, ?4)
+    ON CONFLICT(day, user_id) DO UPDATE SET tries = excluded.tries, at = excluded.at WHERE excluded.tries < daily_clears.tries`)
+    .bind(day, user.id, tries, now()).run();
+  return json({ ok: true });
+}
+const maskName = s => { const a = [...String(s || '')]; return a.length <= 1 ? '*' : a[0] + '*'.repeat(Math.min(a.length - 1, 4)); };
+async function dailyRank(env, user) {
+  const day = kstDay();
+  const { results } = await env.DB.prepare(
+    `SELECT d.user_id, u.nickname, d.tries, d.at FROM daily_clears d JOIN users u ON u.id = d.user_id WHERE d.day = ? ORDER BY d.tries ASC, d.at ASC LIMIT 200`).bind(day).all();
+  const fr = new Set((await env.DB.prepare('SELECT b FROM friends WHERE a = ?').bind(user.id).all()).results.map(x => x.b));
+  const rows = results.map((r, i) => {
+    const me = r.user_id === user.id, friend = fr.has(r.user_id);
+    return { pos: i + 1, name: me || friend ? (r.nickname || '친구') : maskName(r.nickname), tries: r.tries, me, friend };
+  });
+  return json({ day, total: rows.length, rank: rows.slice(0, 10), me: rows.find(r => r.me) || null });
 }
 async function levelRank(env, user, level) {
   if (level < 1 || level > 150) return json({ rank: [] });

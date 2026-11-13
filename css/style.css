@@ -439,3 +439,26 @@ svg.crown { display: inline-block; vertical-align: -1px; margin-left: 3px; }
 
 /* 1:1 문의 안내 */
 .privNote { margin: -4px 0 6px; }
+
+/* 별 모으기: 단계 팝업 위로 삐죽 올라온 별 세 개 (가운데가 커요) */
+.starCrown { position: absolute; left: 50%; top: -26px; transform: translateX(-50%); display: flex; align-items: flex-end; gap: 2px; pointer-events: none; }
+.starCrown svg { width: 30px; height: 28px; filter: drop-shadow(0 1px 1px rgba(80,60,30,.2)); }
+.starCrown .sc0 { transform: rotate(-14deg) translateY(4px); }
+.starCrown .sc1 { width: 40px; height: 37px; }
+.starCrown .sc2 { transform: rotate(14deg) translateY(4px); }
+.starCrown.inline { position: static; transform: none; justify-content: center; margin: 2px 0 8px; }
+.winStars { margin: -2px 0 4px; }
+.winStars small { display: block; }
+.node small .off { opacity: .35; }
+
+/* 오늘의 경쟁: 지도 왼쪽 아래 엄지 버튼 + 순위 */
+#menu > #dailyBtn { position: absolute; left: 12px; bottom: 16px; z-index: 4; }
+.dailyRank { margin: 4px auto 6px; max-width: 270px; text-align: left; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 8px 6px; }
+.dailyRank .rk { display: flex; align-items: center; gap: 6px; padding: 3px 8px; font-size: calc(13px + var(--fd)); }
+.dailyRank .rk .pos { width: 18px; text-align: center; color: var(--muted); font-size: calc(12px + var(--fd)); }
+.dailyRank .rk b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dailyRank .rk small { color: var(--muted); }
+.dailyRank .rk.me { background: #fbf1d3; border-radius: 8px; }
+.dailyRank .rkTitle { text-align: center; font-size: calc(12px + var(--fd)); color: var(--muted); margin-bottom: 2px; }
+.dailyRank .rkGap { text-align: center; color: var(--muted); line-height: 1; }
+.dailyMe { margin: 0 0 8px; }

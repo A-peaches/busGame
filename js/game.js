@@ -630,9 +630,11 @@ function checkWin() {
   if (S.over) return;
   if (remainingCount() === 0 && S.vehicles.every(v => v.state === 'gone')) {
     S.over = true;
-    if (S.level + 1 > unlocked) { unlocked = Math.min(MAX_LEVEL, S.level + 1); store.set('busGame.unlocked', unlocked); }
+    if (!S.daily && S.level + 1 > unlocked) { unlocked = Math.min(MAX_LEVEL, S.level + 1); store.set('busGame.unlocked', unlocked); }
+    if (S.daily && acct && typeof api === 'function') api('/daily/clear', { day: S.daily, tries: S.tries || 1 }).catch(() => {});   // 오늘의 경쟁 기록
     refundHeart();                                    // 시작할 때 낸 하트를 돌려받아요
-    if (acct && typeof api === 'function') api('/clear', { level: S.level, tries: S.tries || 1 }).catch(() => {});   // 친구 랭킹 기록
+    if (!S.daily) saveBest(S.level, S.tries || 1);     // 별 모으기 기록
+    if (!S.daily && acct && typeof api === 'function') api('/clear', { level: S.level, tries: S.tries || 1 }).catch(() => {});   // 친구 랭킹 기록
     if (typeof syncSoon === 'function') syncSoon();   // 깬 단계를 서버에도 저장
     sfx('win');
     setTimeout(() => showOverlay('win'), 350);

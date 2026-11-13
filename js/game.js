@@ -275,6 +275,7 @@ function launch(v, si, lifted) {
   countShuffle();
   countBalloon();
   countRainbow();
+  countWing(v);
   S.slots[si] = v;
   v.slot = si;
   v.bump = null;
@@ -489,6 +490,10 @@ function update(dt) {
     if (!S.rainbow.done && S.rainbow.t >= 0.6) { S.rainbow.done = true; rainbowRecolor(); }
     if (S.rainbow.t > 3.2) S.rainbow.end = true;
   }
+  if (S.wing) {                                   // 날개 버스: 미리 알림 → 잠깐 뒤 날아가요
+    if (S.wing.warn > 0) S.wing.warn -= dt;
+    if (S.wing.wait > 0 && (S.wing.wait -= dt) <= 0) { S.wing.wait = 0; flyWingBus(); }
+  }
   for (const f of S.lifeFx) f.t += dt;          // 깨진 하트 조각
   if (S.lifeFx.length && S.lifeFx.every(f => f.t > 1.2)) S.lifeFx.length = 0;
   // 풍선 버스: 주차장이 다 비었는데 하늘에 남아 있으면 바로 내려와요
@@ -525,7 +530,7 @@ function update(dt) {
       const out = v.fromRail ? ty < L.bTop + 1 : (tx < 13 || tx > L.W - 13 || ty < L.bTop + 1 || ty > L.bTop + L.bH - 6);
       if (out || v.off > v.exitDist + 40) startArrive(v, a.ux);
     } else if (v.state === 'toSlot') {
-      v.t += dt / (v.lifted ? 0.55 : v.arrT);
+      v.t += dt / (v.winged ? 1.15 : v.lifted ? 0.55 : v.arrT);   // 날개 버스는 천천히 팔랑팔랑
       if (v.t >= 1) { v.t = 1; v.state = 'slot'; }
     } else if (v.state === 'slot') {
       if (v.filled >= v.cap && v.incoming === 0 && roadClearFor(v)) {   // 먼저 떠난 버스가 앞으로 충분히 가야 출발 (겹치지 않게)

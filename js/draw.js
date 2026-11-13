@@ -24,6 +24,44 @@ function drawSpeckles(x, y, w, h, n) {
   }
 }
 
+// 천사 날개 한 쌍: 버스 양옆에서 둥글고 통통한 날개(아래쪽은 깃털 물결)가 위아래로 퍼덕여요
+function drawWings(x, y, a, w, l) {
+  const flap = Math.sin(performance.now() / 80) * 0.35;
+  const R = Math.max(w * 0.7, 7);                        // 날개 크기 (조금 작게)
+  ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+  for (const s of [-1, 1]) {
+    ctx.save();
+    ctx.translate(s * w * 0.42, -l * 0.05);
+    ctx.rotate(s * (flap - 0.25));
+    ctx.scale(s, 1);
+    // 그림처럼: 몸 쪽은 동그랗게 말린 덩어리(가운데 소용돌이), 바깥쪽 끝은 깃털 두 개가 물결(3 모양)
+    const wingPath = () => {
+      ctx.beginPath();
+      ctx.moveTo(R * 0.2, R * 0.55);
+      ctx.bezierCurveTo(-R * 0.35, R * 0.45, -R * 0.35, -R * 0.75, R * 0.55, -R * 0.85);   // 몸 쪽 둥근 덩어리
+      ctx.bezierCurveTo(R * 1.2, -R * 0.9, R * 1.55, -R * 0.55, R * 1.25, -R * 0.15);     // 위쪽 둥근 등
+      ctx.bezierCurveTo(R * 1.75, -R * 0.15, R * 1.75, R * 0.35, R * 1.3, R * 0.35);      // 깃털 하나
+      ctx.bezierCurveTo(R * 1.65, R * 0.45, R * 1.5, R * 0.95, R * 0.95, R * 0.85);       // 깃털 둘
+      ctx.bezierCurveTo(R * 0.7, R * 0.8, R * 0.45, R * 0.7, R * 0.2, R * 0.55);
+      ctx.closePath();
+    };
+    wingPath();
+    const g = ctx.createRadialGradient(R * 0.5, -R * 0.3, R * 0.1, R * 0.7, 0, R * 1.5);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#e9eef6');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = 'rgba(120,128,140,.85)'; ctx.lineWidth = 1; ctx.lineJoin = 'round'; ctx.stroke();
+    // 가운데 동그란 소용돌이 (G 모양으로 안쪽으로 말려요)
+    ctx.strokeStyle = 'rgba(130,138,150,.7)'; ctx.lineWidth = 0.9; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(R * 0.25, R * 0.05);
+    ctx.bezierCurveTo(R * 0.4, -R * 0.2, R * 0.85, -R * 0.15, R * 0.8, R * 0.2);
+    ctx.bezierCurveTo(R * 0.75, R * 0.45, R * 0.35, R * 0.45, R * 0.3, R * 0.25);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 // 풍선 세 개 (분홍·노랑·하늘). rise: 0 = 버스에 매달림, 1 = 하늘로 날아가 사라짐
 function drawBalloons(x, y, k, rise, seed) {
   const t = performance.now() / 1000, up = rise * rise * k * 6, al = 1 - rise;
@@ -535,8 +573,9 @@ function vehiclePose(v) {
   if (v.state === 'toSlot') {
     const e = easeInOut(v.t), f = v.from;
     const lift = v.lifted ? 1 + Math.sin(v.t * Math.PI) * 0.3 : 1;
+    const arc = v.winged ? Math.sin(v.t * Math.PI) * L.cs * 2.2 : 0;   // 날개 버스는 높이 떠올랐다가 내려앉아요
     return {
-      x: lerp(f.x, p.x, e), y: lerp(f.y, p.y, e), a: f.a + normAng(-f.a) * e,
+      x: lerp(f.x, p.x, e), y: lerp(f.y, p.y, e) - arc, a: f.a + normAng(-f.a) * e,
       w: lerp(f.w, s.w, e), l: lerp(f.l, s.l, e), scale: lift,
     };
   }
@@ -871,6 +910,25 @@ function draw() {
       alpha: P.alpha, scale: P.scale,
     });
     if (clip) ctx.restore();
+  }
+  // 날개 버스: 날아가는 동안 양옆에 하얀 날개가 팔랑팔랑
+  for (const v of S.vehicles) {
+    if (!v.winged || v.state !== 'toSlot') continue;
+    const P = vehiclePose(v);
+    drawWings(P.x, P.y, P.a, P.w * (P.scale || 1), P.l * (P.scale || 1));
+  }
+  // 날개 버스 예고: 주차장 판 위쪽에 "곧 날개 버스가 날아와요!"
+  if (S.wing && S.wing.warn > 0) {
+    const a = Math.min(1, S.wing.warn / 0.4), tx = '⚠️ 곧 날개 버스가 날아가요!', fs = 13;
+    ctx.save(); ctx.globalAlpha = a;
+    ctx.font = `700 ${fs}px MaruBuri, serif`;
+    // 주차장 판 맨 위 (버스들 위쪽 빈 곳)에 띄워요
+    const tw = ctx.measureText(tx).width + 24, bx = L.W / 2 - tw / 2, by = Math.max(L.bTop + 4, L.by - fs - 16);
+    ctx.fillStyle = 'rgba(255,253,248,.96)'; rr(bx, by, tw, fs + 12, (fs + 12) / 2); ctx.fill();
+    ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = '#5a4a3a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(tx, L.W / 2, by + (fs + 12) / 2 + 1);
+    ctx.restore();
   }
   // 풍선 버스: 내려오는 동안 풍선 세 개, 내려앉으면 풍선은 하늘로 둥실
   for (const v of S.vehicles) {

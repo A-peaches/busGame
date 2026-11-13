@@ -135,13 +135,15 @@ function showOverlay(kind) {
     celebrate();
     return;
   } else {
-    const canSlot = !S.lostByLives && S.boost.slot > 0 && S.slotCount < MAX_SLOTS;
+    const canSlot = !S.lostByLives && !S.lostByWing && S.boost.slot > 0 && S.slotCount < MAX_SLOTS;
     refreshHearts();
     card.innerHTML = `<canvas id="sadCv" class="perch" width="600" height="250"></canvas>
-      ${S.lostByLives ? `<h2>하트가 다 깨졌어요</h2><p>막힌 버스에 ${LIVES}번 부딪혔어요.<br>` : `<h2>꽉 막혔어요</h2><p>대기 칸이 가득 차서 더 태울 수 없어요.<br>`}
+      ${S.lostByLives ? `<h2>하트가 다 깨졌어요</h2><p>막힌 버스에 ${LIVES}번 부딪혔어요.<br>`
+        : S.lostByWing ? `<h2>날개 버스가 앉을 자리가 없어요</h2><p>대기 칸이 꽉 차고 자리 추가도 없었어요.<br>`
+        : `<h2>꽉 막혔어요</h2><p>대기 칸이 가득 차서 더 태울 수 없어요.<br>`}
       <small>다시 하기는 하트 1개가 들어요</small><br>
       <span class="heartNow">${HEART_SVG}지금 하트 ${hearts.n}개</span></p>
-      ${S.lostByLives ? '' : `<button class="btn" id="ovSlot" ${canSlot ? '' : 'disabled'}>아이템 사용${canSlot ? ' (자리 +1)' : ' (없음)'}</button>`}
+      ${S.lostByLives || S.lostByWing ? '' : `<button class="btn" id="ovSlot" ${canSlot ? '' : 'disabled'}>아이템 사용${canSlot ? ' (자리 +1)' : ' (없음)'}</button>`}
       <button class="btn alt" id="ovRetry">다시 하기</button>
       <button class="btn alt" id="ovMap">지도로 이동</button>`;
     if (canSlot) card.querySelector('#ovSlot').onclick = () => { stopCelebration(); useSlotBooster(); S.over = false; hideOverlay(); };
@@ -394,6 +396,12 @@ const HELP_PAGES = [
     <ul>
       <li><b>15·25·35…단계</b>에 덤으로 나와요. 버스가 <b>10대 빠지면 딱 한 번</b> 무지개비가 내려서, 기다리는 <b>멍냥이들의 색깔이 서로 바뀌어요</b>.</li>
       <li>색마다 멍냥이 수는 그대로라 언제나 다 태울 수 있어요. 순서만 달라져요!</li>
+    </ul>
+    <h3>🕊️ 날개 버스</h3>
+    <ul>
+      <li><b>12·22·32…단계</b>에 덤으로 나와요. 버스가 <b>8대 빠질 때마다</b> 주차장 버스 하나가 무작위로 날개를 달고 <b>대기 칸으로 날아가요</b>.</li>
+      <li>막힌 버스가 날아가면 행운, 필요 없는 색이면 아쉬워요! 대기 칸이 꽉 찼으면 <b>자리 추가가 저절로 쓰이고</b>, 그것도 없으면 실패예요.</li>
+      <li>날아가기 한 대 전에 주차장 위에 "⚠️ 곧 날개 버스가 날아가요!"로 미리 알려 줘요.</li>
     </ul>
     <h3>🎈 풍선 버스</h3>
     <ul>

@@ -54,7 +54,8 @@ const LIVES = 3;
 // 이벤트: 5단계부터 한 단계에 하나씩, 풍선 버스 → U턴 버스 → 레일 버스 → 자리 바꾸기 순서로 번갈아 나와요 (난이도 별은 그대로)
 const EVENT_FROM = 5;
 const EVENTS = ['balloon', 'turn', 'rail', 'shuffle'];
-const EVENT_NAMES = { balloon: '풍선 버스', turn: 'U턴 버스', rail: '레일 버스', shuffle: '자리 바꾸기', cloud: '구름', rainbow: '무지개비' };
+const EVENT_NAMES = { balloon: '풍선 버스', turn: 'U턴 버스', rail: '레일 버스', shuffle: '자리 바꾸기', cloud: '구름', rainbow: '무지개비', wing: '날개 버스' };
+const WING_EVERY = 8;          // 날개 버스: 버스가 8대 빠질 때마다 주차장의 버스 하나가 날개를 달고 대기 칸으로 날아가요
 const RAINBOW_AFTER = 10;      // 무지개비: 버스가 10대 빠지면 딱 한 번 내려서 멍냥이들 색이 바뀌어요
 const EVENT_DOUBLE_FROM = 61;
 const CLOUD_FROM = 10;         // 구름 이벤트: 10단계부터 5단계마다, 대기 줄 뒤쪽을 뭉게구름이 가려요  // 이 단계부터는 이벤트가 두 개씩 겹쳐 나와요 (뒤 단계 난이도 유지)
@@ -66,6 +67,7 @@ const levelEvents = n => {
   // 덤 이벤트 (버스 배치는 그대로): 구름은 10·20·30…, 무지개비는 15·25·35… → 5단계마다 번갈아
   if (n >= CLOUD_FROM && n % 10 === 0) list.push('cloud');
   if (n >= CLOUD_FROM + 5 && n % 10 === 5) list.push('rainbow');
+  if (n >= 12 && n % 10 === 2) list.push('wing');            // 날개 버스: 12·22·32…단계
   return list;
 };
 const hasEvent = (n, e) => levelEvents(n).includes(e);
@@ -295,6 +297,7 @@ function startLevel(n) {
     lives: n >= LIVES_FROM ? LIVES : 0, lifeFx: [],
     cloud: hasEvent(n, 'cloud'),
     rainbow: hasEvent(n, 'rainbow') ? { left: RAINBOW_AFTER, t: -1, done: false } : null,
+    wing: hasEvent(n, 'wing') ? { left: WING_EVERY, warn: 0, wait: 0 } : null,
     shuffle: hasEvent(n, 'shuffle') ? { every: SHUFFLE_EVERY(n), left: SHUFFLE_EVERY(n), wait: 0, count: 0 } : null,
   };
   g.vehicles.forEach((v, i) => {
@@ -480,6 +483,40 @@ function landBalloon(instant, rng = Math.random) {
   if (instant) { v.state = 'parked'; return true; }
   v.state = 'landing'; v.fall = 0;
   return true;
+}
+
+// ---- 날개 버스 ----
+// 버스가 빠질 때마다 세요 (날개 버스가 날아간 건 빼고). 1대 남으면 미리 알려 주고, 0이 되면 잠깐 뒤 날아가요
+function countWing(v) {
+  const W = S.wing;
+  if (!W || v.winged) return;
+  W.left--;
+  if (W.left === 1) W.warn = 1.8;                       // "곧 날개 버스가 날아와요!"
+  if (W.left <= 0) { W.left = WING_EVERY; W.wait = 0.45; }
+}
+// 주차장 버스 하나가 무작위로 날개를 달고 대기 칸으로 (운이 좋으면 막힌 버스가, 나쁘면 필요 없는 색이)
+function flyWingBus() {
+  const cand = S.vehicles.filter(v => v.state === 'parked' && !v.bump && !v.move);
+  if (!cand.length || S.over) return;
+  const v = cand[Math.floor(Math.random() * cand.length)];
+  let si = freeSlot();
+  if (si < 0) {
+    if (S.boost.slot > 0 && S.slotCount < MAX_SLOTS) {   // 꽉 찼으면 자리 추가를 저절로 써요
+      useSlotBooster(); si = freeSlot();
+      toast('⚠️ 날개 버스 자리를 만들려고 자리 추가를 썼어요!', 2000);
+    }
+    if (si < 0) {                                        // 자리 추가도 없으면 실패
+      S.over = true; S.lostByWing = true;
+      v.shake = 0.6;
+      sfx('lose');
+      setTimeout(() => showOverlay('lose'), 700);
+      return;
+    }
+  }
+  v.winged = true;
+  launch(v, si, true);
+  revealCheck(false);
+  updateUI();
 }
 
 // ---- 무지개비 ----

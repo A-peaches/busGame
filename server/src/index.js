@@ -451,8 +451,11 @@ async function myInquiries(env, user) {
 async function notifyReplies(env) {
   const { results } = await env.DB.prepare(
     `SELECT u.*, q.id AS qid FROM inquiries q JOIN users u ON u.id = q.user_id WHERE q.status = 'replied' LIMIT 50`).all();
+  const told = new Set();                     // 한 사람에게 답이 여러 개 와도 알림은 한 번만
   for (const r of results) {
     await env.DB.prepare("UPDATE inquiries SET status = 'notified' WHERE id = ?").bind(r.qid).run();
+    if (told.has(r.id)) continue;
+    told.add(r.id);
     await notify(env, r, '💬 문의에 답이 왔어요', '공지사항 → 내 문의에서 확인해 보세요');
   }
 }
@@ -601,6 +604,12 @@ async function remindTravelers(env) {
 async function notify(env, user, title, body) {
   await env.DB.prepare('INSERT INTO notes (user_id, title, body, at) VALUES (?, ?, ?, ?)').bind(user.id, title, body, now()).run();
   if (!user.push) return;
+  // 같은 사람에게 20초 안에 폰 알림을 또 보내지 않아요. 알림 한 번에 메시지함의 소식을 함께 가져가요.
+  //   (깨우기를 여러 번 보내면, 뒤늦게 깬 폰은 가져갈 소식이 없어서 '새 소식이 있어요'가 한 번 더 떠요 — 특히 아이폰)
+  const t = now();
+  const ok = await env.DB.prepare('UPDATE users SET last_push = ?1 WHERE id = ?2 AND (last_push IS NULL OR last_push < ?3) RETURNING id')
+    .bind(t, user.id, t - 20000).first();
+  if (!ok) return;
   try {
     const sub = JSON.parse(user.push);
     const jwt = await vapidJWT(env, new URL(sub.endpoint).origin);

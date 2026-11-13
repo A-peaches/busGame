@@ -17,10 +17,20 @@ self.addEventListener('push', e => {
         notes = (await res.json()).notes || [];
       }
     } catch (err) { /* 네트워크가 안 되면 기본 문구로 */ }
-    if (!notes.length) notes = [{ id: 0, title: '멍냥이의 버스여행', body: '새 소식이 있어요!' }];
+    // 가져갈 소식이 없으면(이미 앞 알림에서 보여 줬으면) 방금 띄운 알림을 다시 띄워 겹치지 않게 해요.
+    //   (아이폰은 깨우기마다 알림을 꼭 보여 줘야 해서, 같은 태그로 덮어써 한 개로 보이게)
+    if (!notes.length) {
+      const shown = await self.registration.getNotifications();
+      if (shown.length) {
+        const last = shown[shown.length - 1];
+        await self.registration.showNotification(last.title, { body: last.body, tag: last.tag, renotify: false, icon: 'icon.png', badge: 'icons/badge.png' });
+        return;
+      }
+      notes = [{ id: 0, title: '멍냥이의 버스여행', body: '새 소식이 있어요!' }];
+    }
     for (const n of notes.slice(0, 3)) {
       await self.registration.showNotification(n.title, {
-        body: n.body, tag: 'meow-' + (n.id || Date.now()), renotify: true,
+        body: n.body, tag: n.id ? 'meow-' + n.id : 'meow-news', renotify: !!n.id,
         icon: 'icon.png', badge: 'icons/badge.png',   // 알림 막대 작은 아이콘: 하얀 고양이 얼굴 (안드로이드는 모양만 써요)
       });
     }

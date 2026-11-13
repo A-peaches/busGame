@@ -196,7 +196,7 @@ async function checkNotices() {
 async function showNotices() {
   const card = $('card');
   card.innerHTML = `<h2>공지사항</h2><div class="noticeList"><p><small>불러오는 중…</small></p></div>
-    <button class="btn" id="askDev">개발자에게 문의하기</button>
+    <button class="btn" id="askDev">🔒 개발자 1:1 문의</button>
     ${X_BTN}`;
   card.querySelector('#ovClose').onclick = () => hideOverlay();
   card.querySelector('#askDev').onclick = () => showInquiry(showNotices);
@@ -210,7 +210,8 @@ async function showNotices() {
 // 문의하기: 글을 보내면 개발자가 읽고 답을 달아요. 답이 달리면 폰 알림이 가고, 여기서 볼 수 있어요
 async function showInquiry(back) {
   const card = $('card');
-  card.innerHTML = `<h2>개발자에게 문의하기</h2>
+  card.innerHTML = `<h2>개발자 1:1 문의</h2>
+    <p class="privNote"><small>🔒 개발자만 볼 수 있어요. 다른 사람에게는 보이지 않아요</small></p>
     <textarea class="letterBox" id="inqText" maxlength="1000" placeholder="불편한 점, 버그, 바라는 점을 자유롭게 적어 주세요"></textarea>
     <div class="letterCount"><span id="inqN">0</span> / 1000</div>
     <button class="btn" id="inqSend">보내기</button>

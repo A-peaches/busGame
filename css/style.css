@@ -436,3 +436,6 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 
 /* 관리자 왕관 (채팅·친구 목록 닉네임 옆) */
 svg.crown { display: inline-block; vertical-align: -1px; margin-left: 3px; }
+
+/* 1:1 문의 안내 */
+.privNote { margin: -4px 0 6px; }

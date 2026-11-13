@@ -317,7 +317,7 @@ function showSettings() {
     <div class="pushWhy" id="pushWhy"></div>
     <div class="setRow"><span>닉네임 · ${esc(nickname || '없음')}</span>
       <button class="btn alt mini" id="nickBtn">변경</button></div>
-    <div class="setRow"><span>개발자에게 문의</span><button class="btn alt mini" id="askBtn">문의하기</button></div>
+    <div class="setRow"><span>개발자 1:1 문의</span><button class="btn alt mini" id="askBtn">🔒 문의하기</button></div>
     <div class="setRow"><span>백업 코드</span>
       <span style="display:flex;gap:6px"><button class="btn alt mini" id="backupBtn">만들기</button><button class="btn alt mini" id="restoreBtn">불러오기</button></span></div>
     ${X_BTN}

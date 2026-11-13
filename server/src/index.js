@@ -244,7 +244,8 @@ async function sync(env, user, body, ctx) {
       .bind(Math.max(0, body.chatRead | 0), user.id).first();
     chatNew = c ? c.c : 0;
   }
-  return json({ unlocked, gifts: g ? g.c : 0, letters: l ? l.c : 0, requests: fr ? fr.c : 0, chatNew, code: user.code, nickname, nickTaken: nickTakenNow });
+  const sc = await env.DB.prepare('SELECT COALESCE(SUM(score), 0) AS s FROM clears WHERE user_id = ?').bind(user.id).first();
+  return json({ unlocked, gifts: g ? g.c : 0, letters: l ? l.c : 0, requests: fr ? fr.c : 0, chatNew, score: sc ? sc.s : 0, code: user.code, nickname, nickTaken: nickTakenNow });
 }
 
 // 내가 old → cur 단계가 되면서 넘어선 친구들에게 알림: 같은 단계가 되면 '따라잡았어요', 더 앞서면 '앞질렀어요'
@@ -303,14 +304,16 @@ async function readMail(env, user) {
 
 async function listFriends(env, user) {
   const { results } = await env.DB.prepare(
-    `SELECT u.id, u.nickname, u.unlocked, u.last_seen, u.hide_seen, f.last_gift FROM friends f JOIN users u ON u.id = f.b WHERE f.a = ? ORDER BY u.unlocked DESC, u.nickname`)
+    `SELECT u.id, u.nickname, u.unlocked, u.last_seen, u.hide_seen, f.last_gift, (SELECT COALESCE(SUM(score), 0) FROM clears c WHERE c.user_id = u.id) AS score
+     FROM friends f JOIN users u ON u.id = f.b WHERE f.a = ? ORDER BY score DESC, u.unlocked DESC, u.nickname`)
     .bind(user.id).all();
   const rq = await env.DB.prepare(
     `SELECT u.id, u.nickname, u.unlocked, r.at FROM friend_requests r JOIN users u ON u.id = r.from_id WHERE r.to_id = ? ORDER BY r.at DESC LIMIT 30`)
     .bind(user.id).all();
   return json({
-    friends: results.map(r => ({ id: r.id, nickname: r.nickname, unlocked: r.unlocked, lastSeen: r.hide_seen ? -1 : (r.last_seen || 0), nextGiftAt: r.last_gift ? r.last_gift + GIFT_MS : 0, admin: r.id === env.OWNER_ID })),
+    friends: results.map(r => ({ id: r.id, nickname: r.nickname, unlocked: r.unlocked, lastSeen: r.hide_seen ? -1 : (r.last_seen || 0), nextGiftAt: r.last_gift ? r.last_gift + GIFT_MS : 0, admin: r.id === env.OWNER_ID, score: r.score || 0 })),
     meAdmin: user.id === env.OWNER_ID, hideSeen: !!user.hide_seen,
+    myScore: ((await env.DB.prepare('SELECT COALESCE(SUM(score), 0) AS s FROM clears WHERE user_id = ?').bind(user.id).first()) || {}).s || 0,
     requests: rq.results.map(r => ({ id: r.id, nickname: r.nickname, unlocked: r.unlocked, at: r.at })),
     now: now(),
   });
@@ -364,12 +367,17 @@ async function suggestFriend(env, user) {
 }
 // ---- 단계 랭킹 (친구끼리): 가장 적은 시도로 깬 기록만 남겨요. 같은 시도면 먼저 깬 사람이 앞
 async function saveClear(env, user, body) {
-  const level = body.level | 0, tries = body.tries | 0;
+  const level = body.level | 0, tries = body.tries | 0, score = Math.max(0, Math.min(2000, body.score | 0));
   if (level < 1 || level > 150 || tries < 1 || tries > 9999 || level > (user.unlocked || 1)) return json({ error: 'bad' }, 400);
-  await env.DB.prepare(`INSERT INTO clears (user_id, level, tries, at) VALUES (?1, ?2, ?3, ?4)
-    ON CONFLICT(user_id, level) DO UPDATE SET tries = excluded.tries, at = excluded.at WHERE excluded.tries < clears.tries`)
-    .bind(user.id, level, tries, now()).run();
-  return json({ ok: true });
+  // 시도 수는 가장 적은 것, 점수는 가장 높은 것을 남겨요 (같은 시도면 먼저 깬 기록이 순위에 남아요)
+  await env.DB.prepare(`INSERT INTO clears (user_id, level, tries, at, score) VALUES (?1, ?2, ?3, ?4, ?5)
+    ON CONFLICT(user_id, level) DO UPDATE SET
+      at = CASE WHEN excluded.tries < clears.tries THEN excluded.at ELSE clears.at END,
+      tries = MIN(clears.tries, excluded.tries),
+      score = MAX(COALESCE(clears.score, 0), excluded.score)`)
+    .bind(user.id, level, tries, now(), score).run();
+  const tot = await env.DB.prepare('SELECT COALESCE(SUM(score), 0) AS s FROM clears WHERE user_id = ?').bind(user.id).first();
+  return json({ ok: true, total: tot ? tot.s : 0 });
 }
 // ---- 오늘의 경쟁: 매일(한국 시간) 모두 같은 판. 처음 깬 기록(가장 적은 시도)으로 전체 순위, 친구가 아니면 닉네임 가려요
 const kstDay = () => Math.floor((now() + 9 * 3600000) / DAY);
@@ -490,9 +498,15 @@ async function sendInquiry(env, ctx, user, body) {
       egg = true;
     }
   }
+  const praiseAgain = praise && !egg;                // 오늘 두 번째 칭찬부터는 '하트 주세요'와 똑같이 5개
+  if (praiseAgain) {
+    const t2 = now();
+    await env.DB.batch(Array.from({ length: HEART_REQ_GIFT }, (_, i) =>
+      env.DB.prepare('INSERT INTO gifts (from_id, to_id, at) VALUES (?, ?, ?)').bind('admin', user.id, t2 + i)));
+  }
   // 자동 답장: 칭찬이면 바로 답장까지 끝(보내자마자 화면에 보여서 폰 알림은 따로 안 보내요),
   //   백업 코드 요청이면 안내 답장만 달아 두고 상태는 'new' 그대로 (운영자가 확인하고 진짜 답장을 보내요)
-  const reply0 = praise ? (egg ? EGG_REPLY : EGG_REPLY_AGAIN) : heartReq ? HEART_REPLY : backupReq ? BACKUP_AUTO_REPLY : null;
+  const reply0 = praise ? (egg ? EGG_REPLY : HEART_REPLY) : heartReq ? HEART_REPLY : backupReq ? BACKUP_AUTO_REPLY : null;
   // 칭찬·하트 부탁만 있는 짧은 글이면 답까지 끝. 다른 내용(버그·건의)이 함께 있는 긴 글은 하트만 주고 개발자가 따로 답해요
   const auto = (praise || heartReq) && text.length <= 30;
   const reply = auto || backupReq ? reply0 : null;
@@ -505,7 +519,7 @@ async function sendInquiry(env, ctx, user, body) {
     const title = praise ? '💝 칭찬 문의가 왔어요 (자동 답장 완료)' : heartReq ? '❤️ 하트 요청 (5개 자동 지급)' : backupReq ? '🔑 백업 코드 요청이 왔어요' : '📮 새 문의가 왔어요';
     if (owner) ctx.waitUntil(notify(env, owner, title, `${user.nickname || '누군가'}: ${text.slice(0, 80)}`));
   }
-  return json({ ok: true, egg, backupReq, heartReq });
+  return json({ ok: true, egg, backupReq, heartReq: heartReq || praiseAgain });
 }
 async function myInquiries(env, user) {
   const { results } = await env.DB.prepare('SELECT id, at, body, reply, replied_at FROM inquiries WHERE user_id = ? ORDER BY id DESC LIMIT 20').bind(user.id).all();

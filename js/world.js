@@ -233,7 +233,7 @@ function setSeason(pref) {
 // =====================================================================
 let nickname = store.get('busGame.nickname', '');
 function updateHello() {
-  $('hello').textContent = nickname ? `${nickname}님 · ${unlocked}단계 여행 중` : '';
+  $('hello').textContent = nickname ? `${nickname}님 · ${unlocked}단계 여행 중${myScore() ? ` · ${myScore().toLocaleString()}점` : ''}` : '';
 }
 // ---- 출석 선물: 하루에 처음 들어오면 하트 +1 (5개를 넘어도 받아요) ----
 function checkDaily() {

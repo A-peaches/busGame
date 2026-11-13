@@ -500,3 +500,7 @@ svg.crown { display: inline-block; vertical-align: -1px; margin-left: 3px; }
 .lvRank .rkList { max-height: 132px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .lvRank .rkMine { border-top: 1px dashed #e2d6bf; margin-top: 4px; padding-top: 4px; }
 .lvRank .rkNone { text-align: center; margin: 8px 0; }
+
+/* 점수: 축하 창 */
+.winScore { font-weight: 700; font-size: calc(17px + var(--fd)); color: #8a6a2c; margin: -2px 0 2px; }
+.winScore .combo { display: inline-block; font-size: calc(12px + var(--fd)); color: #d0703a; background: #fdeedd; border-radius: 10px; padding: 1px 8px; margin-left: 4px; vertical-align: 2px; }

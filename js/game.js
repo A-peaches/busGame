@@ -421,7 +421,7 @@ $('homeBtn').onclick = () => {
     <button class="btn" id="ovStay">계속 하기</button>
     <button class="btn alt" id="ovLeave">나가기</button>`;
   card.querySelector('#ovStay').onclick = () => hideOverlay();
-  card.querySelector('#ovLeave').onclick = () => showMenu();
+  card.querySelector('#ovLeave').onclick = () => { if (S && !S.daily) store.set('busGame.combo', 0); showMenu(); };   // 중간에 나가도 콤보 끊김
   $('overlay').classList.add('show');
 };
 $('settingsBtn').onclick = $('settingsBtn2').onclick = () => showSettings();
@@ -622,7 +622,7 @@ function loseLife() {
   S.lives--;
   S.lifeFx.push({ i: S.lives, t: 0 });
   if (S.lives <= 0) {
-    S.over = true; S.lostByLives = true;
+    S.over = true; S.lostByLives = true; store.set('busGame.combo', 0);
     sfx('lose');
     setTimeout(() => showOverlay('lose'), 700);
   }
@@ -635,7 +635,12 @@ function checkWin() {
     if (S.daily && acct && typeof api === 'function') api('/daily/clear', { day: S.daily, tries: S.tries || 1 }).catch(() => {});   // 오늘의 경쟁 기록
     refundHeart();                                    // 시작할 때 낸 하트를 돌려받아요
     if (!S.daily) saveBest(S.level, S.tries || 1);     // 별 모으기 기록
-    if (!S.daily && acct && typeof api === 'function') api('/clear', { level: S.level, tries: S.tries || 1 }).catch(() => {});   // 친구 랭킹 기록
+    if (!S.daily) {                                     // 점수 + 콤보
+      const combo = store.get('busGame.combo', 0) + 1; store.set('busGame.combo', combo);
+      S.combo = combo; S.gain = Math.round(baseScore(S.tries || 1) * (1 + comboBonus(combo)));
+    }
+    if (!S.daily && acct && typeof api === 'function') api('/clear', { level: S.level, tries: S.tries || 1, score: S.gain || 0 })
+      .then(r => { if (r && r.total != null) { store.set('busGame.score', r.total); if (typeof updateHello === 'function') updateHello(); } }).catch(() => {});   // 랭킹·점수 기록
     if (typeof syncSoon === 'function') syncSoon();   // 깬 단계를 서버에도 저장
     sfx('win');
     setTimeout(() => showOverlay('win'), 350);
@@ -652,6 +657,7 @@ function checkLose() {
   // 원 위의 누군가가 탈 수 있으면 아직 진행 중
   if (S.ring.some(p => p && bestVehicleFor(p.color))) return;
   S.over = true;
+  if (!S.daily) store.set('busGame.combo', 0);       // 실패하면 콤보가 끊겨요
   sfx('lose');
   setTimeout(() => showOverlay('lose'), 400);
 }

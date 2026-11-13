@@ -59,6 +59,7 @@ async function syncOnce() {
     refreshHearts();
     const r = await api('/sync', { nickname, unlocked, hearts: { n: hearts.n, t: hearts.t }, hideSeen: !!settings.hideSeen, chatRead: store.get('busGame.chatRead', 0) });
     setChatBadge(r.chatNew || 0);
+    if (r.score != null && r.score !== store.get('busGame.score', 0)) { store.set('busGame.score', r.score); if (typeof updateHello === 'function') updateHello(); }
     if (r.code && acct.code !== r.code) { acct.code = r.code; store.set('busGame.acct', acct); }
     if (r.nickTaken && r.nickname) {               // 바꾸려던 닉네임이 이미 있어서 서버가 원래 닉네임을 지켰어요
       nickname = r.nickname; store.set('busGame.nickname', nickname); if (typeof updateHello === 'function') updateHello();
@@ -308,13 +309,14 @@ async function showFriends() {
   if (!nickname) { card.innerHTML = '<h2>친구</h2><p>먼저 닉네임을 정해 주세요.</p>' + close; bindClose(); return; }
   if (!(await ensureAccount())) { card.innerHTML = '<h2>친구</h2><p>인터넷 연결을 확인해 주세요.</p>' + close; bindClose(); return; }
   let list = [], reqs = [], diff = 0, meAdmin = false;
-  try { const r = await api('/friends'); list = r.friends; reqs = r.requests || []; diff = r.now - Date.now(); meAdmin = !!r.meAdmin; }
+  try { const r = await api('/friends'); list = r.friends; reqs = r.requests || []; diff = r.now - Date.now(); meAdmin = !!r.meAdmin; if (r.myScore != null) store.set('busGame.score', r.myScore); }
   catch (e) { card.innerHTML = '<h2>친구</h2><p>친구 목록을 불러오지 못했어요.</p>' + close; bindClose(); return; }
   setFriendBadge(reqs.length);
   friendMarks = list.map(f => ({ nickname: f.nickname || '친구', unlocked: f.unlocked })); friendMarksAt = Date.now(); renderFriendMarks();
   const t = Date.now() + diff;
   // 많이 깬 순서대로 (나도 함께), 1·2·3등은 트로피
-  const ranked = [...list, { me: true, unlocked }].sort((a, b) => b.unlocked - a.unlocked);
+  // 점수 순위 (같으면 단계 순): 나도 함께
+  const ranked = [...list, { me: true, unlocked, score: myScore() }].sort((a, b) => (b.score || 0) - (a.score || 0) || b.unlocked - a.unlocked);
   card.innerHTML = `<h2>친구</h2>
     <div class="codeRow"><input class="nickInput" id="findNick" maxlength="10" placeholder="닉네임으로 친구 찾기"><button class="btn mini" id="findBtn">찾기</button></div>
     <div class="findList" id="findList"></div>
@@ -325,11 +327,11 @@ async function showFriends() {
     <p class="secTitle">친구 ${list.length}명</p>
     <div class="friendList">${list.length ? ranked.map((f, i) => {
       const rank = `<span class="rank">${i < 3 ? trophy(i) : i + 1}</span>`;
-      if (f.me) return `<div class="friendRow me"><span class="fName">${rank}<span class="fTxt">${esc(nickname)}${meAdmin ? CROWN : ''}<small>나 · ${unlocked}단계</small></span></span></div>`;
+      if (f.me) return `<div class="friendRow me"><span class="fName">${rank}<span class="fTxt">${esc(nickname)}${meAdmin ? CROWN : ''}<small>나 · ${unlocked}단계 · ${myScore().toLocaleString()}점</small></span></span></div>`;
       const wait = f.nextGiftAt && f.nextGiftAt > t;
       const hid = f.lastSeen < 0;                       // 친구가 접속 상태를 숨겼어요
       const on = !hid && f.lastSeen && t - f.lastSeen < ONLINE_MS;
-      return `<div class="friendRow"><span class="fName">${rank}<span class="fTxt">${esc(f.nickname || '친구')}${f.admin ? CROWN : ''}${hid ? '' : `<i class="onDot${on ? ' on' : ''}" title="${on ? '접속 중' : ''}"></i>`}<small>${f.unlocked}단계${hid ? '' : ' · ' + seenText(f.lastSeen, t)}</small></span></span>
+      return `<div class="friendRow"><span class="fName">${rank}<span class="fTxt">${esc(f.nickname || '친구')}${f.admin ? CROWN : ''}${hid ? '' : `<i class="onDot${on ? ' on' : ''}" title="${on ? '접속 중' : ''}"></i>`}<small>${f.unlocked}단계 · ${(f.score || 0).toLocaleString()}점${hid ? '' : ' · ' + seenText(f.lastSeen, t)}</small></span></span>
         <span class="friendBtns"><button class="btn mini ic ${wait ? 'alt' : ''}" data-id="${esc(f.id)}" ${wait ? 'disabled' : ''} aria-label="하트 보내기">${wait ? fmtWait(f.nextGiftAt - t) : IC_HEART}</button>
         <button class="btn alt mini ic" data-letter="${esc(f.id)}" data-name="${esc(f.nickname || '친구')}" aria-label="쪽지">${IC_LETTER}</button>
         <button class="btn alt mini ic" data-more="${esc(f.id)}" data-name="${esc(f.nickname || '친구')}" aria-label="삭제·차단">${IC_TRASH}</button></span></div>`;

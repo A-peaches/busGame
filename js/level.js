@@ -159,6 +159,13 @@ function extractOrder(list, rng, drop) {
   return order;
 }
 
+// ---- 점수: 적은 시도로 깰수록 높게 + 연속으로 깨면 콤보 보너스 ----
+//   1번 만에 1000 · 2번 800 · 3번 600 · 10번 안 400 · 그 밖 200
+//   콤보: 실패 없이 연달아 깬 판 수. 2연속부터 10%씩 더 (최대 +100%)
+const baseScore = tries => tries <= 1 ? 1000 : tries === 2 ? 800 : tries === 3 ? 600 : tries <= 10 ? 400 : 200;
+const comboBonus = combo => Math.min(10, Math.max(0, combo - 1)) * 0.1;
+const myScore = () => store.get('busGame.score', 0);
+
 // ---- 별 모으기: 몇 번 만에 깼는지로 별 1~3개 ----
 const bestTries = () => store.get('busGame.best', {});
 const starsFor = tries => !tries ? 0 : tries <= 3 ? 3 : tries <= 10 ? 2 : 1;

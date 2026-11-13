@@ -129,7 +129,7 @@ function showOverlay(kind) {
     const tries = S.tries || 1;
     if (!S.daily) { const all = store.get('busGame.tries', {}); all[S.level] = 0; store.set('busGame.tries', all); }   // 다음 도전은 새로 세요 (오늘의 경쟁은 처음 깬 기록이 남아요)
     card.innerHTML = `<canvas id="celebCv" class="perch" width="600" height="250"></canvas>
-      <h2>축하드립니다!</h2>${S.daily ? '' : `<div class="winStars">${starCrown(starsFor(tries), 'inline')}<small>${['', '별 1개 · 10번 안에 깨면 별 2개', '별 2개 · 3번 안에 깨면 별 3개', '별 3개! 완벽해요'][starsFor(tries)]}</small></div>`}<p><b>${tries}번</b>의 시도로 성공했습니다!<br><small class="refund">${HEART_SVG}시작할 때 낸 하트를 돌려받았어요</small></p>
+      <h2>축하드립니다!</h2>${S.daily ? '' : `<div class="winScore">+${(S.gain || 0).toLocaleString()}점${S.combo > 1 ? ` <span class="combo">🔥 ${S.combo}연속 콤보 +${Math.round(comboBonus(S.combo) * 100)}%</span>` : ''}</div>`}${S.daily ? '' : `<div class="winStars">${starCrown(starsFor(tries), 'inline')}<small>${['', '별 1개 · 10번 안에 깨면 별 2개', '별 2개 · 3번 안에 깨면 별 3개', '별 3개! 완벽해요'][starsFor(tries)]}</small></div>`}<p><b>${tries}번</b>의 시도로 성공했습니다!<br><small class="refund">${HEART_SVG}시작할 때 낸 하트를 돌려받았어요</small></p>
       ${S.daily ? `<button class="btn" id="ovDaily">🔥 오늘의 순위 보기</button>`
         : S.level < MAX_LEVEL ? `<button class="btn" id="ovNext">${S.level + 1}단계로</button>` : '<p><b>150단계를 모두 깼어요! 최고의 버스 기사님!</b></p>'}
       <button class="btn alt" id="ovMap">지도로 이동</button>`;
@@ -374,6 +374,7 @@ const HELP_PAGES = [
       <li>대기 칸이 꽉 찼는데 하트 길의 누구도 탈 수 없으면 <b>꽉 막혀요</b>.</li>
       <li><b>자리 추가</b>: 대기 칸이 한 칸 늘어나요. 단계마다 1개.</li>
       <li><b>크레인</b>: 막혀 있는 버스도 아무거나 하나 바로 꺼내요. 단계마다 1개.</li>
+      <li><b>점수</b>: 1번 만에 깨면 1000점, 2번 800 · 3번 600 · 10번 안 400 · 그 밖 200점. 실패 없이 <b>연달아 깨면 콤보</b>로 10%씩 더 받아요(최대 2배). 단계마다 가장 높은 점수만 합쳐져요.</li>
       <li><b>멍냥이의 응원</b>: 한 단계에서 10번 실패하면 자리 추가 +1, 30번 실패하면 +1 더 (깰 때까지).</li>
     <li><b>색 섞기</b>: 지금 꺼낼 수 있는 버스들의 색을 기다리는 멍냥이들 색으로 바꿔 주고, 나머지 버스들도 <b>자리 수가 같은 버스끼리</b> 색을 섞어요. <b>매우 어려움</b>·<b>최고 난이도</b> 단계에서만 1개.</li>
       <li>꽉 막혔을 때 [아이템 사용]으로 자리를 늘려 이어서 할 수도 있어요.</li>

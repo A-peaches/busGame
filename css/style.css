@@ -412,3 +412,7 @@ footer { display: flex; gap: 12px; justify-content: center; padding: 8px 14px 16
 /* 멍냥이의 응원 팝업: 선물 상자 */
 .cheerGift { background: #fbf1d3; border: 1px dashed #e2bf5c; border-radius: 12px; padding: 8px 10px; margin: 8px 0 12px; }
 .cheerGift b { color: #8a6a2c; }
+
+/* 빨리감기 버튼 (설정 왼쪽): 누르면 노랗게 켜지고, 다시 누르면 꺼져요 */
+.round.ffBtn { font-size: calc(11px + var(--fd)); font-weight: 700; letter-spacing: -.5px; line-height: 1; }
+.round.ffBtn.on { background: #f6dd92; }

@@ -105,6 +105,7 @@ function updateUI() {
   $('liftBtn').disabled = S.boost.lift <= 0;
   $('liftBtn').classList.toggle('active', S.liftMode);
   $('mixBtn').hidden = levelTier(S.level) < 4;
+  $('ffBtn').classList.toggle('on', !!S.ff);
   $('mixCnt').textContent = S.boost.mix;
   $('mixBtn').disabled = S.boost.mix <= 0;
 }

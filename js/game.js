@@ -423,6 +423,10 @@ $('homeBtn').onclick = () => {
   $('overlay').classList.add('show');
 };
 $('settingsBtn').onclick = $('settingsBtn2').onclick = () => showSettings();
+// 빨리감기 버튼: 누르면 켜지고 다시 누르면 꺼져요 (화면을 꾹 누르는 것과 같은 4배 속도)
+$('ffBtn').innerHTML = `<svg viewBox="0 0 26 16" width="24" height="15" aria-hidden="true"><g fill="#fbf3e2" stroke="#4a3b2c" stroke-width="1.3" stroke-linejoin="round">
+  <path d="M2 3 L9 8 L2 13Z"/><path d="M9 3 L16 8 L9 13Z"/></g><text x="21.5" y="12" text-anchor="middle" font-size="9" font-weight="700" fill="#4a3b2c">4</text></svg>`;
+$('ffBtn').onclick = () => { if (!S || S.over) return; S.ff = !S.ff; $('ffBtn').classList.toggle('on', S.ff); };
 
 // ---- 일시정지: 버튼을 누르면 모든 움직임이 멈추고, 멍냥이들이 엎드려 잠깐 조는 화면 (누르면 다시 시작) ----
 const PAUSE_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><g fill="#fbf3e2" stroke="#4a3b2c" stroke-width="1.4" stroke-linejoin="round">
@@ -533,7 +537,7 @@ function update(dt) {
 
   // 원이 빙글빙글 돌고, 빈자리가 입구를 지나가면 기다리던 승객이 들어갑니다
   // 화면을 꾹 누르면 빨리감기 (줄이 빠르게 하트 길로 들어와요)
-  if (S.holding && !S.over) S.rush = Math.max(S.rush, 0.15);   // 꾹 누르는 동안 계속 빨리
+  if ((S.holding || S.ff) && !S.over) S.rush = Math.max(S.rush, 0.15);   // 꾹 누르는 동안·빨리감기 버튼이 켜져 있는 동안 계속 빨리
   if (S.rush > 0) S.rush -= dt;
   if (S.treeShake > 0) S.treeShake -= dt;
   if (S.rail && S.rail.anim > 0) S.rail.anim = Math.max(0, S.rail.anim - dt / 0.25);

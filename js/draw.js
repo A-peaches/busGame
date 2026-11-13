@@ -739,8 +739,8 @@ function draw() {
 
   drawQueueArea();
   // 꾹 누르는 동안: 빨리감기 표시
-  if (S.holding) {
-    const tx = '▶▶ 빨리감기', fs = 13;
+  if (S.holding || S.ff) {
+    const tx = '▶▶ 빨리감기 ×4', fs = 13;
     ctx.font = `700 ${fs}px MaruBuri, serif`;
     const tw = ctx.measureText(tx).width + 22, bx = L.W / 2 - tw / 2, by = L.qTop + 10;
     ctx.globalAlpha = 0.6 + Math.sin(S.time * 8) * 0.25;

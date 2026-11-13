@@ -97,8 +97,9 @@ let mapPts = null, mapW = 0;
 // =====================================================================
 function updateUI() {
   $('levelLabel').textContent = `${S.level}단계`;
-  $('leftLabel').textContent = `${TIERS[levelTier(S.level)].name} · 남은 승객 ${remainingCount()}명` +
-    (S.shuffle ? ` · 자리 바꾸기까지 ${S.shuffle.left}대` : '');
+  // 자리 바꾸기 안내는 낱말 중간에서 잘리지 않게 아랫줄에 따로
+  $('leftLabel').innerHTML = `${TIERS[levelTier(S.level)].name} · 남은 승객 ${remainingCount()}명` +
+    (S.shuffle ? `<br>자리 바꾸기까지 ${S.shuffle.left}대` : '');
   $('slotCnt').textContent = S.boost.slot;
   $('liftCnt').textContent = S.boost.lift;
   $('slotBtn').disabled = S.boost.slot <= 0 || S.slotCount >= MAX_SLOTS;

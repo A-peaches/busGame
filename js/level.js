@@ -174,6 +174,13 @@ function saveBest(n, tries) {
   const b = bestTries();
   if (!b[n] || tries < b[n]) { b[n] = tries; store.set('busGame.best', b); }
 }
+// 별 기록이 생기기 전에 깬 단계는 별 3개(1번 만에)로 한 번 채워 줘요 (만점 선물)
+(function giftOldStars() {
+  if (store.get('busGame.starGift1', false)) return;
+  const b = bestTries(), top = store.get('busGame.unlocked', 1);
+  for (let n = 1; n < top; n++) if (!b[n]) b[n] = 1;
+  store.set('busGame.best', b); store.set('busGame.starGift1', true);
+})();
 // 팝업 위에 삐죽 올라온 별 세 개 (가운데가 커요). 받은 별만 노랗게
 const STAR_PATH = 'M12 1.8 L14.9 8.3 L22 9 L16.6 13.7 L18.2 20.7 L12 17 L5.8 20.7 L7.4 13.7 L2 9 L9.1 8.3Z';
 const starCrown = (k, cls = '') => `<div class="starCrown ${cls}">${[0, 1, 2].map(i =>

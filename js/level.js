@@ -54,7 +54,8 @@ const LIVES = 3;
 // 이벤트: 5단계부터 한 단계에 하나씩, 풍선 버스 → U턴 버스 → 레일 버스 → 자리 바꾸기 순서로 번갈아 나와요 (난이도 별은 그대로)
 const EVENT_FROM = 5;
 const EVENTS = ['balloon', 'turn', 'rail', 'shuffle'];
-const EVENT_NAMES = { balloon: '풍선 버스', turn: 'U턴 버스', rail: '레일 버스', shuffle: '자리 바꾸기', cloud: '구름' };
+const EVENT_NAMES = { balloon: '풍선 버스', turn: 'U턴 버스', rail: '레일 버스', shuffle: '자리 바꾸기', cloud: '구름', rainbow: '무지개비' };
+const RAINBOW_AFTER = 10;      // 무지개비: 버스가 10대 빠지면 딱 한 번 내려서 멍냥이들 색이 바뀌어요
 const EVENT_DOUBLE_FROM = 61;
 const CLOUD_FROM = 10;         // 구름 이벤트: 10단계부터 5단계마다, 대기 줄 뒤쪽을 뭉게구름이 가려요  // 이 단계부터는 이벤트가 두 개씩 겹쳐 나와요 (뒤 단계 난이도 유지)
 // 이 단계의 이벤트들: 5~60단계는 하나, 61단계부터는 바로 다음 순서 이벤트까지 두 개 (풍선+U턴, U턴+레일, 레일+자리 바꾸기, 자리 바꾸기+풍선)
@@ -62,7 +63,9 @@ const levelEvents = n => {
   if (n < EVENT_FROM) return [];
   const i = (n - EVENT_FROM) % EVENTS.length;
   const list = n >= EVENT_DOUBLE_FROM ? [EVENTS[i], EVENTS[(i + 1) % EVENTS.length]] : [EVENTS[i]];
-  if (n >= CLOUD_FROM && n % 5 === 0) list.push('cloud');   // 구름: 10·15·20…단계에 덤으로 (버스 배치는 그대로)
+  // 덤 이벤트 (버스 배치는 그대로): 구름은 10·20·30…, 무지개비는 15·25·35… → 5단계마다 번갈아
+  if (n >= CLOUD_FROM && n % 10 === 0) list.push('cloud');
+  if (n >= CLOUD_FROM + 5 && n % 10 === 5) list.push('rainbow');
   return list;
 };
 const hasEvent = (n, e) => levelEvents(n).includes(e);
@@ -291,6 +294,7 @@ function startLevel(n) {
     balloon: hasEvent(n, 'balloon') ? { left: BALLOON_EVERY } : null,
     lives: n >= LIVES_FROM ? LIVES : 0, lifeFx: [],
     cloud: hasEvent(n, 'cloud'),
+    rainbow: hasEvent(n, 'rainbow') ? { left: RAINBOW_AFTER, t: -1, done: false } : null,
     shuffle: hasEvent(n, 'shuffle') ? { every: SHUFFLE_EVERY(n), left: SHUFFLE_EVERY(n), wait: 0, count: 0 } : null,
   };
   g.vehicles.forEach((v, i) => {
@@ -476,6 +480,22 @@ function landBalloon(instant, rng = Math.random) {
   if (instant) { v.state = 'parked'; return true; }
   v.state = 'landing'; v.fall = 0;
   return true;
+}
+
+// ---- 무지개비 ----
+// 버스가 빠질 때마다 세다가, 10대째에 무지개비가 내려요
+function countRainbow() {
+  const R = S.rainbow;
+  if (!R || R.t >= 0) return;
+  if (--R.left <= 0) R.t = 0;
+}
+// 비가 내리는 동안: 기다리는 멍냥이들(하트 길·대기 줄)의 색을 서로 맞바꿔요.
+//   색마다 멍냥이 수는 그대로라 버스 자리 수와 딱 맞아요 (풀 수 있는지는 변하지 않아요). 순서만 바뀌어요.
+function rainbowRecolor() {
+  const ppl = S.ring.filter(Boolean).concat(S.waiting);
+  const cols = ppl.map(p => p.color);
+  for (let i = cols.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [cols[i], cols[j]] = [cols[j], cols[i]]; }
+  ppl.forEach((p, i) => { p.color = cols[i]; p.flashUntil = S.time + 0.5 + Math.random() * 0.9; });
 }
 
 // ---- 자리 바꾸기 ----

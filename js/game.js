@@ -274,6 +274,7 @@ function tapParked(v) {
 function launch(v, si, lifted) {
   countShuffle();
   countBalloon();
+  countRainbow();
   S.slots[si] = v;
   v.slot = si;
   v.bump = null;
@@ -482,6 +483,11 @@ function update(dt) {
   if (S.shuffle && S.shuffle.wait > 0) {
     S.shuffle.wait -= dt;
     if (S.shuffle.wait <= 0) { S.shuffle.wait = 0; doShuffle(); updateUI(); }
+  }
+  if (S.rainbow && S.rainbow.t >= 0 && !S.rainbow.end) {   // 무지개비: 약 3초 동안 내리고, 0.6초쯤 색이 바뀌기 시작해요
+    S.rainbow.t += dt;
+    if (!S.rainbow.done && S.rainbow.t >= 0.6) { S.rainbow.done = true; rainbowRecolor(); }
+    if (S.rainbow.t > 3.2) S.rainbow.end = true;
   }
   for (const f of S.lifeFx) f.t += dt;          // 깨진 하트 조각
   if (S.lifeFx.length && S.lifeFx.every(f => f.t > 1.2)) S.lifeFx.length = 0;

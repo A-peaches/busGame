@@ -630,7 +630,10 @@ function drawQueueArea() {
     const back = waitIdx >= 8 && !p.walking;
     const sleep = back && waitIdx >= 10 && p.id % 6 === 2;
     const think = !sleep && back && p.id % 5 === 0 && (S.time + p.id * 1.7) % 9 < 4.5;
-    vis.push({ x: p.x, y: p.y, c: p.color, kind: p.kind, think, sleep, ph: i * 0.73,
+    // 무지개비로 색이 바뀌는 중: 잠깐 이 색 저 색으로 반짝이다가 새 색에 멈춰요
+    const flash = p.flashUntil && S.time < p.flashUntil;
+    const c = flash ? (Math.floor(S.time * 12) + p.id) % COLORS.length : p.color;
+    vis.push({ x: p.x, y: p.y, c, kind: p.kind, think, sleep, ph: i * 0.73,
       opts: { bag: p.bag, ribbon: p.ribbon, sleep },
       bob: p.walking ? Math.abs(Math.sin(S.time * 14 + i)) * 2 : 0 });
   };
@@ -647,6 +650,7 @@ function drawQueueArea() {
   }
 
   if (S.cloud) drawQueueCloud();
+  if (S.rainbow && S.rainbow.t >= 0 && !S.rainbow.end) drawRainbowRain(S.rainbow.t);
   if (S.lives || S.lostByLives) drawLives();
   const hiddenN = S.waiting.length - Math.min(S.waiting.length, L.waitMax);
   if (hiddenN > 0) {
@@ -658,6 +662,37 @@ function drawQueueArea() {
     ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(t, L.W - 16 - tw / 2, L.qTop + 17);
   }
+}
+
+// ---- 무지개비: 승객 구역에 무지개빛 빗방울이 촤르르 + 안내 띠 ----
+const RAIN_COLS = ['#f4a3bd', '#f5ae74', '#f6dd92', '#b4dc88', '#92d3c6', '#8dbbe0', '#bda6dc'];
+function drawRainbowRain(t) {
+  const a = Math.min(1, t / 0.4, (3.2 - t) / 0.6);           // 서서히 왔다가 서서히 그쳐요
+  if (a <= 0) return;
+  ctx.save(); rr(8, L.qTop, L.W - 16, L.qH, 18); ctx.clip();
+  ctx.globalAlpha = a * 0.18; ctx.fillStyle = '#fff6fb'; ctx.fillRect(8, L.qTop, L.W - 16, L.qH);   // 살짝 밝은 빛
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 70; i++) {
+    const sx = ((i * 97.3) % 1) * 0 + ((i * 53) % 101) / 101, sp = 0.8 + ((i * 37) % 13) / 13;
+    const y = L.qTop - 20 + ((t * 260 * sp + i * 41) % (L.qH + 40));
+    const x = 10 + sx * (L.W - 20) - (y - L.qTop) * 0.15;
+    ctx.globalAlpha = a * 0.85;
+    ctx.strokeStyle = RAIN_COLS[i % RAIN_COLS.length]; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 2.4, y + 11); ctx.stroke();
+  }
+  ctx.restore();
+  // 안내 띠: "무지개비가 내려요! 멍냥이들의 색깔이 바뀌어요"
+  const tx = '🌈 무지개비가 내려요! 멍냥이들 색깔이 바뀌어요', fs = 13;
+  ctx.save(); ctx.globalAlpha = a;
+  ctx.font = `700 ${fs}px MaruBuri, serif`;
+  const tw = Math.min(L.W - 30, ctx.measureText(tx).width + 26), bx = L.W / 2 - tw / 2, by = L.qTop + L.qH * 0.42;
+  const g = ctx.createLinearGradient(bx, 0, bx + tw, 0);
+  RAIN_COLS.forEach((c, i) => g.addColorStop(i / (RAIN_COLS.length - 1), c));
+  ctx.fillStyle = 'rgba(255,253,248,.95)'; rr(bx, by, tw, fs + 14, (fs + 14) / 2); ctx.fill();
+  ctx.strokeStyle = g; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.fillStyle = '#5a4a3a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(tx, L.W / 2, by + (fs + 14) / 2 + 1, tw - 16);
+  ctx.restore();
 }
 
 // ---- 목숨 하트 (101단계부터): 승객 구역 왼쪽 아래에 하트 3개, 부딪히면 쩍 갈라져 떨어져요 ----

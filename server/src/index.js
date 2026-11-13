@@ -215,12 +215,17 @@ async function sync(env, user, body, ctx) {
     hearts = Math.max(0, Math.min(99, body.hearts.n | 0));
     hearts_t = Math.floor(body.hearts.t);
     const newFull = hearts >= HEART_MAX ? 0 : hearts_t + (HEART_MAX - hearts) * HEART_MS;
-    if (newFull !== full_at) { full_at = newFull; full_notified = newFull ? 0 : 1; }
+    // 가득 찰 시각이 실제로 바뀌었을 때만 '하트 가득' 알림을 다시 준비해요 (몇 초 차이로 매번 다시 알리지 않게)
+    if (Math.abs(newFull - full_at) > 120000 || (!newFull) !== (!full_at)) { full_at = newFull; full_notified = newFull ? 0 : 1; }
   }
-  await env.DB.prepare('UPDATE users SET nickname = ?, unlocked = ?, hearts = ?, hearts_t = ?, full_at = ?, full_notified = ?, last_seen = ? WHERE id = ?')
+  // 단계가 실제로 올라간 경우에만 (동시에 두 번 맞춰도 한 번만 올라간 걸로 쳐요 → 따라잡기 알림이 두 번 가지 않게)
+  const raised = unlocked > user.unlocked
+    ? ((await env.DB.prepare('UPDATE users SET unlocked = ?1 WHERE id = ?2 AND unlocked < ?1').bind(unlocked, user.id).run()).meta || {}).changes > 0
+    : false;
+  await env.DB.prepare('UPDATE users SET nickname = ?, unlocked = MAX(unlocked, ?), hearts = ?, hearts_t = ?, full_at = ?, full_notified = ?, last_seen = ? WHERE id = ?')
     .bind(nickname, unlocked, hearts, hearts_t, full_at, full_notified, now(), user.id).run();
   // 친구를 따라잡거나 앞질렀으면 그 친구에게 알려 줘요 (이번에 넘어선 친구만)
-  if (unlocked > user.unlocked && ctx) ctx.waitUntil(tellCaughtUp(env, user, nickname, user.unlocked, unlocked));
+  if (raised && ctx) ctx.waitUntil(tellCaughtUp(env, user, nickname, user.unlocked, unlocked));
   const g = await env.DB.prepare('SELECT COUNT(*) AS c FROM gifts WHERE to_id = ? AND claimed = 0').bind(user.id).first();
   const l = await env.DB.prepare('SELECT COUNT(*) AS c FROM letters WHERE to_id = ? AND read = 0').bind(user.id).first();
   const fr = await env.DB.prepare('SELECT COUNT(*) AS c FROM friend_requests WHERE to_id = ?').bind(user.id).first();

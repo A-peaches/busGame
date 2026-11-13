@@ -492,8 +492,10 @@ async function sendInquiry(env, ctx, user, body) {
   }
   // 자동 답장: 칭찬이면 바로 답장까지 끝(보내자마자 화면에 보여서 폰 알림은 따로 안 보내요),
   //   백업 코드 요청이면 안내 답장만 달아 두고 상태는 'new' 그대로 (운영자가 확인하고 진짜 답장을 보내요)
-  const reply = praise ? (egg ? EGG_REPLY : EGG_REPLY_AGAIN) : heartReq ? HEART_REPLY : backupReq ? BACKUP_AUTO_REPLY : null;
-  const auto = praise || heartReq;                   // 자동으로 답까지 끝난 문의
+  const reply0 = praise ? (egg ? EGG_REPLY : EGG_REPLY_AGAIN) : heartReq ? HEART_REPLY : backupReq ? BACKUP_AUTO_REPLY : null;
+  // 칭찬·하트 부탁만 있는 짧은 글이면 답까지 끝. 다른 내용(버그·건의)이 함께 있는 긴 글은 하트만 주고 개발자가 따로 답해요
+  const auto = (praise || heartReq) && text.length <= 30;
+  const reply = auto || backupReq ? reply0 : null;
   const t0 = now();
   await env.DB.prepare('INSERT INTO inquiries (at, user_id, nickname, body, ver, ua, reply, replied_at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
     .bind(t0, user.id, user.nickname || '', text, cut(body.ver, 10), cut(body.ua, 160), reply, auto ? t0 : null, auto ? 'notified' : 'new').run();

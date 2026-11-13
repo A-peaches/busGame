@@ -3,7 +3,7 @@
 //  시작!
 // =====================================================================
 // 매 프레임: 초당 60번까지만 그려요. 120Hz 화면 폰에서도 60번이라 발열이 줄고, 60Hz 폰은 그대로 부드러워요
-let last = performance.now(), lastDraw = 0;
+let last = performance.now(), lastDraw = 0, sizeCheckAt = 0;
 // 느린 폰 자동 감지: 게임 화면에서 처음 4초의 프레임 간격을 재서, 초당 40번이 안 되면 가벼운 모드로
 const liteProbe = { t0: 0, n: 0, slow: 0, done: false };
 function probeLite(now, gap) {
@@ -22,6 +22,12 @@ function loop(now) {
   probeLite(now, now - lastDraw);
   const dt = Math.min(0.1, (now - last) / 1000);   // 화면이 잠깐 느려져도 게임 속도는 그대로 (0.1초까지 따라잡아요)
   last = now; lastDraw = now;
+  // 화면 크기 지킴이: 앱을 내렸다 올리면 폰이 잠깐 엉뚱한 크기를 알려 줘서 버스가 아주 작게 굳을 수 있어요.
+  //   0.5초마다 실제 크기와 비교해서 다르면 다시 맞춰요
+  if (S && now - sizeCheckAt > 500) {
+    sizeCheckAt = now;
+    if (stage.clientWidth && stage.clientHeight && (stage.clientWidth !== L.W || stage.clientHeight !== L.H)) layout();
+  }
   if (S && S.paused) return;                        // 일시정지: 아무것도 움직이지 않아요
   try {
     update(dt);

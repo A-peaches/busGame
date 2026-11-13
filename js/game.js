@@ -463,6 +463,10 @@ function onResize() {
 }
 window.addEventListener('resize', () => { onResize(); clearTimeout(resizeTimer); resizeTimer = setTimeout(onResize, 350); });   // 돌린 뒤 화면이 자리 잡으면 한 번 더
 window.addEventListener('orientationchange', () => setTimeout(onResize, 400));
+// 앱으로 돌아오면 화면이 자리 잡을 때까지 몇 번 더 크기를 맞춰요
+const settleSize = () => [150, 600, 1500].forEach(ms => setTimeout(onResize, ms));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) settleSize(); });
+window.addEventListener('pageshow', settleSize);
 
 // =====================================================================
 //  매 프레임 업데이트

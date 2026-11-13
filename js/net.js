@@ -432,7 +432,7 @@ const medalSvg = n => {
 };
 const fmtClock = ms => { const d = new Date(ms); return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`; };
 // ---- 🔥 오늘의 경쟁 (지도 왼쪽 아래 불꽃 버튼) ----
-const THUMB_SVG = `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><g transform="translate(0 1.4)" stroke="#4a3b2c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+const THUMB_SVG = `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><g transform="translate(0 2.4)" stroke="#4a3b2c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
   <path d="M12 2.6 C12.6 6 16.8 8 17.6 12.4 C18.4 16.6 15.6 21 12 21 C8.2 21 5.6 18 6 14.4 C6.3 11.8 8 10.6 8.6 8.6 C9.6 10.2 10.2 11 11 11.4 C11.2 8 10.4 5.6 12 2.6Z" fill="#f5ae74"/>
   <path d="M12 12.6 C12.6 14.6 14.6 15.4 14.4 17.6 C14.2 19.2 13.2 20 12 20 C10.6 20 9.6 19 9.8 17.4 C10 16 11 15.6 11.4 14.6 Z" fill="#f6dd92" stroke-width="1.2"/></g></svg>`;   // 🔥 불꽃 (오늘의 경쟁)
 $('dailyBtn').innerHTML = THUMB_SVG + '<span class="dot"></span>';

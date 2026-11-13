@@ -211,6 +211,9 @@ async function sync(env, user, body, ctx) {
   if (nickname !== user.nickname && await nickTaken(env, nickname, user.id)) { nickname = user.nickname; nickTakenNow = true; }   // 이미 있는 닉네임이면 바꾸지 않아요
   const unlocked = Math.min(150, user.unlocked + 5, Math.max(user.unlocked, body.unlocked | 0));   // 한 번에 5단계 넘게 뛰지 않게
   let { hearts, hearts_t, full_at, full_notified } = user;
+  if (typeof body.hideSeen === 'boolean' && (!!user.hide_seen) !== body.hideSeen) {   // 친구에게 접속 상태 숨기기
+    await env.DB.prepare('UPDATE users SET hide_seen = ? WHERE id = ?').bind(body.hideSeen ? 1 : 0, user.id).run();
+  }
   if (body.hearts && Number.isFinite(body.hearts.n) && Number.isFinite(body.hearts.t)) {
     hearts = Math.max(0, Math.min(99, body.hearts.n | 0));
     hearts_t = Math.floor(body.hearts.t);
@@ -288,14 +291,14 @@ async function readMail(env, user) {
 
 async function listFriends(env, user) {
   const { results } = await env.DB.prepare(
-    `SELECT u.id, u.nickname, u.unlocked, u.last_seen, f.last_gift FROM friends f JOIN users u ON u.id = f.b WHERE f.a = ? ORDER BY u.unlocked DESC, u.nickname`)
+    `SELECT u.id, u.nickname, u.unlocked, u.last_seen, u.hide_seen, f.last_gift FROM friends f JOIN users u ON u.id = f.b WHERE f.a = ? ORDER BY u.unlocked DESC, u.nickname`)
     .bind(user.id).all();
   const rq = await env.DB.prepare(
     `SELECT u.id, u.nickname, u.unlocked, r.at FROM friend_requests r JOIN users u ON u.id = r.from_id WHERE r.to_id = ? ORDER BY r.at DESC LIMIT 30`)
     .bind(user.id).all();
   return json({
-    friends: results.map(r => ({ id: r.id, nickname: r.nickname, unlocked: r.unlocked, lastSeen: r.last_seen || 0, nextGiftAt: r.last_gift ? r.last_gift + GIFT_MS : 0, admin: r.id === env.OWNER_ID })),
-    meAdmin: user.id === env.OWNER_ID,
+    friends: results.map(r => ({ id: r.id, nickname: r.nickname, unlocked: r.unlocked, lastSeen: r.hide_seen ? -1 : (r.last_seen || 0), nextGiftAt: r.last_gift ? r.last_gift + GIFT_MS : 0, admin: r.id === env.OWNER_ID })),
+    meAdmin: user.id === env.OWNER_ID, hideSeen: !!user.hide_seen,
     requests: rq.results.map(r => ({ id: r.id, nickname: r.nickname, unlocked: r.unlocked, at: r.at })),
     now: now(),
   });
@@ -345,7 +348,7 @@ async function suggestFriend(env, user) {
        AND NOT EXISTS(SELECT 1 FROM friend_requests q WHERE (q.from_id = ?1 AND q.to_id = u.id) OR (q.from_id = u.id AND q.to_id = ?1))
        AND NOT EXISTS(SELECT 1 FROM blocks b WHERE (b.a = ?1 AND b.b = u.id) OR (b.a = u.id AND b.b = ?1))
      ORDER BY RANDOM() LIMIT 1`).bind(user.id, dayStart).first();
-  return json({ user: r ? { id: r.id, nickname: r.nickname, unlocked: r.unlocked, lastSeen: r.last_seen || 0 } : null, now: t });
+  return json({ user: r ? { id: r.id, nickname: r.nickname, unlocked: r.unlocked } : null, now: t });
 }
 // ---- 단계 랭킹 (친구끼리): 가장 적은 시도로 깬 기록만 남겨요. 같은 시도면 먼저 깬 사람이 앞
 async function saveClear(env, user, body) {

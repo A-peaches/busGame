@@ -57,7 +57,7 @@ async function syncOnce() {
   if (!(await ensureAccount())) return;
   try {
     refreshHearts();
-    const r = await api('/sync', { nickname, unlocked, hearts: { n: hearts.n, t: hearts.t } });
+    const r = await api('/sync', { nickname, unlocked, hearts: { n: hearts.n, t: hearts.t }, hideSeen: !!settings.hideSeen });
     if (r.code && acct.code !== r.code) { acct.code = r.code; store.set('busGame.acct', acct); }
     if (r.nickTaken && r.nickname) {               // 바꾸려던 닉네임이 이미 있어서 서버가 원래 닉네임을 지켰어요
       nickname = r.nickname; store.set('busGame.nickname', nickname); if (typeof updateHello === 'function') updateHello();
@@ -317,8 +317,9 @@ async function showFriends() {
       const rank = `<span class="rank">${i < 3 ? trophy(i) : i + 1}</span>`;
       if (f.me) return `<div class="friendRow me"><span class="fName">${rank}<span class="fTxt">${esc(nickname)}${meAdmin ? CROWN : ''}<small>나 · ${unlocked}단계</small></span></span></div>`;
       const wait = f.nextGiftAt && f.nextGiftAt > t;
-      const on = f.lastSeen && t - f.lastSeen < ONLINE_MS;
-      return `<div class="friendRow"><span class="fName">${rank}<span class="fTxt">${esc(f.nickname || '친구')}${f.admin ? CROWN : ''}<i class="onDot${on ? ' on' : ''}" title="${on ? '접속 중' : ''}"></i><small>${f.unlocked}단계 · ${seenText(f.lastSeen, t)}</small></span></span>
+      const hid = f.lastSeen < 0;                       // 친구가 접속 상태를 숨겼어요
+      const on = !hid && f.lastSeen && t - f.lastSeen < ONLINE_MS;
+      return `<div class="friendRow"><span class="fName">${rank}<span class="fTxt">${esc(f.nickname || '친구')}${f.admin ? CROWN : ''}${hid ? '' : `<i class="onDot${on ? ' on' : ''}" title="${on ? '접속 중' : ''}"></i>`}<small>${f.unlocked}단계${hid ? '' : ' · ' + seenText(f.lastSeen, t)}</small></span></span>
         <span class="friendBtns"><button class="btn mini ic ${wait ? 'alt' : ''}" data-id="${esc(f.id)}" ${wait ? 'disabled' : ''} aria-label="하트 보내기">${wait ? fmtWait(f.nextGiftAt - t) : IC_HEART}</button>
         <button class="btn alt mini ic" data-letter="${esc(f.id)}" data-name="${esc(f.nickname || '친구')}" aria-label="쪽지">${IC_LETTER}</button>
         <button class="btn alt mini ic" data-more="${esc(f.id)}" data-name="${esc(f.nickname || '친구')}" aria-label="삭제·차단">${IC_TRASH}</button></span></div>`;
@@ -356,9 +357,9 @@ async function showFriends() {
     let r;
     try { r = await api('/friends/suggest'); } catch (e) { return; }
     if (!r.user || !card.contains(box)) return;
-    const u = r.user, on = u.lastSeen && r.now - u.lastSeen < ONLINE_MS;
+    const u = r.user;
     box.innerHTML = `<p class="secTitle">오늘의 추천 친구 ✨</p><div class="friendList"><div class="friendRow suggest">
-      <span class="fName"><span class="fTxt">${esc(u.nickname)}<i class="onDot${on ? ' on' : ''}"></i><small>${u.unlocked}단계 · ${seenText(u.lastSeen, r.now)}</small></span></span>
+      <span class="fName"><span class="fTxt">${esc(u.nickname)}<small>${u.unlocked}단계 · 오늘 놀러 온 친구</small></span></span>
       <button class="btn mini" id="sugReq">친구 요청</button></div></div>`;
     box.querySelector('#sugReq').onclick = async e => {
       e.target.disabled = true;

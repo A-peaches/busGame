@@ -250,7 +250,7 @@ new MutationObserver(syncSideDot).observe($('sideCol'), { subtree: true, attribu
 function updateHello() {
   // 닉네임이 길면 닉네임만 …으로 줄이고 단계는 늘 보여요
   const nm = String(nickname || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  $('hello').innerHTML = nickname ? `<span class="nm">${nm}</span>님 · ${unlocked}단계 여행 중${myScore() ? ` · ${myScore().toLocaleString()}점` : ''}` : '';
+  $('hello').innerHTML = nickname ? `<span class="nm">${nm}</span>님 · ${unlocked}단계<span class="trip">&nbsp;여행 중</span>${myScore() ? ` · ${myScore().toLocaleString()}점` : ''}` : '';
 }
 // ---- 출석 선물: 하루에 처음 들어오면 하트 +1 (5개를 넘어도 받아요) ----
 function checkDaily() {

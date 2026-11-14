@@ -529,3 +529,6 @@ svg.crown { display: inline-block; vertical-align: -1px; margin-left: 3px; }
 .chatAct[hidden] { display: none; }
 .chatAct button { border: 1px solid #c9b99c; background: #fbf3e2; border-radius: 10px; font: inherit; font-size: calc(11px + var(--fd)); padding: 2px 8px; cursor: pointer; }
 .verLine a { color: var(--muted); }
+
+/* 좁은 폰: '여행 중'은 빼서 닉네임·단계·점수가 다 보이게 */
+@media (max-width: 400px) { .topLeft .hello .trip { display: none; } }

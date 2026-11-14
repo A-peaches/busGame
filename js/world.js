@@ -107,9 +107,17 @@ function renderWeatherLabel() {
 function startWeather() {
   const consent = store.get('busGame.geo', null);
   if (consent === 'yes' && navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      p => loadWeather({ lat: p.coords.latitude, lon: p.coords.longitude, name: '내 위치' }),
-      () => loadWeather(SEOUL), { timeout: 8000, maximumAge: 30 * 60000 });
+    // 위치를 기다리는 동안에도 날씨가 비지 않게 서울 날씨부터 보여 주고, 위치가 오면 바꿔요.
+    //   (앱에 따라 위치 요청이 대답 없이 멈추는 경우가 있어서 10초 뒤에는 그냥 서울로 둬요)
+    if (!weather.label) loadWeather(SEOUL);
+    let done = false;
+    const guard = setTimeout(() => { done = true; }, 10000);
+    try {
+      navigator.geolocation.getCurrentPosition(
+        p => { if (done) return; done = true; clearTimeout(guard); loadWeather({ lat: p.coords.latitude, lon: p.coords.longitude, name: '내 위치' }); },
+        () => { if (done) return; done = true; clearTimeout(guard); if (weather.place !== '서울' || !weather.label) loadWeather(SEOUL); },
+        { timeout: 8000, maximumAge: 30 * 60000 });
+    } catch (e) { loadWeather(SEOUL); }
   } else loadWeather(SEOUL);
 }
 function askLocation() {
@@ -332,7 +340,7 @@ function showSettings() {
       <span class="pickRow" id="fontPick"><button data-f="s">작게</button><button data-f="m">보통</button><button data-f="l">크게</button></span></div>
     <div class="setRow"><span>폰 알림 <small>(하트 · 쪽지 · 여행 알림)</small></span><label class="switch"><input type="checkbox" id="pushOn"><span></span></label></div>
     <div class="pushWhy" id="pushWhy"></div>
-    <div class="setRow"><span style="text-align:left">내 위치 날씨<br><small>끄면 서울 날씨로 보여요 · 위치는 저장하지 않아요</small></span><label class="switch"><input type="checkbox" id="geoOn"><span></span></label></div>
+    <div class="setRow"><span style="text-align:left">내 위치 날씨<br><small>OFF: 서울 날씨</small></span><label class="switch"><input type="checkbox" id="geoOn"><span></span></label></div>
     <div class="setRow"><span style="text-align:left">접속 상태 숨기기<br><small>친구에게 접속 중·마지막 접속을 안 보여요</small></span><label class="switch"><input type="checkbox" id="hideSeen"><span></span></label></div>
     <div class="setRow"><span>닉네임 · ${esc(nickname || '없음')}</span>
       <button class="btn alt mini" id="nickBtn">변경</button></div>

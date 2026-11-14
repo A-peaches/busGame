@@ -703,6 +703,16 @@ function drawQueueArea() {
   }
 }
 
+// 말풍선 안 가운데에 글자를 맞춰 써요. 아이폰 사파리는 fillText 의 '최대 폭'으로 줄일 때 글자가 오른쪽으로 밀려서,
+//   직접 재서 글자 크기를 줄이고 왼쪽 정렬로 가운데 자리에 써요
+function fitText(tx, cx, cy, maxW, fs, weight = 700) {
+  let size = fs;
+  ctx.font = `${weight} ${size}px MaruBuri, serif`;
+  let w = ctx.measureText(tx).width;
+  while (w > maxW && size > 8) { size -= 0.5; ctx.font = `${weight} ${size}px MaruBuri, serif`; w = ctx.measureText(tx).width; }
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(tx, cx - w / 2, cy);
+}
 // ---- 무지개비: 승객 구역에 무지개빛 빗방울이 촤르르 + 안내 띠 ----
 const RAIN_COLS = ['#f4a3bd', '#f5ae74', '#f6dd92', '#b4dc88', '#92d3c6', '#8dbbe0', '#bda6dc'];
 function drawRainbowRain(t) {
@@ -730,7 +740,7 @@ function drawRainbowRain(t) {
   ctx.fillStyle = 'rgba(255,253,248,.95)'; rr(bx, by, tw, fs + 14, (fs + 14) / 2); ctx.fill();
   ctx.strokeStyle = g; ctx.lineWidth = 2.5; ctx.stroke();
   ctx.fillStyle = '#5a4a3a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(tx, L.W / 2, by + (fs + 14) / 2 + 1, tw - 16);
+  fitText(tx, L.W / 2, by + (fs + 14) / 2 + 1, tw - 22, fs);
   ctx.restore();
 }
 
@@ -822,7 +832,7 @@ function draw() {
     ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke();
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#5a4a3a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(tx, L.W / 2, by + (fs + 12) / 2 + 1, tw - 22);
+    fitText(tx, L.W / 2, by + (fs + 12) / 2 + 1, tw - 24, fs);
   }
 
   const panelH = L.swH + L.sH + L.roadH + 8;

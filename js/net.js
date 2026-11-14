@@ -637,8 +637,17 @@ function sameKey(sub) {
   } catch (e) { /* 모르면 아래 기록으로 */ }
   return store.get('busGame.pushKey', '') === VAPID_PUBLIC;
 }
+// 안드로이드 앱(APK)은 새로 열 때마다 크롬이 알림 권한을 '아직 안 정함'으로 알려 줄 때가 있어요.
+//   전에 알림을 켜 둔 적이 있으면 폰에 다시 물어봐요 (폰 설정에서 허용돼 있으면 창 없이 바로 '허용'으로 와요)
+//   아이폰은 버튼을 누르지 않고 물으면 '거부'가 되니까 안드로이드 앱에서만 해요
+const appPermFix = () => IN_APP && !IS_IOS && Notification.permission === 'default' && store.get('busGame.push', false);
+async function refreshAppPerm() {
+  if (!appPermFix()) return;
+  try { await Promise.race([Notification.requestPermission(), new Promise(r => setTimeout(r, 5000))]); } catch (e) { /* 무시 */ }
+}
 async function pushState() {
   if (!pushSupported()) { setWhy('이 브라우저는 웹 알림을 지원하지 않아요'); return false; }
+  await refreshAppPerm();
   if (Notification.permission !== 'granted') { setWhy('알림 권한: ' + ({ default: '아직 안 정함', denied: '차단됨' }[Notification.permission] || Notification.permission)); return false; }
   try {
     const reg = await swReady();
@@ -662,7 +671,7 @@ async function enablePush(permP, silent) {
   permP = permP || (Notification.permission === 'granted' || silent ? Promise.resolve(Notification.permission) : Notification.requestPermission());
   if (!(await ensureAccount())) { setWhy('계정 연결 실패 (인터넷 확인)'); toast('인터넷 연결을 확인해 주세요'); return false; }
   const perm = await permP;
-  if (perm !== 'granted') { setWhy('알림 권한: ' + perm); if (!silent) { if (perm === 'denied') showPushBlocked(); else toast('알림이 허용되지 않았어요', 2000); } return false; }
+  if (perm !== 'granted') { setWhy('알림 권한: ' + perm); if (!silent) { if (perm === 'denied' || IN_APP) showPushBlocked(); else toast('알림이 허용되지 않았어요', 2000); } return false; }
   let step = '서비스 워커';
   try {
     const reg = await swReady();
@@ -702,7 +711,7 @@ function askReconnect() {
 //   켜고 싶으면 처음 닉네임 정할 때나 설정 → 폰 알림에서 켤 수 있어요.
 function askPushIfNeeded() {
   if (!nickname || !pushSupported()) return;
-  if (Notification.permission === 'granted') pushState();
+  if (Notification.permission === 'granted' || appPermFix()) pushState();
 }
 async function disablePush() {
   try {

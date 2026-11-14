@@ -332,6 +332,7 @@ function showSettings() {
       <span class="pickRow" id="fontPick"><button data-f="s">작게</button><button data-f="m">보통</button><button data-f="l">크게</button></span></div>
     <div class="setRow"><span>폰 알림 <small>(하트 · 쪽지 · 여행 알림)</small></span><label class="switch"><input type="checkbox" id="pushOn"><span></span></label></div>
     <div class="pushWhy" id="pushWhy"></div>
+    <div class="setRow"><span style="text-align:left">내 위치 날씨<br><small>끄면 서울 날씨로 보여요 · 위치는 저장하지 않아요</small></span><label class="switch"><input type="checkbox" id="geoOn"><span></span></label></div>
     <div class="setRow"><span style="text-align:left">접속 상태 숨기기<br><small>친구에게 접속 중·마지막 접속을 안 보여요</small></span><label class="switch"><input type="checkbox" id="hideSeen"><span></span></label></div>
     <div class="setRow"><span>닉네임 · ${esc(nickname || '없음')}</span>
       <button class="btn alt mini" id="nickBtn">변경</button></div>
@@ -381,6 +382,12 @@ function showSettings() {
   // 실제 상태를 확인해서 스위치를 맞추고, 꺼져 있으면 이유를 작게 보여 줘요
   const showWhy = on => { const w = q('#pushWhy'); if (w) w.textContent = on ? '' : (store.get('busGame.pushWhy', '') || ''); };
   if (typeof pushState === 'function') pushState().then(on => { const c = q('#pushOn'); if (c) c.checked = on; showWhy(on); });
+  q('#geoOn').checked = store.get('busGame.geo', null) === 'yes';
+  q('#geoOn').onchange = e => {
+    store.set('busGame.geo', e.target.checked ? 'yes' : 'no');
+    startWeather();                                       // 켜면 폰이 위치 허용을 물어봐요
+    toast(e.target.checked ? '내 위치 날씨를 불러올게요 📍' : '서울 날씨로 보여 드릴게요', 1600);
+  };
   q('#hideSeen').checked = !!settings.hideSeen;
   q('#hideSeen').onchange = e => { settings.hideSeen = e.target.checked; saveSettings(); if (typeof syncNow === 'function') syncNow(); toast(e.target.checked ? '친구에게 접속 상태를 숨겼어요' : '친구에게 접속 상태를 보여 줘요', 1600); };
   q('#pushOn').onchange = async e => {

@@ -217,11 +217,17 @@ canvas.addEventListener('pointerdown', e => {
   }
 
   const gx = (px - L.bx) / L.cs, gy = (py - L.by) / L.cs;
-  let hit = null;
+  // 손가락이 닿은 곳에서 가장 가까운 버스를 골라요.
+  //   (버스끼리 아주 붙어 있으면 누르기 쉬우라고 넓혀 둔 범위가 옆 버스와 겹쳐요.
+  //    예전엔 겹치면 목록 뒤쪽 버스가 뽑혀서, 분홍을 눌렀는데 옆의 갈색이 나가는 일이 있었어요 — 특히 자리 바꾸기 뒤)
+  let hit = null, best = Infinity;
   for (const v of S.vehicles) {
     if (v.state !== 'parked') continue;
     const a = axes(v.ang), dx = gx - v.cx, dy = gy - v.cy;
-    if (Math.abs(dx * a.ux + dy * a.uy) <= v.l / 2 + 0.08 && Math.abs(dx * a.vx + dy * a.vy) <= v.w / 2 + 0.14) hit = v;
+    const along = Math.abs(dx * a.ux + dy * a.uy) - v.l / 2, side = Math.abs(dx * a.vx + dy * a.vy) - v.w / 2;
+    if (along > 0.08 || side > 0.14) continue;
+    const out = Math.max(along, side);                  // 버스 안이면 음수, 가장자리 밖이면 벗어난 만큼
+    if (out < best) { best = out; hit = v; }
   }
   if (hit) tapVehicle(hit);
 });

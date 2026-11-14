@@ -53,3 +53,25 @@ else {
   }
 }
 requestAnimationFrame(loop);
+
+// 안드로이드 앱의 뒤로가기 버튼
+//   창이 떠 있으면 닫고(닫기 버튼이 있는 창만), 게임 중이면 '지도로 나갈까요?'를 묻고,
+//   지도 화면에서는 '한 번 더 누르면 앱을 닫아요' → 2초 안에 한 번 더 누르면 앱이 닫혀요
+if (typeof IN_APP !== 'undefined' && IN_APP && !IS_IOS) {
+  let armed = false, rearm = 0;
+  const arm = () => { if (armed) return; try { history.pushState({ meowBack: 1 }, ''); armed = true; } catch (e) { /* 무시 */ } };
+  arm();
+  addEventListener('popstate', () => {
+    armed = false;
+    clearTimeout(rearm);
+    if ($('overlay').classList.contains('show')) {
+      const x = $('card').querySelector('#ovClose');
+      if (x) x.click();                                   // 닉네임 정하기처럼 꼭 해야 하는 창은 안 닫아요
+      arm(); return;
+    }
+    if (S && !S.over) { $('homeBtn').click(); arm(); return; }
+    if (S) { showMenu(); arm(); return; }
+    toast('한 번 더 누르면 앱을 닫아요', 1800);
+    rearm = setTimeout(arm, 2000);                         // 2초 안에 또 누르면 그대로 앱이 닫혀요
+  });
+}

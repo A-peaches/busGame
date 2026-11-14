@@ -60,18 +60,19 @@ requestAnimationFrame(loop);
 if (typeof IN_APP !== 'undefined' && IN_APP && !IS_IOS) {
   let armed = false, rearm = 0;
   const arm = () => { if (armed) return; try { history.pushState({ meowBack: 1 }, ''); armed = true; } catch (e) { /* 무시 */ } };
-  arm();
+  // 크롬은 화면을 누르지 않고 만든 '뒤로가기 칸'은 건너뛰어요. 그래서 화면을 누를 때마다 칸을 준비해 둬요
+  addEventListener('pointerdown', () => { if (!rearm) arm(); }, true);
   addEventListener('popstate', () => {
     armed = false;
-    clearTimeout(rearm);
+    clearTimeout(rearm); rearm = 0;
     if ($('overlay').classList.contains('show')) {
       const x = $('card').querySelector('#ovClose');
       if (x) x.click();                                   // 닉네임 정하기처럼 꼭 해야 하는 창은 안 닫아요
-      arm(); return;
+      arm(); return;                                       // (화면을 한 번 누르면 크롬이 이 칸도 인정해 줘요)
     }
     if (S && !S.over) { $('homeBtn').click(); arm(); return; }
     if (S) { showMenu(); arm(); return; }
     toast('한 번 더 누르면 앱을 닫아요', 1800);
-    rearm = setTimeout(arm, 2000);                         // 2초 안에 또 누르면 그대로 앱이 닫혀요
+    rearm = setTimeout(() => { rearm = 0; }, 2000);        // 2초 안에 또 누르면 그대로 앱이 닫혀요(홈으로 나가요)
   });
 }

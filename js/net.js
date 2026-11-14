@@ -641,14 +641,16 @@ function sameKey(sub) {
 //   전에 알림을 켜 둔 적이 있으면 폰에 다시 물어봐요 (폰 설정에서 허용돼 있으면 창 없이 바로 '허용'으로 와요)
 //   아이폰은 버튼을 누르지 않고 물으면 '거부'가 되니까 안드로이드 앱에서만 해요
 const appPermFix = () => IN_APP && !IS_IOS && Notification.permission === 'default' && store.get('busGame.push', false);
+//   (앱에서는 '허용'이라고 대답해도 Notification.permission 값은 그대로 '아직 안 정함'일 때가 있어서 대답을 그대로 써요)
 async function refreshAppPerm() {
-  if (!appPermFix()) return;
-  try { await Promise.race([Notification.requestPermission(), new Promise(r => setTimeout(r, 5000))]); } catch (e) { /* 무시 */ }
+  if (!appPermFix()) return Notification.permission;
+  try { return (await Promise.race([Notification.requestPermission(), new Promise(r => setTimeout(() => r(Notification.permission), 5000))])) || Notification.permission; }
+  catch (e) { return Notification.permission; }
 }
 async function pushState() {
   if (!pushSupported()) { setWhy('이 브라우저는 웹 알림을 지원하지 않아요'); return false; }
-  await refreshAppPerm();
-  if (Notification.permission !== 'granted') { setWhy('알림 권한: ' + ({ default: '아직 안 정함', denied: '차단됨' }[Notification.permission] || Notification.permission)); return false; }
+  const perm = await refreshAppPerm();
+  if (perm !== 'granted') { setWhy('알림 권한: ' + ({ default: '아직 안 정함', denied: '차단됨' }[perm] || perm)); return false; }
   try {
     const reg = await swReady();
     let sub = await reg.pushManager.getSubscription();
@@ -661,7 +663,7 @@ async function pushState() {
       return true;
     }
   } catch (e) { setWhy('확인 실패 · ' + errText(e)); }
-  return enablePush(undefined, true);
+  return enablePush(Promise.resolve(perm), true);
 }
 async function enablePush(permP, silent) {
   if (!pushSupported()) { toast('이 브라우저는 폰 알림을 지원하지 않아요', 2400); return false; }

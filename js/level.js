@@ -95,7 +95,14 @@ function effectiveLevel(n) {
   return (tier - 1) * 3 + 1 + 2.5 + (n - 1) * 0.27;   // 기본 +2.5 (조금 더 어렵게 한 칸 올림)
 }
 
+// 플레이 기록을 보니 유난히 어려웠던 단계 (평균 10번 넘게 실패): 색 하나 줄이고 ❓ 버스를 줄여 다듬어요
+const EASE_LEVELS = new Set([35, 36, 39, 43, 52, 60]);
 function levelParams(n) {
+  const P = levelParams0(n);
+  if (EASE_LEVELS.has(n)) { P.colorCount = Math.max(3, P.colorCount - 1); P.hiddenChance *= 0.6; }
+  return P;
+}
+function levelParams0(n) {
   const e = effectiveLevel(n);
   // 단계 진행도 0(1단계) → 1(100단계): 같은 별이라도 뒤 단계일수록 최대치가 조금씩 열려서 계속 어려워져요
   const pr = Math.min(1, (n - 1) / 99);   // 100단계에서 최대치 (101단계부터는 주차장 크기 등은 그대로, 목숨 하트로 어려워져요)
@@ -160,9 +167,9 @@ function extractOrder(list, rng, drop) {
 }
 
 // ---- 점수: 적은 시도로 깰수록 높게 + 연속으로 깨면 콤보 보너스 ----
-//   1번 만에 1000 · 2번 800 · 3번 600 · 10번 안 400 · 그 밖 200
+//   만점 1000점에서 다시 할 때마다 50점씩 줄어요 (가장 낮아도 100점)
 //   콤보: 실패 없이 연달아 깬 판 수. 2연속부터 10%씩 더 (최대 +100%)
-const baseScore = tries => tries <= 1 ? 1000 : tries === 2 ? 800 : tries === 3 ? 600 : tries <= 10 ? 400 : 200;
+const baseScore = tries => Math.max(100, 1000 - 50 * (Math.max(1, tries) - 1));
 const comboBonus = combo => Math.min(10, Math.max(0, combo - 1)) * 0.1;
 const myScore = () => store.get('busGame.score', 0);
 
@@ -329,7 +336,7 @@ function startLevel(n, opts = {}) {
     ringOff: 0,         // 원이 돌아간 거리
     slots: new Array(MAX_SLOTS).fill(null), slotCount: BASE_SLOTS,
     flying: [], boardTimer: 0.6, liftMode: false, over: false, time: 0,
-    // 자리 추가: 모든 단계 기본 1개, 10번 실패하면 멍냥이의 응원으로 +1, 30번이면 +2 · 색 섞기: '매우 어려움'·'최고 난이도'에서만 1개
+    // 자리 추가: 모든 단계 기본 1개, 6번 실패하면 멍냥이의 응원으로 +1, 30번이면 +2 · 색 섞기: '매우 어려움'·'최고 난이도'에서만 1개
     boost: { slot: 1 + (opts.daily ? 0 : cheerLevel(allTries[tk] - 1)), lift: 1, mix: levelTier(n) >= 4 ? 1 : 0 },
     tries: allTries[tk], daily: opts.daily || 0, rush: 0, treeShake: 0,
     balloon: hasEvent(n, 'balloon') ? { left: BALLOON_EVERY } : null,

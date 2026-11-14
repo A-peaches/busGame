@@ -45,6 +45,12 @@ const newCode = () => {
   return s.slice(0, 4) + '-' + s.slice(4);
 };
 const cleanName = s => String(s || '').trim().slice(0, 10);
+// 욕설·비하 말 거르기 (닉네임은 막고, 채팅은 ♡로 가려요). 띄어쓰기·특수문자를 끼워 넣어도 걸러요
+const BAD_WORDS = ['씨발', '시발', '씨팔', 'ㅅㅂ', 'ㅆㅂ', '병신', 'ㅂㅅ', '븅신', '좆', 'ㅈㄹ', '지랄', '개새끼', '개새', '새끼', '쌔끼', 'ㅅㄲ', '미친놈', '미친년', '미친새', '닥쳐', '꺼져',
+  '엿먹', '애미', '애비', '느금', '니미', '니애미', '느개비', '섹스', '쎅스', '창녀', '걸레', '한남', '한녀', '틀딱', '장애인새', 'fuck', 'shit', 'bitch', 'sex'];
+const squash = s => String(s || '').toLowerCase().replace(/[\s.,_\-~!@#$%^&*()+=|\\/?<>'"`:;0-9]/g, '');
+const hasBad = s => { const t = squash(s); return BAD_WORDS.some(w => t.includes(w)); };
+const maskBad = s => { let out = String(s || ''); for (const w of BAD_WORDS) out = out.replace(new RegExp(w.split('').map(c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[\\s.,_\\-~!@#$%^&*()+=|/?<>\'"`:;0-9]*'), 'gi'), m => '♡'.repeat(Math.min(4, m.length))); return out; };
 const now = () => Date.now();
 
 export default {
@@ -82,6 +88,7 @@ async function handle(req, env, ctx) {
         if (await tooMany(env, 'nick:' + ipOf(req), 120, 3600000)) return slowDown();
         const me = await auth(req, env);
         const name = cleanName(url.searchParams.get('name'));
+        if (hasBad(name)) return json({ ok: false, bad: true });
         return json({ ok: !!name && !(await nickTaken(env, name, me && me.id)) });
       }
       if (path === '/register' && req.method === 'POST') {
@@ -93,6 +100,15 @@ async function handle(req, env, ctx) {
         const cut = (v, n) => String(v == null ? '' : v).slice(0, n);
         await env.DB.prepare('INSERT INTO errors (at, ver, level, msg, stack, ua) VALUES (?, ?, ?, ?, ?, ?)')
           .bind(now(), cut(body.ver, 10), body.level | 0, cut(body.msg, 300), cut(body.stack, 1200), cut(body.ua, 160)).run();
+        return json({ ok: true });
+      }
+      if (path === '/account/delete-by-backup' && req.method === 'POST') {             // 웹에서 계정 삭제 (백업 코드로 본인 확인)
+        if (await tooMany(env, 'del:' + ipOf(req), 10, 3600000)) return slowDown();
+        const raw = normBackup(body.code);
+        if (raw.length !== 12) return json({ error: '백업 코드를 확인해 주세요' }, 400);
+        const u = await env.DB.prepare('SELECT id FROM users WHERE backup_hash = ?').bind(await sha256(raw)).first();
+        if (!u) return json({ error: '그 백업 코드를 찾을 수 없어요' }, 404);
+        await deleteAccount(env, u.id);
         return json({ ok: true });
       }
       if (path === '/restore' && req.method === 'POST') {
@@ -126,6 +142,17 @@ async function handle(req, env, ctx) {
         return requestFriend(env, ctx, user, body);
       }
       if (path === '/friends/suggest' && req.method === 'GET') return suggestFriend(env, user);
+      if (path === '/account/delete' && req.method === 'POST') { await deleteAccount(env, user.id); return json({ ok: true }); }
+      if (path === '/chat/report' && req.method === 'POST') {
+        if (await tooMany(env, 'rep:' + user.id, 20, 3600000)) return slowDown();
+        return reportChat(env, ctx, user, body);
+      }
+      if (path === '/block' && req.method === 'POST') return blockUser(env, user, body);
+      if (path === '/chat/delete' && req.method === 'POST') {                          // 관리자만: 채팅 글 지우기
+        if (user.id !== env.OWNER_ID) return json({ error: 'forbidden' }, 403);
+        await env.DB.prepare('DELETE FROM chat WHERE id = ?').bind(body.id | 0).run();
+        return json({ ok: true });
+      }
       if (path === '/clear' && req.method === 'POST') {
         if (await tooMany(env, 'clr:' + user.id, 60, 3600000)) return slowDown();
         return saveClear(env, user, body);
@@ -180,6 +207,7 @@ async function nickTaken(env, name, selfId) {
 }
 async function register(env, body) {
   const id = hex(8), token = hex(24), nickname = cleanName(body.nickname);
+  if (hasBad(nickname)) return json({ error: '쓸 수 없는 말이 들어 있어요', taken: true }, 409);
   if (await nickTaken(env, nickname)) return json({ error: '이미 있는 닉네임이에요', taken: true }, 409);
   for (let i = 0; i < 5; i++) {
     const code = newCode();
@@ -212,6 +240,7 @@ async function restore(env, body) {
 
 async function sync(env, user, body, ctx) {
   let nickname = body.nickname !== undefined ? cleanName(body.nickname) : user.nickname;
+  if (hasBad(nickname)) nickname = user.nickname;      // 나쁜 말이 든 닉네임으로는 바꿀 수 없어요
   let nickTakenNow = false;
   if (nickname !== user.nickname && await nickTaken(env, nickname, user.id)) { nickname = user.nickname; nickTakenNow = true; }   // 이미 있는 닉네임이면 바꾸지 않아요
   const unlocked = Math.min(150, user.unlocked + 5, Math.max(user.unlocked, body.unlocked | 0));   // 한 번에 5단계 넘게 뛰지 않게
@@ -367,7 +396,9 @@ async function suggestFriend(env, user) {
 }
 // ---- 단계 랭킹 (친구끼리): 가장 적은 시도로 깬 기록만 남겨요. 같은 시도면 먼저 깬 사람이 앞
 async function saveClear(env, user, body) {
-  const level = body.level | 0, tries = body.tries | 0, score = Math.max(0, Math.min(2000, body.score | 0));
+  const level = body.level | 0, tries = body.tries | 0;
+  const base = Math.max(100, 1000 - 50 * (Math.max(1, tries) - 1));               // 게임과 같은 계산 (만점 1000, 다시 할 때마다 -50)
+  const score = Math.max(0, Math.min(base * 2, body.score | 0));                   // 콤보로 늘어나도 2배까지만
   if (level < 1 || level > 150 || tries < 1 || tries > 9999 || level > (user.unlocked || 1)) return json({ error: 'bad' }, 400);
   // 시도 수는 가장 적은 것, 점수는 가장 높은 것을 남겨요 (같은 시도면 먼저 깬 기록이 순위에 남아요)
   await env.DB.prepare(`INSERT INTO clears (user_id, level, tries, at, score) VALUES (?1, ?2, ?3, ?4, ?5)
@@ -561,15 +592,63 @@ async function listChat(env, user, after) {   // env.OWNER_ID 의 글에는 관�
   const sent = new Set((await env.DB.prepare('SELECT to_id FROM friend_requests WHERE from_id = ?').bind(user.id).all()).results.map(x => x.to_id));
   return json({ messages: results.map(r => ({ id: r.id, nickname: r.nickname, body: r.body, at: r.at, mine: r.user_id === user.id,
     level: lv[r.user_id] || 0, medal: top.indexOf(r.user_id) + 1,
-    uid: r.user_id === user.id ? '' : r.user_id, friend: fr.has(r.user_id), sent: sent.has(r.user_id), admin: r.user_id === env.OWNER_ID })), now: now() });
+    uid: r.user_id === user.id ? '' : r.user_id, friend: fr.has(r.user_id), sent: sent.has(r.user_id), admin: r.user_id === env.OWNER_ID })), now: now(), iAmAdmin: user.id === env.OWNER_ID });
 }
 async function sendChat(env, user, body) {
   const text = String(body.text || '').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX);
   if (!text) return json({ error: '내용을 적어 주세요' }, 400);
   if (!user.nickname) return json({ error: '닉네임을 먼저 정해 주세요' }, 400);
+  if ((user.muted_until || 0) > now()) return json({ error: '신고가 많아 잠시 채팅을 쓸 수 없어요' }, 403);
   const r = await env.DB.prepare('INSERT INTO chat (user_id, nickname, body, at) VALUES (?, ?, ?, ?) RETURNING id')
-    .bind(user.id, user.nickname, text, now()).first();
+    .bind(user.id, user.nickname, maskBad(text), now()).first();
   return json({ ok: true, id: r && r.id });
+}
+
+// ---- 계정 삭제: 이 사람의 모든 기록을 지워요 (구글 정책: 앱 안·웹에서 지울 수 있어야 해요) ----
+async function deleteAccount(env, id) {
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM friends WHERE a = ?1 OR b = ?1').bind(id),
+    env.DB.prepare('DELETE FROM friend_requests WHERE from_id = ?1 OR to_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM gifts WHERE from_id = ?1 OR to_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM letters WHERE from_id = ?1 OR to_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM notes WHERE user_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM blocks WHERE a = ?1 OR b = ?1').bind(id),
+    env.DB.prepare('DELETE FROM chat WHERE user_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM chat_reports WHERE reporter = ?1 OR target = ?1').bind(id),
+    env.DB.prepare('DELETE FROM clears WHERE user_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM daily_clears WHERE user_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM inquiries WHERE user_id = ?1').bind(id),
+    env.DB.prepare('DELETE FROM users WHERE id = ?1').bind(id),
+  ]);
+}
+// ---- 채팅 신고: 한 글에 3명이 신고하면 숨기고, 그 사람은 하루 동안 채팅 금지. 신고가 오면 운영자에게 알려요 ----
+async function reportChat(env, ctx, user, body) {
+  const m = await env.DB.prepare('SELECT id, user_id, nickname, body FROM chat WHERE id = ?').bind(body.id | 0).first();
+  if (!m || m.user_id === user.id) return json({ ok: true });
+  await env.DB.prepare('INSERT OR IGNORE INTO chat_reports (chat_id, reporter, target, at) VALUES (?, ?, ?, ?)').bind(m.id, user.id, m.user_id, now()).run();
+  const c = await env.DB.prepare('SELECT COUNT(*) AS c FROM chat_reports WHERE chat_id = ?').bind(m.id).first();
+  if (c && c.c >= 3) {
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM chat WHERE id = ?').bind(m.id),
+      env.DB.prepare('UPDATE users SET muted_until = ? WHERE id = ?').bind(now() + DAY, m.user_id),
+    ]);
+  }
+  if (env.OWNER_ID) {
+    const owner = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(env.OWNER_ID).first();
+    if (owner) ctx.waitUntil(notify(env, owner, '🚨 채팅 신고가 들어왔어요', `${m.nickname}: ${String(m.body).slice(0, 60)}`));
+  }
+  return json({ ok: true });
+}
+// 채팅에서 바로 차단 (친구였으면 친구도 끊겨요). 서로의 채팅이 안 보여요
+async function blockUser(env, user, body) {
+  const id = String(body.id || '');
+  if (!/^[0-9a-f]{16}$/.test(id) || id === user.id) return json({ error: '잘못된 요청이에요' }, 400);
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM friends WHERE (a = ?1 AND b = ?2) OR (a = ?2 AND b = ?1)').bind(user.id, id),
+    env.DB.prepare('DELETE FROM friend_requests WHERE (from_id = ?1 AND to_id = ?2) OR (from_id = ?2 AND to_id = ?1)').bind(user.id, id),
+    env.DB.prepare('INSERT OR IGNORE INTO blocks (a, b, created) VALUES (?, ?, ?)').bind(user.id, id, now()),
+  ]);
+  return json({ ok: true });
 }
 
 // 친구 삭제(양쪽 다 끊어요) / 차단(삭제 + 다시 친구가 될 수 없게)
@@ -654,6 +733,7 @@ async function cleanUp(env) {
     env.DB.prepare('DELETE FROM throttle WHERE reset < ?').bind(now()),
     env.DB.prepare('DELETE FROM chat WHERE at < ?').bind(now() - 3 * DAY),
     env.DB.prepare('DELETE FROM errors WHERE at < ?').bind(now() - 14 * DAY),
+    env.DB.prepare('DELETE FROM chat_reports WHERE at < ?').bind(now() - 7 * DAY),
   ]);
 }
 

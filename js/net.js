@@ -21,8 +21,9 @@ async function api(path, data) {
 }
 
 // 닉네임을 쓸 수 있는지 서버에 물어봐요 (인터넷이 안 되면 일단 통과, 서버가 다시 막아요)
+let nickBad = false;   // 마지막으로 확인한 닉네임에 쓸 수 없는 말이 들어 있었는지
 async function nickAvailable(name) {
-  try { return (await api('/nick/check?name=' + encodeURIComponent(name))).ok; } catch (e) { return e.status === 429 ? false : true; }
+  try { const r = await api('/nick/check?name=' + encodeURIComponent(name)); nickBad = !!r.bad; return r.ok; } catch (e) { nickBad = false; return e.status === 429 ? false : true; }
 }
 async function ensureAccount() {
   if (acct) return acct;
@@ -479,7 +480,8 @@ async function showDaily() {
 const CROWN = '<svg class="crown" viewBox="0 0 18 14" width="15" height="12" aria-label="관리자"><path d="M2 12 L1 3.5 L5.5 7 L9 1.5 L12.5 7 L17 3.5 L16 12Z" fill="#f6d76b" stroke="#a8842c" stroke-width="1.1" stroke-linejoin="round"/><circle cx="9" cy="8.6" r="1.2" fill="#e8768e"/><path d="M2.4 12 H15.6" stroke="#a8842c" stroke-width="1.1"/></svg>';
 // 사람 + 작은 더하기: 친구 요청 아이콘
 const IC_ADDFRIEND = '<svg viewBox="0 0 20 16" width="16" height="13" aria-hidden="true"><g stroke="#6b5a48" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="5" r="3" fill="#fbf3e2"/><path d="M1.5 15 C1.8 11 4 9.4 7 9.4 C10 9.4 12.2 11 12.5 15Z" fill="#fbf3e2"/><path d="M16 4.5 V10.5 M13 7.5 H19" fill="none" stroke="#e8768e" stroke-width="1.8"/></g></svg>';
-const chatSent = new Set();   // 이번에 채팅에서 친구 요청을 보낸 사람
+const chatSent = new Set();
+let chatAdmin = false;   // 관리자면 채팅 글을 지울 수 있어요   // 이번에 채팅에서 친구 요청을 보낸 사람
 async function showChat() {
   setChatBadge(0);
   const card = $('card');
@@ -509,7 +511,25 @@ async function showChat() {
       const addBtn = !m.mine && m.uid && !m.friend
         ? (m.sent || chatSent.has(m.uid) ? `<span class="chatReq sent">요청함</span>`
           : `<button class="chatReq" data-uid="${esc(m.uid)}" data-name="${esc(m.nickname)}" aria-label="친구 요청">${IC_ADDFRIEND}</button>`) : '';
-      el.innerHTML = `${m.mine ? (tag || m.admin ? `<b class="meTag">${m.admin ? CROWN : ''}${tag}</b>` : '') : `<b>${esc(m.nickname)}${m.admin ? CROWN : ''}${tag}${addBtn}</b>`}<span class="bubble">${esc(m.body)}</span><small>${fmtClock(m.at)}</small>`;
+      const more = (!m.mine && m.uid) || chatAdmin ? `<button class="chatMore" aria-label="신고·차단">⋯</button>` : '';
+      el.innerHTML = `${m.mine ? (tag || m.admin ? `<b class="meTag">${m.admin ? CROWN : ''}${tag}</b>` : '') : `<b>${esc(m.nickname)}${m.admin ? CROWN : ''}${tag}${addBtn}</b>`}<span class="bubble">${esc(m.body)}</span><small>${fmtClock(m.at)}</small>${more}
+        <div class="chatAct" hidden>${!m.mine && m.uid ? `<button data-act="report">🚨 신고</button><button data-act="block">🚫 차단</button>` : ''}${chatAdmin ? `<button data-act="del">🗑 지우기</button>` : ''}</div>`;
+      el.dataset.id = m.id; if (m.uid) el.dataset.uid = m.uid;
+      const mb = el.querySelector('.chatMore');
+      if (mb) mb.onclick = () => { const a = el.querySelector('.chatAct'); a.hidden = !a.hidden; };
+      el.querySelectorAll('.chatAct button').forEach(b => b.onclick = async () => {
+        const act = b.dataset.act;
+        try {
+          if (act === 'report') { await api('/chat/report', { id: m.id }); toast('신고했어요. 확인할게요 🙏', 1800); }
+          if (act === 'block') {
+            await api('/block', { id: m.uid });
+            box.querySelectorAll(`.chatMsg[data-uid="${m.uid}"]`).forEach(x => x.remove());
+            toast(`${m.nickname}님을 차단했어요. 이제 서로의 글이 안 보여요`, 2200);
+          }
+          if (act === 'del') { await api('/chat/delete', { id: m.id }); el.remove(); toast('글을 지웠어요', 1400); }
+        } catch (e) { toast('다시 시도해 주세요', 1600); }
+        const a = el.querySelector('.chatAct'); if (a) a.hidden = true;
+      });
       const rb = el.querySelector('button.chatReq');
       if (rb) rb.onclick = async () => {
         rb.disabled = true;
@@ -526,7 +546,7 @@ async function showChat() {
   };
   const poll = async () => {
     if (!chatOpen || !$('overlay').classList.contains('show') || !card.contains(box)) { stop(); return; }
-    if (!document.hidden) try { add((await api('/chat?after=' + chatLast)).messages); } catch (e) { /* 잠깐 끊겨도 다음에 다시 */ }
+    if (!document.hidden) try { const res = await api('/chat?after=' + chatLast); chatAdmin = !!res.iAmAdmin; add(res.messages); } catch (e) { /* 잠깐 끊겨도 다음에 다시 */ }
     if (chatOpen) chatTimer = setTimeout(poll, document.hidden ? 15000 : 4000);   // 4초마다 새 글 확인
   };
   await poll();

@@ -521,3 +521,11 @@ svg.crown { display: inline-block; vertical-align: -1px; margin-left: 3px; }
 .sideToggle { position: relative; }   /* 다른 동그란 버튼과 같은 크기 */
 .sideToggle .dot { display: none; position: absolute; top: -1px; right: -1px; width: 10px; height: 10px; border-radius: 50%; background: #e8768e; border: 1px solid #fff8ec; }
 .sideToggle.hasDot .dot { display: block; }
+
+/* 채팅: 글마다 ⋯ → 신고·차단(관리자는 지우기) */
+.chatMsg { position: relative; }
+.chatMore { border: none; background: none; color: var(--muted); font-size: calc(14px + var(--fd)); padding: 0 4px; cursor: pointer; vertical-align: middle; }
+.chatAct { display: flex; gap: 6px; margin: 2px 0 4px; }
+.chatAct[hidden] { display: none; }
+.chatAct button { border: 1px solid #c9b99c; background: #fbf3e2; border-radius: 10px; font: inherit; font-size: calc(11px + var(--fd)); padding: 2px 8px; cursor: pointer; }
+.verLine a { color: var(--muted); }

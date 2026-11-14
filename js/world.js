@@ -294,7 +294,7 @@ function showNickname(first) {
     const btn = card.querySelector('#nickOk'); btn.disabled = true;
     const free = typeof nickAvailable === 'function' ? await nickAvailable(v) : true;
     btn.disabled = false;
-    if (!free) { toast('이미 있는 닉네임이에요. 다른 닉네임을 정해 주세요', 2400); inp.focus(); inp.select(); return; }
+    if (!free) { toast(nickBad ? '쓸 수 없는 말이 들어 있어요. 다른 닉네임을 정해 주세요' : '이미 있는 닉네임이에요. 다른 닉네임을 정해 주세요', 2400); inp.focus(); inp.select(); return; }
     nickname = v;
     store.set('busGame.nickname', v);
     updateHello();
@@ -338,9 +338,12 @@ function showSettings() {
     <div class="setRow"><span>개발자 1:1 문의</span><button class="btn alt mini" id="askBtn">💬 문의하기</button></div>
     <div class="setRow"><span>백업 코드</span>
       <span style="display:flex;gap:6px"><button class="btn alt mini" id="backupBtn">만들기</button><button class="btn alt mini" id="restoreBtn">불러오기</button></span></div>
+    <div class="setRow"><span>계정 삭제</span><button class="btn alt mini" id="delAcctBtn">지우기</button></div>
+    <p class="verLine"><a href="privacy.html" target="_blank" rel="noopener">개인정보처리방침</a></p>
     ${X_BTN}
     <p class="verLine">버전 ${APP_VER}${typeof appMode === 'function' ? ' · ' + appMode() : ''}</p>`;
   card.querySelector('#nickBtn').onclick = () => showNickname(false);
+  card.querySelector('#delAcctBtn').onclick = () => showDeleteAccount();
   card.querySelector('#backupBtn').onclick = () => showBackup();
   card.querySelector('#askBtn').onclick = () => showInquiry(showSettings);
   card.querySelector('#restoreBtn').onclick = () => showRestore(false);
@@ -390,6 +393,25 @@ function showSettings() {
 }
 
 // 단계 원을 눌렀을 때 뜨는 팝업
+// 계정 삭제: 한 번 더 묻고, 서버의 모든 기록과 이 기기의 기록을 지워요
+function showDeleteAccount() {
+  const card = $('card');
+  card.innerHTML = `<h2>계정 삭제</h2>
+    <p>정말 지울까요?<br><b>단계·점수·별·하트·친구·쪽지</b>가 모두 사라지고<br>되돌릴 수 없어요.</p>
+    <button class="btn" id="delYes" style="background:#f3c2c2">네, 모두 지울게요</button>
+    <button class="btn alt" id="delNo">아니요</button>`;
+  card.querySelector('#delNo').onclick = () => showSettings();
+  card.querySelector('#delYes').onclick = async e => {
+    e.target.disabled = true;
+    try { if (acct) await api('/account/delete', {}); }
+    catch (err) { e.target.disabled = false; toast('지우지 못했어요. 인터넷을 확인해 주세요', 2200); return; }
+    try { Object.keys(localStorage).filter(k => k.startsWith('busGame')).forEach(k => localStorage.removeItem(k)); } catch (x) { /* 무시 */ }
+    try { const reg = await navigator.serviceWorker.getRegistration(); const sub = reg && await reg.pushManager.getSubscription(); if (sub) await sub.unsubscribe(); } catch (x) { /* 무시 */ }
+    toast('계정을 지웠어요. 그동안 고마웠어요 🐾', 2000);
+    setTimeout(() => location.replace(location.pathname), 1500);
+  };
+  $('overlay').classList.add('show');
+}
 function showLevelPopup(n) {
   const tier = TIERS[levelTier(n)];
   const card = $('card');

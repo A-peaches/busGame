@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>계정 삭제 · 멍냥이의 버스여행</title>
+<style>
+  :root { --ink: #4a3b2c; --muted: #8a7a68; --line: #d8cbb4; }
+  body { margin: 0; background: #f6eedd; color: var(--ink); font: 15px/1.7 "MaruBuri", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+  main { max-width: 520px; margin: 0 auto; padding: 28px 18px 60px; }
+  h1 { font-size: 22px; margin: 0 0 10px; }
+  .box { background: #fffaf1; border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; margin: 14px 0; }
+  input { width: 100%; box-sizing: border-box; font: inherit; font-size: 18px; letter-spacing: 2px; text-align: center; padding: 10px; border: 1px solid var(--line); border-radius: 12px; text-transform: uppercase; }
+  button { width: 100%; margin-top: 10px; font: inherit; font-weight: 700; padding: 11px; border-radius: 14px; border: 1px solid var(--line); background: #f3c2c2; color: var(--ink); cursor: pointer; }
+  button:disabled { opacity: .5; }
+  .muted { color: var(--muted); font-size: 13px; }
+  #msg { margin-top: 10px; font-weight: 700; }
+  a { color: #b06a3a; }
+</style>
+</head>
+<body>
+<main>
+  <h1>계정 삭제</h1>
+  <p>멍냥이의 버스여행 계정과 모든 기록(닉네임, 단계·점수·별, 하트, 친구, 쪽지, 채팅, 문의)을 지워요. <b>지우면 되돌릴 수 없어요.</b></p>
+
+  <div class="box">
+    <b>방법 1 · 게임 안에서 (가장 쉬워요)</b><br>
+    게임 → 설정 → <b>계정 삭제</b> → 지우기
+  </div>
+
+  <div class="box">
+    <b>방법 2 · 여기서 백업 코드로</b><br>
+    <span class="muted">게임을 지웠거나 폰을 바꿨다면, 게임에서 만들어 둔 백업 코드(XXXX-XXXX-XXXX)를 넣어 주세요.</span>
+    <input id="code" maxlength="14" placeholder="XXXX-XXXX-XXXX" autocomplete="off">
+    <button id="go">계정과 모든 기록 지우기</button>
+    <div id="msg"></div>
+  </div>
+
+  <div class="box">
+    <b>백업 코드가 없다면</b><br>
+    <span class="muted">게임 안 <b>설정 → 개발자 1:1 문의</b>에 "계정 삭제"라고 남겨 주시면 확인 후 지워 드려요.</span>
+  </div>
+
+  <p class="muted"><a href="privacy.html">개인정보처리방침 보기</a></p>
+</main>
+<script>
+  const msg = document.getElementById('msg'), btn = document.getElementById('go');
+  btn.onclick = async () => {
+    const code = document.getElementById('code').value.trim();
+    if (code.replace(/[^0-9a-z]/gi, '').length !== 12) { msg.textContent = '백업 코드 12자리를 넣어 주세요'; return; }
+    if (!window.confirm('정말 지울까요? 되돌릴 수 없어요.')) return;
+    btn.disabled = true; msg.textContent = '지우는 중…';
+    try {
+      const r = await fetch('https://meow-bus-api.bbhtodo.workers.dev/account/delete-by-backup', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }),
+      });
+      const j = await r.json().catch(() => ({}));
+      msg.textContent = r.ok ? '계정과 모든 기록을 지웠어요. 그동안 고마웠어요 🐾' : (j.error || '지우지 못했어요. 잠시 뒤 다시 해 주세요');
+      if (!r.ok) btn.disabled = false;
+    } catch (e) { msg.textContent = '인터넷 연결을 확인해 주세요'; btn.disabled = false; }
+  };
+</script>
+</body>
+</html>

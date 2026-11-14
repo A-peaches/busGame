@@ -641,10 +641,16 @@ function sameKey(sub) {
 //   그래서 앱에서는 권한 값만 보고 끄지 않고, 실제 알림 구독이 있는지로 판단해요.
 //   (들어올 때마다 권한을 다시 묻지는 않아요: 대답 없이 자꾸 물으면 크롬이 한동안 묻기를 막아요)
 const ANDROID_APP = () => IN_APP && !IS_IOS;
+// 앱에서 알림이 안 될 때 원인을 찾으려고: 어떤 브라우저가 앱을 띄웠는지, 크롬이 보는 권한이 뭔지 작게 붙여요
+const diag = () => {
+  if (!ANDROID_APP()) return '';
+  const ua = navigator.userAgent, m = ua.match(/(SamsungBrowser|EdgA|Firefox|OPR|Whale|Chrome)\/(\d+)/);
+  return ' · ' + (m ? m[1] + ' ' + m[2] : 'browser?') + ' · ' + Notification.permission;
+};
 async function pushState() {
   if (!pushSupported()) { setWhy('이 브라우저는 웹 알림을 지원하지 않아요'); return false; }
   const perm = Notification.permission;
-  const permWhy = () => setWhy('알림 권한: ' + ({ default: '아직 안 정함', denied: '차단됨' }[perm] || perm));
+  const permWhy = () => setWhy('알림 권한: ' + ({ default: '아직 안 정함', denied: '차단됨' }[perm] || perm) + diag());
   if (perm !== 'granted' && !(ANDROID_APP() && perm === 'default')) { permWhy(); return false; }
   try {
     const reg = await swReady();
@@ -669,8 +675,7 @@ async function enablePush(permP, silent) {
   permP = permP || (Notification.permission === 'granted' || silent ? Promise.resolve(Notification.permission) : Notification.requestPermission());
   if (!(await ensureAccount())) { setWhy('계정 연결 실패 (인터넷 확인)'); toast('인터넷 연결을 확인해 주세요'); return false; }
   const perm = await permP;
-  // 앱에서는 '아직 안 정함'이어도 폰 설정에서 허용돼 있으면 구독이 돼요. 일단 연결해 봐요
-  if (perm !== 'granted' && !(ANDROID_APP() && perm === 'default' && !silent)) { setWhy('알림 권한: ' + perm); if (!silent) { if (perm === 'denied' || IN_APP) showPushBlocked(); else toast('알림이 허용되지 않았어요', 2000); } return false; }
+  if (perm !== 'granted') { setWhy('알림 권한: ' + perm + diag()); if (!silent) { if (perm === 'denied' || IN_APP) showPushBlocked(); else toast('알림이 허용되지 않았어요', 2000); } return false; }
   let step = '서비스 워커';
   try {
     const reg = await swReady();
